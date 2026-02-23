@@ -245,8 +245,7 @@ export const getProductById = asyncHandler(
 
     const product = await Product.findOne(query)
       .populate("category", "name")
-      .populate("subcategory", "subcategoryName")
-      .populate("headerCategoryId", "name slug")
+      .populate("subcategory", "name")
       .populate("brand", "name")
       .populate("tax", "name rate");
 
@@ -392,8 +391,7 @@ export const updateProduct = asyncHandler(
     // Re-populate for response
     const populatedProduct = await Product.findById(product._id)
       .populate("category", "name")
-      .populate("subcategory", "subcategoryName")
-      .populate("headerCategoryId", "name slug")
+      .populate("subcategory", "name")
       .populate("brand", "name")
       .populate("tax", "name rate");
 

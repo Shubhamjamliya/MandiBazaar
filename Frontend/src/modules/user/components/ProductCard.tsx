@@ -99,8 +99,8 @@ export default function ProductCard({
         showToast('Removed from wishlist');
       } else {
         if (!location?.latitude || !location?.longitude) {
-           showToast('Location is required to add items to wishlist', 'error');
-           return;
+          showToast('Location is required to add items to wishlist', 'error');
+          return;
         }
         // Optimistic update
         setIsWishlisted(true);
@@ -123,7 +123,29 @@ export default function ProductCard({
   const inCartQty = cartItem?.quantity || 0;
 
   // Get Price and MRP using utility
-  const { displayPrice, mrp, discount } = calculateProductPrice(product);
+  let { displayPrice, mrp, discount } = calculateProductPrice(product);
+
+  // Fallback for weight-mode products where top-level price may be 0 (legacy save)
+  const isWeightMode = (product as any).sellingUnit === 'weight';
+  const weightVariants: any[] = (product as any).weightVariants || [];
+  if (isWeightMode && (!displayPrice || displayPrice === 0) && weightVariants.length > 0) {
+    const enabled = weightVariants.filter((v: any) => v.isEnabled);
+    const sorted = [...enabled].sort((a: any, b: any) => a.grams - b.grams);
+    const withPrice = sorted.filter((v: any) => Number(v.price) > 0);
+    const entry = withPrice[0] || sorted[sorted.length - 1];
+    if (entry) {
+      displayPrice = Number(entry.price) || 0;
+      if (Number(entry.mrp) > 0) mrp = Number(entry.mrp);
+    }
+  }
+  // Pack label for weight products: show smallest priced variant label
+  const weightPackLabel = isWeightMode && weightVariants.length > 0
+    ? (() => {
+      const enabled = weightVariants.filter((v: any) => v.isEnabled && Number(v.price) > 0);
+      const sorted = [...enabled].sort((a: any, b: any) => a.grams - b.grams);
+      return sorted[0]?.label || '';
+    })()
+    : '';
 
   const handleCardClick = () => {
     navigate(`/product/${((product as any).id || product._id) as string}`);
@@ -316,11 +338,10 @@ export default function ProductCard({
                       e.stopPropagation();
                       handleAdd(e);
                     }}
-                    className={`w-full border rounded-full font-semibold text-xs h-7 px-3 flex items-center justify-center uppercase tracking-wide ${
-                      product.isAvailable === false
+                    className={`w-full border rounded-full font-semibold text-xs h-7 px-3 flex items-center justify-center uppercase tracking-wide ${product.isAvailable === false
                       ? 'border-neutral-300 text-neutral-400 bg-neutral-50 cursor-not-allowed'
                       : 'border-green-600 text-green-600 bg-transparent hover:bg-green-50'
-                    }`}
+                      }`}
                   >
                     {product.isAvailable === false ? 'Out of Range' : 'ADD'}
                   </Button>
@@ -351,9 +372,8 @@ export default function ProductCard({
                     e.stopPropagation();
                     handleIncrease(e);
                   }}
-                  className={`w-5 h-5 p-0 bg-transparent text-green-600 shadow-none ${
-                    product.isAvailable === false ? 'text-neutral-300 cursor-not-allowed' : 'hover:bg-green-50'
-                  }`}
+                  className={`w-5 h-5 p-0 bg-transparent text-green-600 shadow-none ${product.isAvailable === false ? 'text-neutral-300 cursor-not-allowed' : 'hover:bg-green-50'
+                    }`}
                   aria-label="Increase quantity"
                 >
                   +
@@ -368,9 +388,9 @@ export default function ProductCard({
             // Category Style Layout: Quantity, Name, Time, % off, Price
             <>
               {/* 1. Quantity */}
-              {!showPackBadge && (product.pack || product.variations?.[0]?.value) && (
+              {!showPackBadge && (weightPackLabel || product.pack || product.variations?.[0]?.value) && (
                 <p className="text-[9px] text-neutral-600 mb-0.5 leading-tight">
-                  {product.variations?.[0]?.value || product.pack}
+                  {weightPackLabel || product.variations?.[0]?.value || product.pack}
                 </p>
               )}
 
@@ -424,7 +444,7 @@ export default function ProductCard({
             <>
               {!showPackBadge && (
                 <p className={`${compact ? 'text-[10px] md:text-xs' : 'text-xs md:text-sm'} text-neutral-500 mb-1`}>
-                    {product.variations?.[0]?.value || product.pack}
+                  {weightPackLabel || product.variations?.[0]?.value || product.pack}
                 </p>
               )}
 
@@ -485,11 +505,10 @@ export default function ProductCard({
                   size="sm"
                   disabled={product.isAvailable === false}
                   onClick={handleAdd}
-                  className={`w-full border h-8 text-xs font-semibold uppercase tracking-wide ${
-                    product.isAvailable === false
+                  className={`w-full border h-8 text-xs font-semibold uppercase tracking-wide ${product.isAvailable === false
                     ? 'border-neutral-300 text-neutral-400 bg-neutral-50 cursor-not-allowed'
                     : 'border-green-600 text-green-600 hover:bg-green-50'
-                  }`}
+                    }`}
                 >
                   {product.isAvailable === false ? 'Out of Range' : 'Add'}
                 </Button>
@@ -515,9 +534,8 @@ export default function ProductCard({
                   size="icon"
                   disabled={product.isAvailable === false}
                   onClick={handleIncrease}
-                  className={`w-6 h-6 p-0 bg-transparent text-green-600 shadow-none ${
-                    product.isAvailable === false ? 'text-neutral-300 cursor-not-allowed' : 'hover:bg-green-50'
-                  }`}
+                  className={`w-6 h-6 p-0 bg-transparent text-green-600 shadow-none ${product.isAvailable === false ? 'text-neutral-300 cursor-not-allowed' : 'hover:bg-green-50'
+                    }`}
                   aria-label="Increase quantity"
                 >
                   +

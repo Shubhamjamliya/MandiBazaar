@@ -28,7 +28,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   // Scroll to top on route change (except home page which handles its own scroll)
   useEffect(() => {
     const isHomePage = location.pathname === '/' || location.pathname === '/user/home';
-    
+
     if (!isHomePage) {
       if (mainRef.current) {
         mainRef.current.scrollTop = 0;
@@ -266,45 +266,50 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
           {/* Sticky Header - Show on search page and other non-home pages, excluding account page */}
           {(showHeader || isSearchPage) && (
-            <header className="sticky top-0 z-50 bg-white shadow-sm md:shadow-md md:top-[60px]">
+            <header className="sticky top-0 z-50 bg-gradient-to-r from-emerald-600 to-green-700 shadow-lg md:top-[60px]">
               {/* Delivery info line */}
-              <div className="px-4 md:px-6 lg:px-8 py-1.5 bg-green-50 text-xs text-green-700 text-center">
-                Delivering in 10–15 mins
+              <div className="px-4 md:px-6 lg:px-8 py-2 bg-black/10 backdrop-blur-sm text-[10px] uppercase tracking-wider font-black text-emerald-50 text-center">
+                ✨ Delivering fresh in 10–15 mins
               </div>
 
               {/* Location line - only show if user has provided location */}
               {userLocation && (userLocation.address || userLocation.city) && (
-                <div className="px-4 md:px-6 lg:px-8 py-2 flex items-center justify-between text-sm">
-                  <span className="text-neutral-700 line-clamp-1" title={userLocation?.address || ''}>
-                    {userLocation?.address
-                      ? userLocation.address.length > 50
-                        ? `${userLocation.address.substring(0, 50)}...`
-                        : userLocation.address
-                      : userLocation?.city && userLocation?.state
-                        ? `${userLocation.city}, ${userLocation.state}`
+                <div className="px-4 md:px-6 lg:px-8 py-3 flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="p-1 bg-white/20 rounded-md">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 10C21 17 12 23 12 23C12 23 3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <span className="text-white font-bold truncate" title={userLocation?.address || ''}>
+                      {userLocation?.address
+                        ? userLocation.address.length > 40
+                          ? `${userLocation.address.substring(0, 40)}...`
+                          : userLocation.address
                         : userLocation?.city || ''}
-                  </span>
+                    </span>
+                  </div>
                   <button
                     onClick={() => setShowLocationChangeModal(true)}
-                    className="text-blue-600 font-medium hover:text-blue-700 transition-colors flex-shrink-0 ml-2"
+                    className="bg-white/20 hover:bg-white/30 text-white text-xs font-black px-3 py-1.5 rounded-lg backdrop-blur-md transition-all border border-white/10 ml-2"
                   >
-                    Change
+                    CHANGE
                   </button>
                 </div>
               )}
 
               {/* Search bar - Hidden on Order Again page */}
               {showSearchBar && (
-                <div className="px-4 md:px-6 lg:px-8 pb-3">
-                  <div className="relative max-w-2xl md:mx-auto">
+                <div className="px-4 md:px-6 lg:px-8 pb-4">
+                  <div className="relative max-w-2xl md:mx-auto group">
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => handleSearchChange(e.target.value)}
                       placeholder="Search for products..."
-                      className="w-full px-4 py-2.5 pl-10 bg-neutral-50 border border-neutral-200 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent md:py-3"
+                      className="w-full px-4 py-3 pl-10 bg-white shadow-xl shadow-black/5 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-yellow-400 border-none transition-all"
                     />
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">🔍</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 transition-transform group-focus-within:scale-110">🔍</span>
                   </div>
                 </div>
               )}
@@ -319,7 +324,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 initial={{ x: 300, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: -300, opacity: 0 }}
-                transition={{ 
+                transition={{
                   type: "tween",
                   ease: "easeInOut",
                   duration: 0.3

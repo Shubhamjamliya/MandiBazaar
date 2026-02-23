@@ -60,7 +60,7 @@ export interface IProduct extends Document {
   // Product Details
   manufacturer?: string;
   madeIn?: string;
-  tax?: string;
+  tax?: mongoose.Types.ObjectId | any;
   fssaiLicNo?: string;
   totalAllowedQuantity?: number;
 
@@ -272,8 +272,8 @@ const ProductSchema = new Schema<IProduct>(
       trim: true,
     },
     tax: {
-      type: String,
-      trim: true,
+      type: Schema.Types.ObjectId,
+      ref: "Tax",
     },
     fssaiLicNo: {
       type: String,
@@ -377,10 +377,12 @@ ProductSchema.pre("save", function (next) {
   if (this.sellingUnit === 'weight' && this.weightVariants && this.weightVariants.length > 0) {
     const enabledVariants = this.weightVariants.filter((v: any) => v.isEnabled);
     if (enabledVariants.length > 0) {
-      // price = lowest-weight enabled variant price (entry-level price shown on card)
+      // Sort ascending by grams; pick lowest-gram variant that has price > 0 as entry price
       const sorted = [...enabledVariants].sort((a: any, b: any) => a.grams - b.grams);
-      this.price = sorted[0].price;
-      if (sorted[0].mrp) this.compareAtPrice = sorted[0].mrp;
+      const withPrice = sorted.filter((v: any) => Number(v.price) > 0);
+      const entry = withPrice.length > 0 ? withPrice[0] : sorted[sorted.length - 1];
+      this.price = Number(entry.price) || 0;
+      if (Number(entry.mrp) > 0) this.compareAtPrice = Number(entry.mrp);
     }
     // total stock = sum of all enabled variant stocks
     this.stock = this.weightVariants

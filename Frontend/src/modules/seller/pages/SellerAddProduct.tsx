@@ -164,14 +164,14 @@ export default function SellerAddProduct() {
           if (response.success && response.data) {
             const product = response.data;
             setFormData({
-              productName: product.productName,
+              productName: product.productName || "",
               category: (product.category as any)?._id || product.categoryId || "",
               subcategory: (product.subcategory as any)?._id || product.subcategoryId || "",
               publish: product.publish ? "Yes" : "No",
               popular: product.popular ? "Yes" : "No",
               dealOfDay: product.dealOfDay ? "Yes" : "No",
               brand: (product.brand as any)?._id || product.brandId || "",
-              tags: product.tags.join(", "),
+              tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
               smallDescription: product.smallDescription || "",
               seoTitle: product.seoTitle || "",
               seoKeywords: product.seoKeywords || "",
@@ -496,9 +496,9 @@ export default function SellerAddProduct() {
                             <button
                               type="button"
                               onClick={() => updateWeightVariant(idx, "isEnabled", !v.isEnabled)}
-                              className={`w-10 h-6 rounded-full relative transition-colors duration-200 ${v.isEnabled ? "bg-teal-500" : "bg-neutral-300"}`}
+                              className={`w-9 h-5 rounded-full relative transition-colors duration-200 border ${v.isEnabled ? "bg-teal-500 border-teal-500" : "bg-neutral-300 border-neutral-300"}`}
                             >
-                              <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${v.isEnabled ? "translate-x-5" : "translate-x-1"}`} />
+                              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${v.isEnabled ? "translate-x-4" : "translate-x-0"}`} />
                             </button>
                           </div>
 

@@ -53,7 +53,7 @@ export default function SimpleBanner({ banners }: BannerProps) {
   }, [displayBanners.length]);
 
   return (
-    <div className="px-4 pt-3 pb-4 bg-gradient-to-br from-green-50 to-emerald-50">
+    <div className="px-4 pt-5 pb-4 bg-gradient-to-br from-green-50 to-emerald-50">
       {/* Horizontal Scrollable Container */}
       <div
         ref={scrollContainerRef}

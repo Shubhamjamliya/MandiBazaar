@@ -299,7 +299,7 @@ export default function Home() {
       <HomsterHeader />
 
       {/* Spacer for fixed header */}
-      <div className="h-[120px]"></div>
+      <div className="h-[140px]"></div>
 
       {/* Hero Banner - Show promo banners from backend */}
       {!activeInlineCategory && <SimpleBanner banners={homeData.promoBanners} />}
