@@ -40,6 +40,7 @@ export default function ProductDetail() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number>(0);
+  const [selectedWeightIndex, setSelectedWeightIndex] = useState<number>(0); // for weight-mode products
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -130,13 +131,27 @@ export default function ProductDetail() {
     fetchProduct();
   }, [id, location?.latitude, location?.longitude]);
 
-  // Get selected variant
-  const selectedVariant = product?.variations?.[selectedVariantIndex] || null;
-  const { displayPrice: variantPrice, mrp: variantMrp, discount, hasDiscount } = calculateProductPrice(product, selectedVariantIndex);
+  // Weight mode: get selected weight variant
+  const isWeightMode = product?.sellingUnit === 'weight';
+  const enabledWeightVariants = (product?.weightVariants || []).filter((v: any) => v.isEnabled);
+  const selectedWeightVariant = enabledWeightVariants[selectedWeightIndex] || null;
 
-  const variantStock = selectedVariant?.stock !== undefined ? selectedVariant.stock : (product?.stock || 0);
-  const variantTitle = selectedVariant?.title || selectedVariant?.value || product?.pack || "Standard";
-  const isVariantAvailable = selectedVariant?.status !== "Sold out" && (variantStock > 0 || variantStock === 0); // 0 means unlimited
+  // Get selected variant (quantity mode)
+  const selectedVariant = (!isWeightMode && product?.variations?.[selectedVariantIndex]) || null;
+  const { displayPrice: variantPrice, mrp: variantMrp, discount, hasDiscount } = calculateProductPrice(
+    isWeightMode && selectedWeightVariant
+      ? { ...product, price: selectedWeightVariant.price, compareAtPrice: selectedWeightVariant.mrp || selectedWeightVariant.price }
+      : product,
+    isWeightMode ? 0 : selectedVariantIndex
+  );
+
+  const variantStock = isWeightMode
+    ? (selectedWeightVariant?.stock ?? 0)
+    : (selectedVariant?.stock !== undefined ? selectedVariant.stock : (product?.stock || 0));
+  const variantTitle = isWeightMode
+    ? (selectedWeightVariant?.label || '')
+    : (selectedVariant?.title || selectedVariant?.value || product?.pack || "Standard");
+  const isVariantAvailable = variantStock > 0 || variantStock === 0; // 0 = unlimited in quantity mode
 
   // Get all images for gallery
   const allImages = product?.allImages || [product?.imageUrl || ""].filter(Boolean);
@@ -248,25 +263,39 @@ export default function ProductDetail() {
 
   const handleAddToCart = () => {
     if (!isAvailableAtLocation) {
-      // Show alert if trying to add item outside delivery area
       alert("This product is not available for delivery at your location.");
       return;
     }
-    if (!isVariantAvailable && variantStock !== 0) {
-      alert("This variant is currently out of stock.");
-      return;
+    if (isWeightMode) {
+      if (!selectedWeightVariant) { alert("Please select a weight."); return; }
+      if (selectedWeightVariant.stock !== undefined && selectedWeightVariant.stock <= 0) {
+        alert("This weight variant is out of stock."); return;
+      }
+      const productWithWeight = {
+        ...product,
+        price: selectedWeightVariant.price,
+        mrp: selectedWeightVariant.mrp || selectedWeightVariant.price,
+        pack: selectedWeightVariant.label,
+        variantTitle: selectedWeightVariant.label,
+        variantId: `wv_${selectedWeightVariant.label}`,
+        selectedWeightVariant: selectedWeightVariant,
+      };
+      addToCart(productWithWeight, addButtonRef.current);
+    } else {
+      if (!isVariantAvailable && variantStock !== 0) {
+        alert("This variant is currently out of stock."); return;
+      }
+      const productWithVariant = {
+        ...product,
+        price: variantPrice,
+        mrp: variantMrp,
+        pack: variantTitle,
+        selectedVariant: selectedVariant,
+        variantId: selectedVariant?._id,
+        variantTitle: variantTitle,
+      };
+      addToCart(productWithVariant, addButtonRef.current);
     }
-    // Create product with selected variant info
-    const productWithVariant = {
-      ...product,
-      price: variantPrice,
-      mrp: variantMrp,
-      pack: variantTitle,
-      selectedVariant: selectedVariant,
-      variantId: selectedVariant?._id,
-      variantTitle: variantTitle,
-    };
-    addToCart(productWithVariant, addButtonRef.current);
   };
 
   return (
@@ -474,8 +503,8 @@ export default function ProductDetail() {
                         setTimeout(() => setIsTransitioning(false), 300);
                       }}
                       className={`w-2 h-2 rounded-full transition-all ${index === selectedImageIndex
-                          ? "bg-white w-6"
-                          : "bg-white/50 hover:bg-white/75"
+                        ? "bg-white w-6"
+                        : "bg-white/50 hover:bg-white/75"
                         }`}
                       aria-label={`Go to image ${index + 1}`}
                     />
@@ -505,8 +534,8 @@ export default function ProductDetail() {
                       setTimeout(() => setIsTransitioning(false), 300);
                     }}
                     className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${index === selectedImageIndex
-                        ? "border-green-600 ring-2 ring-green-200"
-                        : "border-neutral-200 hover:border-neutral-300"
+                      ? "border-green-600 ring-2 ring-green-200"
+                      : "border-neutral-200 hover:border-neutral-300"
                       }`}>
                     <img
                       src={image}
@@ -555,8 +584,37 @@ export default function ProductDetail() {
             {product.name}
           </h2>
 
-          {/* Variant Selection - Only show if multiple variants */}
-          {product.variations && product.variations.length > 1 && (
+          {/* Weight Variant Picker — shown only for weight-mode products */}
+          {isWeightMode && enabledWeightVariants.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-neutral-500 mb-2 uppercase tracking-wider">Select Weight</p>
+              <div className="flex flex-wrap gap-2">
+                {enabledWeightVariants.map((wv: any, idx: number) => {
+                  const outOfStock = wv.stock !== undefined && wv.stock !== null && wv.stock <= 0;
+                  const isSelected = idx === selectedWeightIndex;
+                  return (
+                    <button
+                      key={wv.label}
+                      onClick={() => setSelectedWeightIndex(idx)}
+                      disabled={outOfStock}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border-2 ${isSelected
+                          ? 'border-green-600 bg-green-50 text-green-700 shadow-sm'
+                          : outOfStock
+                            ? 'border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                            : 'border-neutral-300 bg-white text-neutral-700 hover:border-green-500 hover:bg-green-50'
+                        }`}
+                    >
+                      {wv.label}
+                      {outOfStock && <span className="ml-1 text-[10px] font-normal">(Out of stock)</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Standard Variant Selection — quantity mode only */}
+          {!isWeightMode && product.variations && product.variations.length > 1 && (
             <div className="mb-2">
               <label className="block text-xs md:text-sm font-medium text-neutral-700 mb-1.5">
                 Select {product.variationType || "Variant"}:
@@ -573,10 +631,10 @@ export default function ProductDetail() {
                       onClick={() => setSelectedVariantIndex(index)}
                       disabled={isOutOfStock}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border-2 ${isSelected
-                          ? "border-green-600 bg-green-50 text-green-700"
-                          : isOutOfStock
-                            ? "border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed"
-                            : "border-neutral-300 bg-white text-neutral-700 hover:border-green-500 hover:bg-green-50"
+                        ? "border-green-600 bg-green-50 text-green-700"
+                        : isOutOfStock
+                          ? "border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed"
+                          : "border-neutral-300 bg-white text-neutral-700 hover:border-green-500 hover:bg-green-50"
                         }`}>
                       {variantTitle}
                       {isOutOfStock && (
@@ -1266,8 +1324,8 @@ export default function ProductDetail() {
                     onClick={handleAddToCart}
                     disabled={!isAvailableAtLocation || (!isVariantAvailable && variantStock !== 0)}
                     className={`px-6 py-2 text-sm font-semibold h-[36px] ${!isAvailableAtLocation || (!isVariantAvailable && variantStock !== 0)
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
                       }`}
                     title={
                       !isAvailableAtLocation

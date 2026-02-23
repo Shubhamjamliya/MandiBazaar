@@ -21,7 +21,8 @@ interface Category {
   id?: string;
   _id?: string;
   name: string;
-  subcategories?: { products?: RawProduct[] }[];
+  products?: RawProduct[];                         // direct category products
+  subcategories?: { products?: RawProduct[] }[];   // subcategory products
 }
 
 interface CategoryProductSliderProps {
@@ -49,10 +50,21 @@ export default function CategoryProductSlider({ category }: CategoryProductSlide
 
   const categoryId = category.id || category._id || "";
 
-  // Flatten all products from all subcategories
-  const products = (category.subcategories || [])
-    .flatMap((sub) => (sub.products || []).map(normalizeProduct))
-    .filter(Boolean);
+  // Collect products from subcategories
+  const subcatProducts = (category.subcategories || []).flatMap(
+    (sub) => (sub.products || []).map(normalizeProduct)
+  );
+
+  // Also collect any direct-category products (no subcategory)
+  const directProducts = (category.products || []).map(normalizeProduct);
+
+  // Merge and deduplicate by id
+  const seen = new Set<string>();
+  const products = [...subcatProducts, ...directProducts].filter((p) => {
+    if (!p.id || seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  });
 
   if (products.length === 0) return null;
 

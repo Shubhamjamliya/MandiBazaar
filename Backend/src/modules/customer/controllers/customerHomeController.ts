@@ -378,17 +378,80 @@ export const getHomeContent = async (req: Request, res: Response) => {
           })
         );
 
+        // Also fetch products that belong directly to the category (no subcategory assigned)
+        const directProductQuery: any = {
+          status: "Active",
+          publish: true,
+          category: category._id,
+          $or: [
+            { subcategory: { $exists: false } },
+            { subcategory: null },
+          ],
+          $and: [
+            {
+              $or: [
+                { isShopByStoreOnly: { $ne: true } },
+                { isShopByStoreOnly: { $exists: false } },
+              ],
+            },
+          ],
+        };
+
+        // Apply location filter for direct products too
+        if (nearbySellerIds && nearbySellerIds.length > 0) {
+          (directProductQuery as any).seller = { $in: nearbySellerIds };
+        }
+
+        const directProducts = await Product.find(directProductQuery)
+          .sort({ createdAt: -1 })
+          .limit(20)
+          .select("productName mainImage price mrp discount rating reviewsCount pack seller")
+          .lean();
+
+        const mappedDirectProducts = directProducts.map((p: any) => {
+          const isAvailable = nearbySellerIds && nearbySellerIds.length > 0 && p.seller
+            ? nearbySellerIds.some(id => id.toString() === p.seller.toString())
+            : false;
+          return {
+            id: p._id.toString(),
+            productId: p._id.toString(),
+            name: p.productName,
+            productName: p.productName,
+            image: p.mainImage,
+            mainImage: p.mainImage,
+            price: p.price,
+            mrp: p.mrp,
+            discount: p.discount || (p.mrp && p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0),
+            rating: p.rating || 0,
+            reviewsCount: p.reviewsCount || 0,
+            pack: p.pack || "",
+            isAvailable,
+            seller: p.seller,
+          };
+        });
+
+        // Combine: subcategory products + direct-category products (as a virtual subcategory)
+        const allSubcats = subcatsWithProducts.filter(s => s.products.length > 0);
+        if (mappedDirectProducts.length > 0) {
+          allSubcats.push({
+            id: `${category._id.toString()}_direct`,
+            name: category.name,
+            image: category.image || "",
+            products: mappedDirectProducts,
+          });
+        }
+
         return {
           id: category._id.toString(),
           name: category.name,
           slug: category.slug,
           image: category.image || "",
-          subcategories: subcatsWithProducts.filter(s => s.products.length > 0),
+          subcategories: allSubcats,
         };
       })
     );
 
-    // Filter out categories with no subcategories that have products
+    // Filter out categories that have no products at all (no subcategory products AND no direct products)
     const filteredHierarchy = categoryHierarchy.filter(c => c.subcategories.length > 0);
 
     // Fetch active banners and group by type

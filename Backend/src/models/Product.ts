@@ -39,6 +39,18 @@ export interface IProduct extends Document {
     status?: string;
   }>;
 
+  // Selling Unit Mode
+  sellingUnit?: 'weight' | 'quantity';
+  pricePerKg?: number; // base price per 1 KG (weight mode)
+  weightVariants?: Array<{
+    label: string;    // '1 KG' | '500 GM' | '250 GM' | '100 GM'
+    grams: number;   // 1000 | 500 | 250 | 100
+    price: number;
+    mrp: number;
+    stock: number;
+    isEnabled: boolean;
+  }>;
+
   // Status Flags
   publish: boolean;
   popular: boolean;
@@ -207,6 +219,30 @@ const ProductSchema = new Schema<IProduct>(
       default: [],
     },
 
+    // Selling Unit Mode
+    sellingUnit: {
+      type: String,
+      enum: ['weight', 'quantity'],
+      default: 'quantity',
+    },
+    pricePerKg: {
+      type: Number,
+      min: 0,
+    },
+    weightVariants: {
+      type: [
+        {
+          label: { type: String, required: true },  // '1 KG', '500 GM', etc.
+          grams: { type: Number, required: true },  // 1000, 500, 250, 100
+          price: { type: Number, required: true },
+          mrp: { type: Number, default: 0 },
+          stock: { type: Number, default: 0 },
+          isEnabled: { type: Boolean, default: true },
+        },
+      ],
+      default: [],
+    },
+
     // Status Flags
     publish: {
       type: Boolean,
@@ -337,14 +373,25 @@ ProductSchema.virtual("mrp").get(function () {
 
 // Calculate discount and sync stock/price from variations before saving
 ProductSchema.pre("save", function (next) {
-  // Sync price and stock from variations if they exist
-  if (this.variations && this.variations.length > 0) {
-    // Set price to the price of the first variation if top-level price is not set or if we want to keep it in sync
+  // Weight mode: sync price and total stock from weightVariants
+  if (this.sellingUnit === 'weight' && this.weightVariants && this.weightVariants.length > 0) {
+    const enabledVariants = this.weightVariants.filter((v: any) => v.isEnabled);
+    if (enabledVariants.length > 0) {
+      // price = lowest-weight enabled variant price (entry-level price shown on card)
+      const sorted = [...enabledVariants].sort((a: any, b: any) => a.grams - b.grams);
+      this.price = sorted[0].price;
+      if (sorted[0].mrp) this.compareAtPrice = sorted[0].mrp;
+    }
+    // total stock = sum of all enabled variant stocks
+    this.stock = this.weightVariants
+      .filter((v: any) => v.isEnabled)
+      .reduce((acc: number, v: any) => acc + (Number(v.stock) || 0), 0);
+  }
+  // Quantity mode: Sync price and stock from variations if they exist
+  else if (this.variations && this.variations.length > 0) {
     if (this.variations[0].price !== undefined) {
       this.price = this.variations[0].price;
     }
-
-    // Calculate total stock as sum of all variation stocks
     this.stock = this.variations.reduce(
       (acc: number, curr: any) => acc + (Number(curr.stock) || 0),
       0
