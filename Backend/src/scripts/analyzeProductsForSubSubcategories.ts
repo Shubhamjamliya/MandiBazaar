@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import Category from "../models/Category";
-import HeaderCategory from "../models/HeaderCategory";
 
 // Explicitly load .env from backend root
 dotenv.config({ path: path.join(__dirname, "../../.env") });
@@ -211,22 +210,8 @@ async function analyzeProducts() {
     await mongoose.connect(MONGO_URI);
     console.log("Connected to MongoDB");
 
-    // Find Grocery header category
-    const headerCategory = await HeaderCategory.findOne({
-      $or: [{ name: "Grocery" }, { slug: "grocery" }],
-    });
-
-    if (!headerCategory) {
-      console.log('❌ Header category "Grocery" not found.');
-      process.exit(1);
-    }
-
-    console.log(`Found header category: ${headerCategory.name}\n`);
-
     // Find all sub-subcategories (categories with parentId that is a subcategory)
     const allSubcategories = await Category.find({
-      headerCategoryId: headerCategory._id,
-      parentId: { $ne: null },
       status: "Active",
     });
 
@@ -234,11 +219,11 @@ async function analyzeProducts() {
     const subSubcategories: any[] = [];
     for (const subcategory of allSubcategories) {
       const children = await Category.find({
-        parentId: subcategory._id,
+        parentId: (subcategory as any)._id,
         status: "Active",
       });
       for (const child of children) {
-        const parentCategory = await Category.findById(subcategory.parentId);
+        const parentCategory = await Category.findById((subcategory as any).parentId);
         subSubcategories.push({
           _id: child._id,
           name: child.name,

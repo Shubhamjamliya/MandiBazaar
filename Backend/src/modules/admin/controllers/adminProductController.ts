@@ -248,7 +248,7 @@ export const updateCategoryOrder = asyncHandler(
 export const toggleCategoryStatus = asyncHandler(
   async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { status, cascadeToChildren } = req.body;
+    const { status } = req.body;
 
     if (!["Active", "Inactive"].includes(status)) {
       return res.status(400).json({

@@ -23,7 +23,6 @@ export const createProduct = asyncHandler(
     const newProductData: any = {
       ...productData,
       seller: sellerId,
-      headerCategoryId: productData.headerCategoryId,
       category: productData.categoryId,
       subcategory: productData.subcategoryId,
       brand: productData.brandId,
@@ -84,7 +83,6 @@ export const createProduct = asyncHandler(
     }
 
     // 5. Clean up undefined fields
-    if (!newProductData.headerCategoryId) delete newProductData.headerCategoryId;
     if (!newProductData.subcategory) delete newProductData.subcategory;
     if (!newProductData.brand) delete newProductData.brand;
 
@@ -280,9 +278,7 @@ export const updateProduct = asyncHandler(
     delete updateData.sellerId;
 
     // Map frontend field names to model field names (same as createProduct)
-    if (updateData.headerCategoryId !== undefined) {
-      updateData.headerCategoryId = updateData.headerCategoryId || null;
-    }
+    // Clean up unnecessary fields
     if (updateData.categoryId) {
       updateData.category = updateData.categoryId;
       delete updateData.categoryId;

@@ -29,7 +29,7 @@ interface CategoryProductSliderProps {
   category: Category;
 }
 
-function normalizeProduct(p: RawProduct) {
+function normalizeProduct(p: RawProduct, categoryId: string) {
   return {
     ...p,
     id: p._id || p.id || "",
@@ -41,6 +41,12 @@ function normalizeProduct(p: RawProduct) {
       .trim(),
     imageUrl: p.mainImage || p.imageUrl || "",
     pack: p.pack || p.variations?.[0]?.title || p.smallDescription || "Standard",
+    categoryId: p.categoryId || categoryId,
+    price: p.price || 0,
+    variations: p.variations?.map((v: any) => ({
+      ...v,
+      price: v.price || p.price || 0,
+    })),
   };
 }
 
@@ -52,11 +58,11 @@ export default function CategoryProductSlider({ category }: CategoryProductSlide
 
   // Collect products from subcategories
   const subcatProducts = (category.subcategories || []).flatMap(
-    (sub) => (sub.products || []).map(normalizeProduct)
+    (sub) => (sub.products || []).map((p) => normalizeProduct(p, categoryId))
   );
 
   // Also collect any direct-category products (no subcategory)
-  const directProducts = (category.products || []).map(normalizeProduct);
+  const directProducts = (category.products || []).map((p) => normalizeProduct(p, categoryId));
 
   // Merge and deduplicate by id
   const seen = new Set<string>();

@@ -6,7 +6,7 @@ import Shop from "../../../models/Shop";
  * Create a new shop
  */
 export const createShop = asyncHandler(async (req: Request, res: Response) => {
-    const { name, storeId, image, description, headerCategoryId, category, subCategory, subSubCategory, products, order, isActive } = req.body;
+    const { name, storeId, image, description, category, subCategory, subSubCategory, products, order, isActive } = req.body;
 
     if (!name || !image) {
         return res.status(400).json({
@@ -32,7 +32,6 @@ export const createShop = asyncHandler(async (req: Request, res: Response) => {
         storeId: finalStoreId,
         image,
         description,
-        headerCategoryId: headerCategoryId || undefined,
         category: category || undefined,
         subCategory: subCategory || undefined,
         subSubCategory: subSubCategory || undefined,
@@ -80,7 +79,6 @@ export const getAllShops = asyncHandler(async (req: Request, res: Response) => {
     }
 
     const shops = await Shop.find(query)
-        .populate('headerCategoryId', 'name')
         .populate('category', 'name')
         .populate('subCategory', 'subcategoryName')
         .populate('subSubCategory', 'name')
@@ -101,7 +99,6 @@ export const getShopById = asyncHandler(async (req: Request, res: Response) => {
 
     const shop = await Shop.findById(id)
         .populate("products")
-        .populate('headerCategoryId', 'name')
         .populate('category', 'name')
         .populate('subCategory', 'subcategoryName')
         .populate('subSubCategory', 'name');
@@ -143,11 +140,10 @@ export const updateShop = asyncHandler(async (req: Request, res: Response) => {
         new: true,
         runValidators: true,
     })
-    .populate("products")
-    .populate('headerCategoryId', 'name')
-    .populate('category', 'name')
-    .populate('subCategory', 'subcategoryName')
-    .populate('subSubCategory', 'name');
+        .populate("products")
+        .populate('category', 'name')
+        .populate('subCategory', 'subcategoryName')
+        .populate('subSubCategory', 'name');
 
     if (!shop) {
         return res.status(404).json({
@@ -167,19 +163,19 @@ export const updateShop = asyncHandler(async (req: Request, res: Response) => {
  * Delete shop
  */
 export const deleteShop = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+    const { id } = req.params;
 
-  const shop = await Shop.findByIdAndDelete(id);
+    const shop = await Shop.findByIdAndDelete(id);
 
-  if (!shop) {
-    return res.status(404).json({
-      success: false,
-      message: "Shop not found",
+    if (!shop) {
+        return res.status(404).json({
+            success: false,
+            message: "Shop not found",
+        });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: "Shop deleted successfully",
     });
-  }
-
-  return res.status(200).json({
-    success: true,
-    message: "Shop deleted successfully",
-  });
 });

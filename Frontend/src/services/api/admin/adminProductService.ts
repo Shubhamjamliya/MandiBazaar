@@ -16,6 +16,12 @@ export interface Category {
   createdAt?: string;
   updatedAt?: string;
   commissionRate?: number;
+  parentId?: string | null;
+  parent?: string | { _id: string; name: string };
+  children?: Category[];
+  childrenCount?: number;
+  headerCategory?: string | { _id: string; name: string };
+  headerCategoryId?: string | null;
 }
 
 export interface CreateCategoryData {

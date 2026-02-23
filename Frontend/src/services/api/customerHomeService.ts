@@ -5,6 +5,7 @@ export interface HomeContentResponse {
   success: boolean;
   data: {
     bestsellers: any[];
+    bestsellerProducts: any[];
     lowestPrices?: any[];
     categories: any[];
     categoryHierarchy?: any[]; // Category → Subcategory → Product hierarchy

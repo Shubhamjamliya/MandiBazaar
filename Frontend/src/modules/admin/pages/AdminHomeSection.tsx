@@ -82,6 +82,21 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
         }
     }, [title, editingId]);
 
+    const fetchSections = async () => {
+        try {
+            setLoadingSections(true);
+            const response = await getHomeSections();
+            if (response.success && Array.isArray(response.data)) {
+                setSections(response.data);
+            }
+        } catch (err) {
+            console.error("Error fetching sections:", err);
+            setError("Failed to fetch home sections");
+        } finally {
+            setLoadingSections(false);
+        }
+    };
+
     const fetchCategories = async () => {
         try {
             const response = await getCategories();

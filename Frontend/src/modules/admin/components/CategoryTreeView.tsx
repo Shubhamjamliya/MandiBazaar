@@ -165,38 +165,6 @@ export default function CategoryTreeView({
                           {category.status}
                         </span>
 
-                        {/* Header Category Badge */}
-                        {category.headerCategory ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            {typeof category.headerCategory === "string"
-                              ? category.headerCategory
-                              : category.headerCategory.name}
-                          </span>
-                        ) : category.headerCategoryId ? (
-                          (() => {
-                            // Handle headerCategoryId - could be string, object (populated), or null
-                            let headerName = "Unknown";
-                            if (
-                              typeof category.headerCategoryId === "object" &&
-                              category.headerCategoryId !== null
-                            ) {
-                              // It's populated, get the name
-                              headerName =
-                                (category.headerCategoryId as { name?: string })
-                                  .name || "Unknown";
-                            } else if (
-                              typeof category.headerCategoryId === "string"
-                            ) {
-                              // It's just an ID, show last 6 chars
-                              headerName = category.headerCategoryId.slice(-6);
-                            }
-                            return (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                Header: {headerName}
-                              </span>
-                            );
-                          })()
-                        ) : null}
 
                         {/* Children Count Badge */}
                         {hasChildren && (

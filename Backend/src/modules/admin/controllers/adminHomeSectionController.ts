@@ -8,7 +8,6 @@ export const getHomeSections = async (_req: Request, res: Response) => {
         const sections = await HomeSection.find()
             .populate("categories", "name slug image")
             .populate("subCategories", "name")
-            .populate("headerCategory", "name")
             .sort({ order: 1 })
             .lean();
 
@@ -40,7 +39,6 @@ export const getHomeSectionById = async (req: Request, res: Response) => {
         const section = await HomeSection.findById(id)
             .populate("categories", "name slug image")
             .populate("subCategories", "name")
-            .populate("headerCategory", "name")
             .lean();
 
         if (!section) {
@@ -66,7 +64,7 @@ export const getHomeSectionById = async (req: Request, res: Response) => {
 // Create new home section
 export const createHomeSection = async (req: Request, res: Response) => {
     try {
-        const { title, slug, headerCategory, categories, subCategories, displayType, columns, limit, order, isActive } = req.body;
+        const { title, slug, categories, subCategories, displayType, columns, limit, order, isActive } = req.body;
 
         // Validate required fields
         if (!title || !slug || !displayType) {
@@ -95,7 +93,6 @@ export const createHomeSection = async (req: Request, res: Response) => {
         const newSection = new HomeSection({
             title,
             slug,
-            headerCategory: headerCategory || undefined,
             categories: categories || [],
             subCategories: subCategories || [],
             displayType,
@@ -111,7 +108,6 @@ export const createHomeSection = async (req: Request, res: Response) => {
         const populatedSection = await HomeSection.findById(newSection._id)
             .populate("categories", "name slug image")
             .populate("subCategories", "name")
-            .populate("headerCategory", "name")
             .lean();
 
         return res.status(201).json({
@@ -132,7 +128,7 @@ export const createHomeSection = async (req: Request, res: Response) => {
 export const updateHomeSection = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { title, slug, headerCategory, categories, subCategories, displayType, columns, limit, order, isActive } = req.body;
+        const { title, slug, categories, subCategories, displayType, columns, limit, order, isActive } = req.body;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({
@@ -163,7 +159,6 @@ export const updateHomeSection = async (req: Request, res: Response) => {
         // Update fields
         if (title !== undefined) section.title = title;
         if (slug !== undefined) section.slug = slug;
-        if (headerCategory !== undefined) section.headerCategory = headerCategory;
         if (categories !== undefined) section.categories = categories || [];
         if (subCategories !== undefined) section.subCategories = subCategories || [];
         if (displayType !== undefined) section.displayType = displayType;
@@ -178,7 +173,6 @@ export const updateHomeSection = async (req: Request, res: Response) => {
         const updatedSection = await HomeSection.findById(id)
             .populate("categories", "name slug image")
             .populate("subCategories", "name")
-            .populate("headerCategory", "name")
             .lean();
 
         return res.status(200).json({

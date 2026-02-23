@@ -8,7 +8,6 @@ import BestsellerCard from "../../../models/BestsellerCard";
 import LowestPricesProduct from "../../../models/LowestPricesProduct";
 import Banner from "../../../models/Banner";
 import mongoose from "mongoose";
-import { cache } from "../../../utils/cache";
 import { findSellersWithinRange } from "../../../utils/locationHelper";
 
 // Get Home Page Content

@@ -72,7 +72,7 @@ async function migrateSubCategoriesToCategories() {
         // Check if category already exists with same name and parent
         const existingCategory = await Category.findOne({
           name: subCategory.name,
-          parentId: parentId,
+          parentId: parentId as any,
         });
 
         if (existingCategory) {
@@ -92,19 +92,19 @@ async function migrateSubCategoriesToCategories() {
         }
 
         // Inherit headerCategoryId from parent if parent has one
-        const headerCategoryId = parentCategory.headerCategoryId || null;
+        const headerCategoryId = (parentCategory as any).headerCategoryId || null;
 
         // Create new Category from SubCategory
         const newCategory = await Category.create({
           name: subCategory.name,
           image: subCategory.image,
           order: subCategory.order || 0,
-          parentId: parentId,
-          headerCategoryId: headerCategoryId, // Inherit from parent
+          parentId: parentId as any,
+          headerCategoryId: headerCategoryId as any, // Inherit from parent
           status: "Active",
           isBestseller: false,
           hasWarning: false,
-        });
+        } as any);
 
         console.log(
           `Migrated subcategory "${subCategory.name}" to category with ID: ${newCategory._id

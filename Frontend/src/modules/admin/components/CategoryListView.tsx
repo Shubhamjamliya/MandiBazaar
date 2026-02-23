@@ -71,9 +71,6 @@ export default function CategoryListView({
                 Parent
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                Header Category
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                 Status
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
@@ -88,9 +85,8 @@ export default function CategoryListView({
             {paginatedCategories.map((category) => (
               <tr
                 key={category._id}
-                className={`hover:bg-neutral-50 ${
-                  selectedIds.has(category._id) ? "bg-blue-50" : ""
-                }`}>
+                className={`hover:bg-neutral-50 ${selectedIds.has(category._id) ? "bg-blue-50" : ""
+                  }`}>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <input
                     type="checkbox"
@@ -135,40 +131,16 @@ export default function CategoryListView({
                         ? category.parent
                         : category.parent.name
                       : category.parentId
-                      ? "Unknown"
-                      : "Root"}
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-sm text-neutral-600">
-                    {category.headerCategory ? (
-                      typeof category.headerCategory === "string" ? (
-                        category.headerCategory
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                          {category.headerCategory.name}
-                        </span>
-                      )
-                    ) : category.headerCategoryId ? (
-                      <span className="text-xs text-neutral-400">
-                        {typeof category.headerCategoryId === "string"
-                          ? category.headerCategoryId.slice(-6)
-                          : String(category.headerCategoryId).slice(-6)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-yellow-600">
-                        Not Assigned
-                      </span>
-                    )}
+                        ? "Unknown"
+                        : "Root"}
                   </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      category.status === "Active"
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${category.status === "Active"
                         ? "bg-green-100 text-green-800"
                         : "bg-red-100 text-red-800"
-                    }`}>
+                      }`}>
                     {category.status}
                   </span>
                 </td>
@@ -244,11 +216,10 @@ export default function CategoryListView({
                     )}
                     <button
                       onClick={() => onPageChange(page)}
-                      className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                        currentPage === page
+                      className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${currentPage === page
                           ? "bg-teal-600 text-white"
                           : "bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-50"
-                      }`}>
+                        }`}>
                       {page}
                     </button>
                   </div>

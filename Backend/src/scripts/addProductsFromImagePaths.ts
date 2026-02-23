@@ -4,7 +4,6 @@ import path from "path";
 import fs from "fs";
 import { v2 as cloudinary } from "cloudinary";
 import Category from "../models/Category";
-import HeaderCategory from "../models/HeaderCategory";
 import Product from "../models/Product";
 import Seller from "../models/Seller";
 
@@ -96,18 +95,12 @@ async function findOrCreateCategoryHierarchy(
 
   if (!rootCategory) {
     log(`⚠️  Root category "${categoryName}" not found. Creating it...`);
-    // Try to find header category (Grocery) for root categories
-    const groceryHeader = await HeaderCategory.findOne({
-      $or: [{ name: "Grocery" }, { slug: "grocery" }],
-    });
-
     rootCategory = await Category.create({
       name: categoryName,
       order: 0,
       status: "Active",
       isBestseller: false,
       hasWarning: false,
-      headerCategoryId: groceryHeader?._id || null,
     });
     log(`✅ Created root category: ${categoryName}`);
   }
@@ -122,12 +115,11 @@ async function findOrCreateCategoryHierarchy(
     log(`⚠️  Subcategory "${subcategoryName}" not found under "${categoryName}". Creating it...`);
     subcategory = await Category.create({
       name: subcategoryName,
-      parentId: rootCategory._id,
+      parentId: (rootCategory as any)._id,
       order: 0,
       status: "Active",
       isBestseller: false,
       hasWarning: false,
-      headerCategoryId: rootCategory.headerCategoryId || null, // Inherit from parent
     });
     log(`✅ Created subcategory: ${subcategoryName}`);
   }

@@ -5,7 +5,6 @@ export interface IShop extends Document {
   storeId: string; // slug/identifier for the store
   image: string;
   description?: string;
-  headerCategoryId?: mongoose.Types.ObjectId; // Reference to HeaderCategory
   category?: mongoose.Types.ObjectId | mongoose.Types.ObjectId[]; // Reference to Category(s) - supports both single and array
   subCategory?: mongoose.Types.ObjectId | mongoose.Types.ObjectId[]; // Reference to SubCategory(s) - supports both single and array
   subSubCategory?: mongoose.Types.ObjectId | mongoose.Types.ObjectId[]; // Reference to Sub-SubCategory(s) - supports both single and array
@@ -38,10 +37,6 @@ const ShopSchema = new Schema<IShop>(
     description: {
       type: String,
       trim: true,
-    },
-    headerCategoryId: {
-      type: Schema.Types.ObjectId,
-      ref: 'HeaderCategory',
     },
     category: {
       type: Schema.Types.Mixed, // Supports both single ObjectId and array of ObjectIds

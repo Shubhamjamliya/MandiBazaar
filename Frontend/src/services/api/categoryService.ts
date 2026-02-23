@@ -19,6 +19,7 @@ export interface Category {
   createdAt?: string;
   updatedAt?: string;
   status?: string;
+  parentId?: string;
 }
 
 export interface SubCategory {
