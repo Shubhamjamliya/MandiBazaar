@@ -519,9 +519,9 @@ export default function SellerAddProduct() {
                         ? "Select Subcategory"
                         : "Select Category First"}
                     </option>
-                    {subcategories.map((sub) => (
+                    {subcategories.map((sub: any) => (
                       <option key={sub._id} value={sub._id}>
-                        {sub.subcategoryName}
+                        {sub.name}
                       </option>
                     ))}
                   </select>

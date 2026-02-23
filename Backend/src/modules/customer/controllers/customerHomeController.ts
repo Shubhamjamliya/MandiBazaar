@@ -41,11 +41,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
     const bestsellers = await Promise.all(
       bestsellerCards
         .filter((card: any) => {
-          if (!card.category) return false;
-          const name = card.category.name || "";
-          const slug = card.category.slug || "";
-          const regex = /fruits|vegetables|fruit|vegetable/i;
-          return regex.test(name) || regex.test(slug);
+          return !!card.category;
         })
         .map(async (card: any) => {
           const categoryId = card.category?._id || card.category;
@@ -125,14 +121,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
     const validLowestPricesProducts = lowestPricesProducts
       .filter((item: any) => {
         const p = item.product;
-        if (!p || !p.category) return false;
-
-        // Match category name or slug for Fruits/Vegetables
-        const catName = p.category.name || "";
-        const catSlug = p.category.slug || "";
-        const regex = /fruits|vegetables|fruit|vegetable/i;
-
-        return regex.test(catName) || regex.test(catSlug);
+        return p && !!p.category;
       })
       .map((item: any) => {
         const product = item.product;
@@ -163,10 +152,6 @@ export const getHomeContent = async (req: Request, res: Response) => {
     // 3. Categories for Tiles (Grocery, Snacks, etc)
     const categories = await Category.find({
       status: "Active",
-      $or: [
-        { name: { $regex: /fruits|vegetables|fruit|vegetable/i } },
-        { slug: { $regex: /fruits|vegetables|fruit|vegetable/i } }
-      ]
     })
       .select("name image icon color slug")
       .sort({ order: 1 })
@@ -211,10 +196,6 @@ export const getHomeContent = async (req: Request, res: Response) => {
     // 5. Trending Items (Fetch some popular categories or products)
     const trendingCategories = await Category.find({
       status: "Active",
-      $or: [
-        { name: { $regex: /fruits|vegetables|fruit|vegetable/i } },
-        { slug: { $regex: /fruits|vegetables|fruit|vegetable/i } }
-      ]
     })
       .limit(5)
       .select("name image slug");
@@ -249,10 +230,6 @@ export const getHomeContent = async (req: Request, res: Response) => {
     // 8. Promo Cards (Simplified to use top categories)
     const promoCategories = await Category.find({
       status: "Active",
-      $or: [
-        { name: { $regex: /fruits|vegetables|fruit|vegetable/i } },
-        { slug: { $regex: /fruits|vegetables|fruit|vegetable/i } }
-      ]
     })
       .sort({ order: 1 })
       .limit(4)
@@ -289,10 +266,6 @@ export const getHomeContent = async (req: Request, res: Response) => {
     // 9. Category Hierarchy - Category → Subcategory → Products
     const allCategories = await Category.find({
       status: "Active",
-      $or: [
-        { name: { $regex: /fruits|vegetables|fruit|vegetable/i } },
-        { slug: { $regex: /fruits|vegetables|fruit|vegetable/i } }
-      ]
     })
       .select("name slug image order")
       .sort({ order: 1 })

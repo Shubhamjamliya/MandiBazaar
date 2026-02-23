@@ -26,10 +26,6 @@ export const getHeaderCategories = async (_req: Request, res: Response) => {
   try {
     const categories = await HeaderCategory.find({
       status: "Published",
-      $or: [
-        { name: { $regex: /fruits|vegetables|fruit|vegetable/i } },
-        { slug: { $regex: /fruits|vegetables|fruit|vegetable/i } }
-      ]
     }).sort({
       order: 1,
       createdAt: -1,

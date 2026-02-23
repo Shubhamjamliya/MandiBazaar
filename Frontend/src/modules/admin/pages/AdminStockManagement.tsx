@@ -122,41 +122,16 @@ export default function AdminStockManagement() {
     try {
       setLoadingSubCategories(true);
 
-      // Fetch standard subcategories AND recursive categories
-      const [legacyResponse, recursiveResponse] = await Promise.all([
-        getSubCategories({ category: categoryId }),
-        getCategories({ parentId: categoryId })
-      ]);
+      const response = await getSubCategories({ category: categoryId });
 
-      let combinedData: SubCategory[] = [];
-
-      if (legacyResponse.success && Array.isArray(legacyResponse.data)) {
-        combinedData = [...legacyResponse.data];
+      if (response.success && Array.isArray(response.data)) {
+        setSubCategories(response.data);
+      } else {
+        setSubCategories([]);
       }
-
-      if (recursiveResponse.success && Array.isArray(recursiveResponse.data)) {
-        const mappedCategories: SubCategory[] = recursiveResponse.data.map(cat => ({
-          _id: cat._id,
-          name: cat.name,
-          image: cat.image,
-          category: cat.parentId || categoryId,
-          order: cat.order || 0,
-          totalProduct: undefined,
-          createdAt: cat.createdAt,
-          updatedAt: cat.updatedAt
-        }));
-
-        const existingIds = new Set(combinedData.map(item => item._id));
-        mappedCategories.forEach(item => {
-          if (!existingIds.has(item._id)) {
-            combinedData.push(item);
-          }
-        });
-      }
-
-      setSubCategories(combinedData);
     } catch (error) {
       console.error("Failed to fetch subcategories:", error);
+      setSubCategories([]);
     } finally {
       setLoadingSubCategories(false);
     }

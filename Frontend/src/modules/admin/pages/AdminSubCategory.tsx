@@ -289,46 +289,16 @@ export default function AdminSubCategory() {
     try {
       setLoadingSubCategories(true);
 
-      // Fetch from both sources in parallel
-      const [legacyResponse, recursiveResponse] = await Promise.all([
-        getSubCategories({ category: categoryId }),
-        getCategories({ parentId: categoryId })
-      ]);
+      const response = await getSubCategories({ category: categoryId });
 
-      let combinedData: SubCategory[] = [];
-
-      // 1. Process "Real" SubCategories
-      if (legacyResponse.success && Array.isArray(legacyResponse.data)) {
-        combinedData = [...legacyResponse.data];
+      if (response.success && Array.isArray(response.data)) {
+        setSubCategories(response.data);
+      } else {
+        setSubCategories([]);
       }
-
-      // 2. Process Recursive Categories (Child Categories behaving as SubCategories)
-      if (recursiveResponse.success && Array.isArray(recursiveResponse.data)) {
-        const mappedCategories: SubCategory[] = recursiveResponse.data.map(cat => ({
-          _id: cat._id,
-          name: cat.name,
-          image: cat.image,
-          category: cat.parentId || categoryId, // Map parentId to category
-          order: cat.order || 0,
-          totalProduct: undefined, // Categories might not have this count readily available
-          createdAt: cat.createdAt,
-          updatedAt: cat.updatedAt
-        }));
-
-        // Merge avoiding duplicates (though IDs should be unique across collections ideally, be safe)
-        const existingIds = new Set(combinedData.map(item => item._id));
-        mappedCategories.forEach(item => {
-          if (!existingIds.has(item._id)) {
-            combinedData.push(item);
-          }
-        });
-      }
-
-      setSubCategories(combinedData);
-
     } catch (error) {
       console.error("Failed to fetch subcategories:", error);
-      // Don't clear data on error, maybe show notification
+      setSubCategories([]);
     } finally {
       setLoadingSubCategories(false);
     }
@@ -460,7 +430,7 @@ export default function AdminSubCategory() {
                     {item.name}
                   </h3>
                   <p className="text-xs text-neutral-400 truncate">
-                    {item.childrenCount || 0} subcategories
+                    {item.totalSubcategories || 0} subcategories
                   </p>
                 </div>
                 {selectedCategoryId === item._id && (

@@ -15,10 +15,6 @@ export const getCategories = asyncHandler(
     // Build query
     const query: any = {
       status: "Active",
-      $or: [
-        { name: { $regex: /fruits|vegetables|fruit|vegetable/i } },
-        { slug: { $regex: /fruits|vegetables|fruit|vegetable/i } }
-      ]
     };
 
     // Search filter
@@ -203,12 +199,9 @@ export const getSubcategories = asyncHandler(
  */
 export const getAllCategoriesWithSubcategories = asyncHandler(
   async (_req: Request, res: Response) => {
-    // Get all categories - only Fruits and Vegetables for homepage/public
+    // Get all categories
     const parentCategories = await Category.find({
-      $or: [
-        { name: { $regex: /fruits|vegetables|fruit|vegetable/i } },
-        { slug: { $regex: /fruits|vegetables|fruit|vegetable/i } }
-      ]
+      status: "Active"
     }).sort({
       name: 1,
     });
