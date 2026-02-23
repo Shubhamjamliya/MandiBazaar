@@ -97,6 +97,57 @@ export const getHomeContent = async (req: Request, res: Response) => {
         })
     );
 
+    // 1b. Bestseller Products for the horizontal slider —
+    //     fetch individual products from BestsellerCard categories, location-filtered
+    const bestsellerProductsList: any[] = [];
+    for (const card of bestsellerCards) {
+      if (!card.category) continue;
+      const categoryId = (card.category as any)._id || card.category;
+
+      const productQuery: any = {
+        category: categoryId,
+        status: "Active",
+        publish: true,
+        $or: [
+          { isShopByStoreOnly: { $ne: true } },
+          { isShopByStoreOnly: { $exists: false } },
+        ],
+      };
+
+      // Apply location filter if available
+      if (nearbySellerIds && nearbySellerIds.length > 0) {
+        productQuery.seller = { $in: nearbySellerIds };
+      }
+
+      const products = await Product.find(productQuery)
+        .select("productName mainImage price mrp discount pack variations smallDescription seller rating reviewsCount")
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .lean();
+
+      products.forEach((p: any) => {
+        bestsellerProductsList.push({
+          id: p._id.toString(),
+          _id: p._id.toString(),
+          name: p.productName,
+          productName: p.productName,
+          imageUrl: p.mainImage,
+          mainImage: p.mainImage,
+          price: p.price,
+          mrp: p.mrp || p.price,
+          discount: p.discount || (p.mrp && p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0),
+          pack: p.pack || p.variations?.[0]?.title || p.smallDescription || '',
+          rating: p.rating || 0,
+          reviewsCount: p.reviewsCount || 0,
+          seller: p.seller,
+          categoryId: categoryId.toString(),
+          isAvailable: nearbySellerIds && nearbySellerIds.length > 0
+            ? nearbySellerIds.some(id => id.toString() === p.seller?.toString())
+            : false,
+        });
+      });
+    }
+
     const lowestPricesProductsQuery: any = {
       isActive: true,
     };
@@ -346,6 +397,8 @@ export const getHomeContent = async (req: Request, res: Response) => {
     const promoBanners = activeBanners.filter(b => b.type === 'carousel');
     const extraBanner1 = activeBanners.filter(b => b.type === 'banner-1');
     const extraBanner3 = activeBanners.filter(b => b.type === 'banner-3');
+    const marqueeBanner = activeBanners.find(b => b.type === 'marquee');
+    const marqueeText = (marqueeBanner as any)?.text || '';
 
     // Default banners if none exist for carousel
     const finalPromoBanners = promoBanners.length > 0 ? promoBanners : [
@@ -365,6 +418,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
       success: true,
       data: {
         bestsellers,
+        bestsellerProducts: bestsellerProductsList,
         lowestPrices: validLowestPricesProducts,
         categories,
         categoryHierarchy: filteredHierarchy,
@@ -373,6 +427,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
         promoBanners: finalPromoBanners,
         extraBanner1,
         extraBanner3,
+        marqueeText,
         trending,
         cookingIdeas,
         promoCards: finalPromoCards,

@@ -4,7 +4,8 @@ export interface IBanner extends Document {
   image: string;
   link: string;
   title: string;
-  type: 'carousel' | 'banner-1' | 'banner-3';
+  text?: string; // For marquee banners
+  type: 'carousel' | 'banner-1' | 'banner-3' | 'marquee';
   order: number;
   isActive: boolean;
   createdAt: Date;
@@ -15,7 +16,12 @@ const BannerSchema = new Schema<IBanner>(
   {
     image: {
       type: String,
-      required: [true, "Banner image is required"],
+      default: "",
+      trim: true,
+    },
+    text: {
+      type: String,
+      default: "",
       trim: true,
     },
     link: {
@@ -30,7 +36,7 @@ const BannerSchema = new Schema<IBanner>(
     },
     type: {
       type: String,
-      enum: ['carousel', 'banner-1', 'banner-3'],
+      enum: ['carousel', 'banner-1', 'banner-3', 'marquee'],
       default: 'carousel',
       required: [true, "Banner type is required"],
       trim: true,

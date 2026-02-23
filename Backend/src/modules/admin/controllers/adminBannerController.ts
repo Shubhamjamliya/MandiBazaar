@@ -57,9 +57,17 @@ export const getBannerById = async (req: Request, res: Response) => {
 // Create new banner
 export const createBanner = async (req: Request, res: Response) => {
   try {
-    const { image, link, title, type, order, isActive } = req.body;
+    const { image, link, title, text, type, order, isActive } = req.body;
 
-    if (!image) {
+    // For marquee type, text is required instead of image
+    if (type === 'marquee') {
+      if (!text) {
+        return res.status(400).json({
+          success: false,
+          message: "Text is required for marquee banners",
+        });
+      }
+    } else if (!image) {
       return res.status(400).json({
         success: false,
         message: "Image is required",
@@ -74,9 +82,10 @@ export const createBanner = async (req: Request, res: Response) => {
     }
 
     const newBanner = new Banner({
-      image,
-      link,
-      title,
+      image: image || "",
+      link: link || "",
+      title: title || "",
+      text: text || "",
       type: type || 'carousel',
       order: bannerOrder,
       isActive: isActive !== undefined ? isActive : true,
@@ -122,6 +131,7 @@ export const updateBanner = async (req: Request, res: Response) => {
     if (image !== undefined) banner.image = image;
     if (link !== undefined) banner.link = link;
     if (title !== undefined) banner.title = title;
+    if ((req.body as any).text !== undefined) (banner as any).text = (req.body as any).text;
     if (type !== undefined) banner.type = type;
     if (order !== undefined) banner.order = order;
     if (isActive !== undefined) banner.isActive = isActive;

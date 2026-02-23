@@ -79,14 +79,13 @@ export default function ServiceCategoriesSection({
             style={{ width: "70px" }}
           >
             {/* Circular Image Container for Home */}
-            <div className={`w-16 h-16 bg-white rounded-full shadow-md hover:shadow-lg transition-all overflow-hidden flex items-center justify-center border-2 ${!activeCategoryId ? "border-green-600 ring-2 ring-green-100" : "border-green-100"
+            <div className={`w-16 h-16 rounded-full shadow-md hover:shadow-lg transition-all overflow-hidden border-2 ${!activeCategoryId ? "border-green-600 ring-2 ring-green-100" : "border-green-100"
               }`}>
-              <div className="flex items-center justify-center w-full h-full bg-green-50">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 9.5L12 3L21 9.5V19C21 19.5304 20.7893 20.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9.5Z" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M9 22V12H15V22" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
+              <img
+                src="/assets/Home-icon.png"
+                alt="Home"
+                className="w-full h-full object-cover"
+              />
             </div>
 
             {/* Category Name */}

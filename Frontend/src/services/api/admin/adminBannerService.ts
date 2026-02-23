@@ -5,7 +5,8 @@ export interface Banner {
   image: string;
   link: string;
   title: string;
-  type: 'carousel' | 'banner-1' | 'banner-3';
+  text?: string; // For marquee banners
+  type: 'carousel' | 'banner-1' | 'banner-3' | 'marquee';
   order: number;
   isActive: boolean;
   createdAt: string;

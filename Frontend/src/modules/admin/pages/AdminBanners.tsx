@@ -16,7 +16,8 @@ export default function AdminBanners() {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [link, setLink] = useState("");
   const [title, setTitle] = useState("");
-  const [type, setType] = useState<'carousel' | 'banner-1' | 'banner-3'>('carousel');
+  const [marqueeText, setMarqueeText] = useState("");
+  const [type, setType] = useState<'carousel' | 'banner-1' | 'banner-3' | 'marquee'>('carousel');
   const [order, setOrder] = useState<number | undefined>(undefined);
   const [isActive, setIsActive] = useState(true);
 
@@ -81,7 +82,12 @@ export default function AdminBanners() {
     setSuccess("");
 
     // Validation
-    if (!image && !imageFile) {
+    if (type === 'marquee') {
+      if (!marqueeText.trim()) {
+        setError("Please enter the marquee announcement text");
+        return;
+      }
+    } else if (!image && !imageFile) {
       setError("Please provide an image URL or upload a file");
       return;
     }
@@ -106,9 +112,10 @@ export default function AdminBanners() {
       }
 
       const formData: any = {
-        image: finalImageUrl,
+        image: type === 'marquee' ? '' : finalImageUrl,
         link,
         title,
+        text: marqueeText,
         type,
         order: order !== undefined ? order : 0,
         isActive,
@@ -146,6 +153,7 @@ export default function AdminBanners() {
     setImagePreview("");
     setLink(banner.link || "");
     setTitle(banner.title || "");
+    setMarqueeText(banner.text || "");
     setType(banner.type || 'carousel');
     setOrder(banner.order);
     setIsActive(banner.isActive);
@@ -180,6 +188,7 @@ export default function AdminBanners() {
     setImagePreview("");
     setLink("");
     setTitle("");
+    setMarqueeText("");
     setType('carousel');
     setOrder(undefined);
     setIsActive(true);
@@ -231,61 +240,83 @@ export default function AdminBanners() {
               {/* Banner Type */}
               <div>
                 <label className="block text-sm font-bold text-neutral-700 mb-2">Banner Type</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['carousel', 'banner-1', 'banner-3'] as const).map((t) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {(['carousel', 'banner-1', 'banner-3', 'marquee'] as const).map((t) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setType(t)}
                       className={`py-2 text-xs font-bold rounded-lg border transition-all ${type === t
-                        ? 'bg-teal-600 text-white border-teal-600'
-                        : 'bg-white text-neutral-600 border-neutral-200 hover:border-teal-300'
+                          ? t === 'marquee' ? 'bg-amber-500 text-white border-amber-500' : 'bg-teal-600 text-white border-teal-600'
+                          : 'bg-white text-neutral-600 border-neutral-200 hover:border-teal-300'
                         }`}
                     >
-                      {t.toUpperCase()}
+                      {t === 'marquee' ? '📢 MARQUEE' : t.toUpperCase()}
                     </button>
                   ))}
                 </div>
-              </div>
-
-              {/* Image Upload Area */}
-              <div>
-                <label className="block text-sm font-bold text-neutral-700 mb-2">Upload Image</label>
-                <div
-                  onClick={() => document.getElementById('file-input')?.click()}
-                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${imagePreview || image ? 'border-teal-500 bg-teal-50/20' : 'border-neutral-300 hover:border-teal-400'
-                    }`}
-                >
-                  {imagePreview || image ? (
-                    <div className="relative group">
-                      <img src={imagePreview || image} alt="Preview" className="w-full h-24 object-cover rounded-lg" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all rounded-lg">
-                        <span className="text-white text-xs font-bold underline">Change Image</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="py-2">
-                      <svg className="w-8 h-8 mx-auto mb-2 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      <p className="text-xs font-medium text-neutral-500 text-center">Click to upload image</p>
-                    </div>
-                  )}
-                  <input type="file" id="file-input" className="hidden" accept="image/*" onChange={handleFileChange} />
-                </div>
-                {!imageFile && !editingId && (
-                  <div className="mt-2">
-                    <p className="text-[10px] text-neutral-400 uppercase font-bold text-center">Or use URL</p>
-                    <input
-                      type="text"
-                      value={image}
-                      onChange={(e) => setImage(e.target.value)}
-                      placeholder="Paste image URL here..."
-                      className="w-full mt-1 text-xs px-3 py-2 border rounded-lg focus:ring-1 focus:ring-teal-500 outline-none"
-                    />
-                  </div>
+                {type === 'marquee' && (
+                  <p className="mt-2 text-[11px] text-amber-600 font-medium bg-amber-50 px-3 py-2 rounded-lg">
+                    📢 Marquee = running text strip below the carousel banner
+                  </p>
                 )}
               </div>
+
+              {/* Marquee Text Field (only for marquee type) */}
+              {type === 'marquee' ? (
+                <div>
+                  <label className="block text-sm font-bold text-neutral-700 mb-2">📢 Announcement Text</label>
+                  <textarea
+                    value={marqueeText}
+                    onChange={(e) => setMarqueeText(e.target.value)}
+                    placeholder="🎉₹149 के ऑर्डर पर डिलीवरी बिल्कुल फ्री! 🚚 Free delivery above ₹149"
+                    rows={3}
+                    className="w-full px-4 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none transition-all text-sm"
+                  />
+                  <p className="text-[10px] text-neutral-400 mt-1">This text will scroll across the homepage. Supports emojis and Hindi text.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Image Upload Area */}
+                  <div>
+                    <label className="block text-sm font-bold text-neutral-700 mb-2">Upload Image</label>
+                    <div
+                      onClick={() => document.getElementById('file-input')?.click()}
+                      className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${imagePreview || image ? 'border-teal-500 bg-teal-50/20' : 'border-neutral-300 hover:border-teal-400'
+                        }`}
+                    >
+                      {imagePreview || image ? (
+                        <div className="relative group">
+                          <img src={imagePreview || image} alt="Preview" className="w-full h-24 object-cover rounded-lg" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all rounded-lg">
+                            <span className="text-white text-xs font-bold underline">Change Image</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="py-2">
+                          <svg className="w-8 h-8 mx-auto mb-2 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <p className="text-xs font-medium text-neutral-500 text-center">Click to upload image</p>
+                        </div>
+                      )}
+                      <input type="file" id="file-input" className="hidden" accept="image/*" onChange={handleFileChange} />
+                    </div>
+                    {!imageFile && !editingId && (
+                      <div className="mt-2">
+                        <p className="text-[10px] text-neutral-400 uppercase font-bold text-center">Or use URL</p>
+                        <input
+                          type="text"
+                          value={image}
+                          onChange={(e) => setImage(e.target.value)}
+                          placeholder="Paste image URL here..."
+                          className="w-full mt-1 text-xs px-3 py-2 border rounded-lg focus:ring-1 focus:ring-teal-500 outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Title */}
               <div>
@@ -375,11 +406,18 @@ export default function AdminBanners() {
                     displayedBanners.map((banner) => (
                       <tr key={banner._id} className="hover:bg-neutral-50/50 transition-colors">
                         <td className="px-6 py-4">
-                          <img src={banner.image} alt={banner.title} className="w-24 h-12 object-cover rounded shadow-sm border border-neutral-200" />
+                          {banner.type === 'marquee' ? (
+                            <div className="bg-amber-50 text-amber-700 rounded px-3 py-2 text-xs font-medium max-w-[180px] truncate">
+                              📢 {banner.text || '—'}
+                            </div>
+                          ) : (
+                            <img src={banner.image} alt={banner.title} className="w-24 h-12 object-cover rounded shadow-sm border border-neutral-200" />
+                          )}
                         </td>
                         <td className="px-6 py-4 text-xs font-bold">
-                          <span className={`px-2 py-1 rounded inline-block ${banner.type === 'carousel' || !banner.type ? 'bg-blue-50 text-blue-600' :
-                              banner.type === 'banner-1' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'
+                          <span className={`px-2 py-1 rounded inline-block ${banner.type === 'marquee' ? 'bg-amber-50 text-amber-600' :
+                              banner.type === 'carousel' || !banner.type ? 'bg-blue-50 text-blue-600' :
+                                banner.type === 'banner-1' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'
                             }`}>
                             {(banner.type || 'carousel').toUpperCase()}
                           </span>
