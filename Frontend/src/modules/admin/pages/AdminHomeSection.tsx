@@ -8,7 +8,6 @@ import {
     type HomeSectionFormData,
 } from "../../../services/api/admin/adminHomeSectionService";
 import { getCategories, getAllSubcategories, getSubcategories, type Category, type SubCategory } from "../../../services/api/categoryService";
-import { getHeaderCategoriesAdmin, type HeaderCategory } from "../../../services/api/headerCategoryService"; // Updated import
 import ContentLoader from "../../../components/loaders/ContentLoader";
 
 const DISPLAY_TYPE_OPTIONS = [
@@ -27,8 +26,6 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
     // Form state
     const [title, setTitle] = useState("");
     const [slug, setSlug] = useState("");
-    const [sectionHeaderCategory, setSectionHeaderCategory] = useState<string>(""); // Parent Header Category
-    const [selectedHeaderCategory, setSelectedHeaderCategory] = useState<string>(""); // For filtering categories list
     const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
     const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
     const [displayType, setDisplayType] = useState<"subcategories" | "products" | "categories">("subcategories");
@@ -39,7 +36,6 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
 
     // Data state
     const [sections, setSections] = useState<HomeSection[]>([]);
-    const [headerCategories, setHeaderCategories] = useState<HeaderCategory[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
     const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
@@ -58,49 +54,12 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
     // Fetch initial data
     useEffect(() => {
         fetchSections();
-        fetchHeaderCategories();
         fetchCategories();
     }, []);
 
-    // Filter categories by header category when header category or display type changes
     useEffect(() => {
-        if (displayType === "categories" && selectedHeaderCategory) {
-            const filtered = categories.filter((cat) => {
-                const headerId = typeof cat.headerCategoryId === 'string'
-                    ? cat.headerCategoryId
-                    : cat.headerCategoryId?._id || cat.headerCategoryId;
-                return headerId === selectedHeaderCategory && !cat.parentId; // Only root categories
-            });
-            setFilteredCategories(filtered);
-            // Clear selected categories if they don't belong to the new header category
-            // But if we are editing (or just set it), we want to keep the valid ones.
-            setSelectedCategories((prev) => {
-                // If the user manually changed header category, we probably want to clear.
-                // But this effect runs on any change. 
-                // The safest bet: keep only those IDs that are present in the new filtered list.
-                const validIds = prev.filter((id) => filtered.some((cat) => cat._id === id));
-                return validIds;
-            });
-        } else {
-            // For other display types, show all root categories
-            setFilteredCategories(categories.filter((cat) => !cat.parentId));
-        }
-    }, [selectedHeaderCategory, displayType, categories]);
-
-    // When editing and categories are loaded, try to set header category from selected categories
-    useEffect(() => {
-        if (editingId && displayType === "categories" && selectedCategories.length > 0 && categories.length > 0 && !selectedHeaderCategory) {
-            const firstSelectedCategory = categories.find(c => selectedCategories.includes(c._id));
-            if (firstSelectedCategory) {
-                const headerId = typeof firstSelectedCategory.headerCategoryId === 'string'
-                    ? firstSelectedCategory.headerCategoryId
-                    : firstSelectedCategory.headerCategoryId?._id || firstSelectedCategory.headerCategoryId;
-                if (headerId) {
-                    setSelectedHeaderCategory(headerId);
-                }
-            }
-        }
-    }, [editingId, displayType, selectedCategories, categories, selectedHeaderCategory]);
+        setFilteredCategories(categories.filter((cat) => !cat.parentId));
+    }, [displayType, categories]);
 
     // Fetch subcategories when category changes (only for subcategories display type)
     useEffect(() => {
@@ -122,65 +81,6 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
             setSlug(generatedSlug);
         }
     }, [title, editingId]);
-
-    // Fetch all required data
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            setLoadingSections(true); // Keep your existing state logic
-
-            // Fetch sections, header categories, and product categories in parallel
-            const [sectionsData, headerCatsData, categoriesData] = await Promise.all([
-                getHomeSections({ skipLoader: true }),
-                getHeaderCategoriesAdmin({ skipLoader: true }),
-                getCategories({ skipLoader: true, includeSubcategories: false })
-            ]);
-
-            setSections(Array.isArray(sectionsData.data) ? sectionsData.data : []);
-            setHeaderCategories(headerCatsData);
-
-            // Handle category data format
-            // Check if data is array or object with data property
-            const cats = Array.isArray(categoriesData) ? categoriesData : categoriesData.data || [];
-            if (Array.isArray(cats)) {
-                setCategories(cats);
-            } else {
-                console.error("Invalid categories data format:", categoriesData);
-                setCategories([]);
-            }
-
-        } catch (error) {
-            console.error("Error fetching data:", error);
-            setError("Failed to load data");
-        } finally {
-            setLoading(false);
-            setLoadingSections(false);
-        }
-    };
-
-    const fetchSections = async () => {
-        try {
-            setLoadingSections(true);
-            const response = await getHomeSections();
-            if (response.success && Array.isArray(response.data)) {
-                setSections(response.data);
-            }
-        } catch (err) {
-            console.error("Error fetching sections:", err);
-            setError("Failed to load sections");
-        } finally {
-            setLoadingSections(false);
-        }
-    };
-
-    const fetchHeaderCategories = async () => {
-        try {
-            const data = await getHeaderCategoriesAdmin();
-            setHeaderCategories(data);
-        } catch (err) {
-            console.error("Error fetching header categories:", err);
-        }
-    };
 
     const fetchCategories = async () => {
         try {
@@ -228,8 +128,8 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
             return;
         }
         if (displayType === "categories") {
-            if (!selectedHeaderCategory) {
-                setError("Please select a header category");
+            if (selectedCategories.length === 0) {
+                setError("Please select at least one category");
                 return;
             }
         }
@@ -237,8 +137,6 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
         const formData: HomeSectionFormData = {
             title: title.trim(),
             slug: slug.trim(),
-            // Send null if empty string to allow clearing the field
-            headerCategory: sectionHeaderCategory || null,
             categories: selectedCategories,
             // Only include subcategories if displayType is not "categories"
             subCategories: displayType !== "categories" ? selectedSubCategories : undefined,
@@ -279,42 +177,6 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
         setSlug(section.slug);
         setDisplayType(section.displayType);
 
-        // Handle Header Category (Parent)
-        let headerId = "";
-        if (typeof section.headerCategory === 'string') {
-            headerId = section.headerCategory;
-        } else if (section.headerCategory && typeof section.headerCategory === 'object') {
-            headerId = section.headerCategory._id;
-        }
-        setSectionHeaderCategory(headerId);
-
-        // Try to determine header category from selected categories (only if displayType is "categories")
-        if (section.displayType === "categories") {
-            const firstCategory = section.categories?.[0];
-            if (firstCategory) {
-                // We need to find the category in our categories list
-                // Since categories might not be loaded yet, we'll set it after categories are loaded
-                // For now, we'll try to find it
-                const category = categories.find(c => c._id === firstCategory._id);
-                if (category) {
-                    const headerId = typeof category.headerCategoryId === 'string'
-                        ? category.headerCategoryId
-                        : category.headerCategoryId?._id || category.headerCategoryId;
-                    if (headerId) {
-                        setSelectedHeaderCategory(headerId);
-                    }
-                } else {
-                    // If category not found yet, we'll set it in a useEffect
-                    // For now, clear it and let the useEffect handle it
-                    setSelectedHeaderCategory("");
-                }
-            } else {
-                setSelectedHeaderCategory("");
-            }
-        } else {
-            setSelectedHeaderCategory("");
-        }
-
         setSelectedCategories(section.categories?.map(c => c._id) || []);
         setSelectedSubCategories(section.subCategories?.map(s => s._id) || []);
         setColumns(section.columns);
@@ -347,8 +209,6 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
     const resetForm = () => {
         setTitle("");
         setSlug("");
-        setSectionHeaderCategory("");
-        setSelectedHeaderCategory("");
         setSelectedCategories([]);
         setSelectedSubCategories([]);
         setDisplayType("subcategories");
@@ -440,30 +300,6 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
                                     </p>
                                 </div>
 
-                                {/* Show on Page Tab (formerly Parent Header Category) */}
-                                <div>
-                                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                        Show on Page Tab
-                                    </label>
-                                    <select
-                                        value={sectionHeaderCategory}
-                                        onChange={(e) => setSectionHeaderCategory(e.target.value)}
-                                        className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                                    >
-                                        <option value="">None (Global - Home Page)</option>
-                                        {headerCategories
-                                            .filter((hc) => hc.status === "Published")
-                                            .map((hc) => (
-                                                <option key={hc._id} value={hc._id}>
-                                                    {hc.name}
-                                                </option>
-                                            ))}
-                                    </select>
-                                    <p className="text-xs text-neutral-500 mt-1">
-                                        Assign this section to a specific header tab
-                                    </p>
-                                </div>
-
                                 {/* Display Type */}
                                 <div>
                                     <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -471,16 +307,7 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
                                     </label>
                                     <select
                                         value={displayType}
-                                        onChange={(e) => {
-                                            const newDisplayType = e.target.value as "subcategories" | "products" | "categories";
-                                            setDisplayType(newDisplayType);
-                                            // Clear selections when switching display types
-                                            if (newDisplayType === "categories") {
-                                                setSelectedSubCategories([]);
-                                            } else {
-                                                setSelectedHeaderCategory("");
-                                            }
-                                        }}
+                                        onChange={(e) => setDisplayType(e.target.value as any)}
                                         className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                                     >
                                         {DISPLAY_TYPE_OPTIONS.map((option) => (
@@ -491,41 +318,6 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
                                     </select>
                                 </div>
 
-                                {/* Source Category Group - Filter for selecting categories */}
-                                {displayType === "categories" && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-neutral-700 mb-2">
-                                            Source Category Group <span className="text-red-500">*</span>
-                                        </label>
-                                        <select
-                                            value={selectedHeaderCategory}
-                                            onChange={(e) => {
-                                                const newHeaderId = e.target.value;
-                                                // Only clear categories if user manually changes the header category,
-                                                // not during initial load or when setting up edit (though that's handled by state setting).
-                                                // We can check if the value actually changed.
-                                                if (newHeaderId !== selectedHeaderCategory) {
-                                                    setSelectedHeaderCategory(newHeaderId);
-                                                    setSelectedCategories([]);
-                                                }
-                                            }}
-                                            className="w-full px-3 py-2 border border-neutral-300 rounded bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                                        >
-                                            <option value="">Select a header category</option>
-                                            {headerCategories
-                                                .filter((hc) => hc.status === "Published")
-                                                .map((hc) => (
-                                                    <option key={hc._id} value={hc._id}>
-                                                        {hc.name}
-                                                    </option>
-                                                ))}
-                                        </select>
-                                        <p className="text-xs text-neutral-500 mt-1">
-                                            Select a header category to filter categories
-                                        </p>
-                                    </div>
-                                )}
-
                                 {/* Categories - Checkbox List */}
                                 <div>
                                     <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -534,15 +326,10 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
                                             <span className="text-red-500 ml-1">*</span>
                                         )}
                                     </label>
-                                    <div className={`border border-neutral-300 rounded max-h-40 overflow-y-auto p-2 ${displayType === "categories" && !selectedHeaderCategory ? 'bg-gray-100' : 'bg-white'
-                                        }`}>
-                                        {displayType === "categories" && !selectedHeaderCategory ? (
-                                            <p className="text-sm text-neutral-400 p-2">Please select a header category first</p>
-                                        ) : filteredCategories.length === 0 ? (
+                                    <div className="border border-neutral-300 rounded max-h-40 overflow-y-auto p-2 bg-white">
+                                        {filteredCategories.length === 0 ? (
                                             <p className="text-sm text-neutral-400 p-2">
-                                                {displayType === "categories"
-                                                    ? "No categories found for selected header category"
-                                                    : "Loading categories..."}
+                                                Loading categories...
                                             </p>
                                         ) : (
                                             filteredCategories.map((cat) => (
@@ -741,7 +528,6 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
                                     <tr className="bg-neutral-50 text-xs font-bold text-neutral-800 border-b border-neutral-200">
                                         <th className="p-4">Order</th>
                                         <th className="p-4">Title</th>
-                                        <th className="p-4">Header</th>
                                         <th className="p-4">Type</th>
                                         <th className="p-4">Categories</th>
                                         <th className="p-4">Columns</th>
@@ -767,16 +553,6 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
                                             >
                                                 <td className="p-4">{section.order}</td>
                                                 <td className="p-4 font-medium">{section.title}</td>
-                                                <td className="p-4 text-xs text-neutral-500">
-                                                    {section.headerCategory && typeof section.headerCategory === 'object' && 'name' in section.headerCategory
-                                                        ? (section.headerCategory as any).name
-                                                        : "Global"}
-                                                    {section.isGlobal && section.headerCategory && (
-                                                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                                            + Global
-                                                        </span>
-                                                    )}
-                                                </td>
                                                 <td className="p-4 capitalize">{section.displayType}</td>
                                                 <td className="p-4">
                                                     {section.categories && section.categories.length > 0
@@ -921,7 +697,7 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
                     Mandi Bazaar - 10 Minute App
                 </a>
             </footer>
-        </div>
+        </div >
     );
 }
 

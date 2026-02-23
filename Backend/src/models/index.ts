@@ -19,8 +19,6 @@ export { default as Inventory } from "./Inventory";
 export { default as Payment } from "./Payment";
 export { default as Notification } from "./Notification";
 export { default as AppSettings } from "./AppSettings";
-export { default as PromoStrip } from "./PromoStrip";
-
 // Support & Reference Models
 export { default as Address } from "./Address";
 export { default as Cart } from "./Cart";

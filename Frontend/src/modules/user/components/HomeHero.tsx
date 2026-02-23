@@ -7,8 +7,6 @@ import { useLocation } from '../../../hooks/useLocation';
 import { appConfig } from '../../../services/configService';
 import { getCategories } from '../../../services/api/customerProductService';
 import { Category } from '../../../types/domain';
-import { getHeaderCategoriesPublic } from '../../../services/api/headerCategoryService';
-import { getIconByName } from '../../../utils/iconLibrary';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -35,26 +33,8 @@ const ALL_TAB: Tab = {
 };
 
 export default function HomeHero({ activeTab = 'all', onTabChange }: HomeHeroProps) {
-  const [tabs, setTabs] = useState<Tab[]>([ALL_TAB]);
+  const [tabs] = useState<Tab[]>([ALL_TAB]);
 
-  useEffect(() => {
-    const fetchHeaderCategories = async () => {
-      try {
-        const cats = await getHeaderCategoriesPublic();
-        if (cats && cats.length > 0) {
-          const mapped = cats.map(c => ({
-            id: c.slug,
-            label: c.name,
-            icon: getIconByName(c.iconName)
-          }));
-          setTabs([ALL_TAB, ...mapped]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch header categories', error);
-      }
-    };
-    fetchHeaderCategories();
-  }, []);
   const navigate = useNavigate();
   const { location: userLocation } = useLocation();
   const heroRef = useRef<HTMLDivElement>(null);

@@ -6,7 +6,6 @@ import Brand from "../../../models/Brand";
 import Product from "../../../models/Product";
 import Inventory from "../../../models/Inventory";
 import Seller from "../../../models/Seller";
-import HeaderCategory from "../../../models/HeaderCategory";
 import { cache } from "../../../utils/cache";
 
 // ==================== Category Controllers ====================

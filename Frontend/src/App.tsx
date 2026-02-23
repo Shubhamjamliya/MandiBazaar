@@ -97,7 +97,6 @@ const AdminDashboard = lazy(() => import("./modules/admin/pages/AdminDashboard")
 const AdminLogin = lazy(() => import("./modules/admin/pages/AdminLogin"));
 const AdminCatalogManager = lazy(() => import("./modules/admin/pages/AdminCatalogManager"));
 const AdminCategory = lazy(() => import("./modules/admin/pages/AdminCategory"));
-const AdminHeaderCategory = lazy(() => import("./modules/admin/pages/AdminHeaderCategory"));
 
 const AdminSubCategory = lazy(() => import("./modules/admin/pages/AdminSubCategory"));
 const AdminBrand = lazy(() => import("./modules/admin/pages/AdminBrand"));
@@ -121,7 +120,6 @@ const AdminUsers = lazy(() => import("./modules/admin/pages/AdminUsers"));
 const AdminFAQ = lazy(() => import("./modules/admin/pages/AdminFAQ"));
 // AdminHomeSection removed - replaced by Category hierarchy
 const AdminBestsellerCards = lazy(() => import("./modules/admin/pages/AdminBestsellerCards"));
-const AdminPromoStrip = lazy(() => import("./modules/admin/pages/AdminPromoStrip"));
 const AdminLowestPrices = lazy(() => import("./modules/admin/pages/AdminLowestPrices"));
 const AdminShopByStore = lazy(() => import("./modules/admin/pages/AdminShopByStore"));
 const AdminAllOrders = lazy(() => import("./modules/admin/pages/AdminAllOrders"));
@@ -312,7 +310,6 @@ function App() {
                                         <Route path="catalog-manager" element={<AdminCatalogManager />} />
                                         {/* catalog/sections route removed - Home Sections feature removed */}
                                         <Route path="category" element={<AdminCategory />} />
-                                        <Route path="category/header" element={<AdminHeaderCategory />} />
                                         <Route path="subcategory" element={<AdminSubCategory />} />
 
                                         <Route path="subcategory-order" element={<AdminSubcategoryOrder />} />
@@ -343,7 +340,6 @@ function App() {
                                         <Route path="faq" element={<AdminFAQ />} />
                                         {/* home-section route removed - Home Sections feature removed */}
                                         <Route path="bestseller-cards" element={<AdminBestsellerCards />} />
-                                        <Route path="promo-strip" element={<AdminPromoStrip />} />
                                         <Route path="lowest-prices" element={<AdminLowestPrices />} />
                                         <Route path="shop-by-store" element={<AdminShopByStore />} />
                                         <Route path="orders/all" element={<AdminAllOrders />} />

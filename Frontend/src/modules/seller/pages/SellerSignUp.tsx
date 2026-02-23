@@ -5,7 +5,7 @@ import { removeAuthToken } from '../../../services/api/config';
 import OTPInput from '../../../components/OTPInput';
 import GoogleMapsAutocomplete from '../../../components/GoogleMapsAutocomplete';
 import { useAuth } from '../../../context/AuthContext';
-import { getHeaderCategoriesPublic, HeaderCategory } from '../../../services/api/headerCategoryService';
+import { getCategories, Category } from '../../../services/api/categoryService';
 import LocationPickerMap from '../../../components/LocationPickerMap';
 import { useEffect } from 'react';
 
@@ -37,14 +37,14 @@ export default function SellerSignUp() {
   const [showOTP, setShowOTP] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [categories, setCategories] = useState<HeaderCategory[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
     const fetchCats = async () => {
       try {
-        const res = await getHeaderCategoriesPublic();
-        if (Array.isArray(res)) {
-          setCategories(res.filter(cat => cat.status === 'Published'));
+        const res = await getCategories();
+        if (res.success && Array.isArray(res.data)) {
+          setCategories(res.data.filter(cat => cat.status === 'Published'));
         }
       } catch (err) {
         console.error('Error fetching categories:', err);

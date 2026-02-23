@@ -6,7 +6,6 @@ import Shop from "../../../models/Shop";
 // HomeSection import removed - replaced by Category hierarchy
 import BestsellerCard from "../../../models/BestsellerCard";
 import LowestPricesProduct from "../../../models/LowestPricesProduct";
-import PromoStrip from "../../../models/PromoStrip";
 import mongoose from "mongoose";
 import { cache } from "../../../utils/cache";
 import { findSellersWithinRange } from "../../../utils/locationHelper";
@@ -340,45 +339,6 @@ export const getHomeContent = async (req: Request, res: Response) => {
     // Filter out categories with no subcategories that have products
     const filteredHierarchy = categoryHierarchy.filter(c => c.subcategories.length > 0);
 
-    // 10. Fetch PromoStrip (Simplified to use general active promo strips)
-    const promoStripCacheKey = `promoStrip-active`;
-
-    // Try to get from cache first
-    let promoStrip = cache.get(promoStripCacheKey) as any;
-
-    if (!promoStrip) {
-      const now = new Date();
-      const promoStripDoc = await PromoStrip.findOne({
-        isActive: true,
-        startDate: { $lte: now },
-        endDate: { $gte: now },
-      })
-        .populate("categoryCards.categoryId", "name slug image")
-        .populate("featuredProducts", "productName mainImage mainImageUrl galleryImageUrls galleryImages price mrp compareAtPrice discount rating reviewsCount seller")
-        .sort({ order: 1 })
-        .lean();
-
-      promoStrip = promoStripDoc;
-
-      // If we have promoStrip, add availability flag to featured products
-      if (promoStrip && (promoStrip as any).featuredProducts) {
-        (promoStrip as any).featuredProducts = (promoStrip as any).featuredProducts.map((p: any) => {
-          const isAvailable = nearbySellerIds && nearbySellerIds.length > 0 && p.seller
-            ? nearbySellerIds.some(id => id.toString() === p.seller.toString())
-            : false;
-          return { ...p, isAvailable };
-        });
-      }
-
-      // Cache for 3 minutes (PromoStrip data doesn't change frequently)
-      if (promoStrip) {
-        cache.set(promoStripCacheKey, promoStrip, 3 * 60 * 1000);
-      } else {
-        // Cache null result for 1 minute to prevent repeated DB queries
-        cache.set(promoStripCacheKey, null, 60 * 1000);
-      }
-    }
-
     res.status(200).json({
       success: true,
       data: {
@@ -407,7 +367,6 @@ export const getHomeContent = async (req: Request, res: Response) => {
         trending,
         cookingIdeas,
         promoCards: finalPromoCards, // Return dynamic or fallback cards
-        promoStrip: promoStrip || null, // PromoStrip data for the current header category
       },
     });
   } catch (error: any) {

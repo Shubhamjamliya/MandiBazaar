@@ -10,7 +10,6 @@ export interface IProduct extends Document {
   category: mongoose.Types.ObjectId;
   subcategory?: mongoose.Types.ObjectId;
   subSubCategory?: mongoose.Types.ObjectId;
-  headerCategoryId?: mongoose.Types.ObjectId;
   brand?: mongoose.Types.ObjectId;
 
   // Seller Info
@@ -129,10 +128,6 @@ const ProductSchema = new Schema<IProduct>(
     subSubCategory: {
       type: Schema.Types.ObjectId,
       ref: "Category",
-    },
-    headerCategoryId: {
-      type: Schema.Types.ObjectId,
-      ref: "HeaderCategory",
     },
     brand: {
       type: Schema.Types.ObjectId,

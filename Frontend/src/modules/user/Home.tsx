@@ -10,7 +10,6 @@ import FeaturedThisWeek from "./components/FeaturedThisWeek";
 import ProductCard from "./components/ProductCard";
 import InlineCategoryFlow from "./components/InlineCategoryFlow";
 import { getHomeContent } from "../../services/api/customerHomeService";
-import { getHeaderCategoriesPublic } from "../../services/api/headerCategoryService";
 import { getCategories, getSubcategories } from "../../services/api/categoryService";
 import { getProducts as getCustomerProducts } from "../../services/api/customerProductService";
 import { useLocation } from "../../hooks/useLocation";
@@ -108,48 +107,6 @@ export default function Home() {
 
     fetchData();
 
-    // Preload PromoStrip data for all header categories in the background
-    // This ensures instant loading when users switch tabs
-    const preloadHeaderCategories = async () => {
-      try {
-        // Wait a bit after initial load to not interfere with main content
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        const headerCategories = await getHeaderCategoriesPublic(true);
-        // Preload data for each header category (including 'all')
-        const slugsToPreload = ['all', ...headerCategories.map(cat => cat.slug)];
-
-        // Preload in batches to avoid overwhelming the network
-        const batchSize = 2;
-        for (let i = 0; i < slugsToPreload.length; i += batchSize) {
-          const batch = slugsToPreload.slice(i, i + batchSize);
-          await Promise.all(
-            batch.map(slug =>
-              getHomeContent(
-                slug,
-                location?.latitude,
-                location?.longitude,
-                true,
-                5 * 60 * 1000,
-                true
-              ).catch(err => {
-                // Silently fail - this is just preloading
-                console.debug(`Failed to preload data for ${slug}:`, err);
-              })
-            )
-          );
-          // Small delay between batches
-          if (i + batchSize < slugsToPreload.length) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-          }
-        }
-      } catch (error) {
-        // Silently fail - preloading is optional
-        console.debug("Failed to preload header categories:", error);
-      }
-    };
-
-    preloadHeaderCategories();
   }, [location?.latitude, location?.longitude, activeTab]);
 
   // Removed independent category fetching to ensure global Fruits/Vegetables filter is respected
