@@ -12,7 +12,7 @@ const getApiBaseUrl = () => {
   // If in production and env var is not set or malformed, use production URL
   if (isProduction && (!envUrl || envUrl.includes('VITE_API_BASE_URL='))) {
     console.warn('⚠️ Environment variable not set correctly, using hardcoded production URL');
-    return "https://mandibazzar.onrender.com/api/v1";
+    return "https://mandibazaar.onrender.com/api/v1";
   }
 
   return envUrl || "http://localhost:5000/api/v1";
@@ -42,7 +42,7 @@ export const getSocketBaseURL = (): string => {
 
   // If in production and env var is malformed, use production URL
   if (isProduction && apiBaseUrl.includes('VITE_API_BASE_URL=')) {
-    return "https://mandibazzar.onrender.com";
+    return "https://mandibazaar.onrender.com";
   }
 
   // Remove /api/v1 or /api from the end
