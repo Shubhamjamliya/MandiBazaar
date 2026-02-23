@@ -61,6 +61,43 @@ export default function ServiceCategoriesSection({
       {/* Horizontal Scrolling Categories */}
       <div className="overflow-x-auto scrollbar-hide">
         <div className="flex gap-4 px-4 pb-2">
+          {/* Permanent Home Category */}
+          <motion.div
+            key="home-permanent"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.2 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex-shrink-0 flex flex-col items-center cursor-pointer"
+            onClick={() => {
+              if (onCategorySelect) {
+                onCategorySelect({ id: 'home-redirect', name: 'Home' });
+              } else {
+                navigate('/');
+              }
+            }}
+            style={{ width: "70px" }}
+          >
+            {/* Circular Image Container for Home */}
+            <div className={`w-16 h-16 bg-white rounded-full shadow-md hover:shadow-lg transition-all overflow-hidden flex items-center justify-center border-2 ${!activeCategoryId ? "border-green-600 ring-2 ring-green-100" : "border-green-100"
+              }`}>
+              <div className="flex items-center justify-center w-full h-full bg-green-50">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 9.5L12 3L21 9.5V19C21 19.5304 20.7893 20.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9.5Z" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M9 22V12H15V22" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Category Name */}
+            <div className="mt-2 text-center w-full">
+              <span className={`text-[10px] font-medium line-clamp-2 leading-tight ${!activeCategoryId ? "text-green-700 font-bold" : "text-gray-700"
+                }`}>
+                Home
+              </span>
+            </div>
+          </motion.div>
+
           {categories.map((category) => {
             const isSelected = activeCategoryId === (category.categoryId || category.id || category.slug);
             return (

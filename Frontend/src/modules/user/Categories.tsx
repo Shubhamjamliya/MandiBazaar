@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { getHomeContent } from "../../services/api/customerHomeService";
 import { useLocation } from "../../hooks/useLocation";
 import CategoryTileSection from "./components/CategoryTileSection";
-import ProductCard from "./components/ProductCard";
 
 export default function Categories() {
   const { location } = useLocation();
@@ -71,63 +70,20 @@ export default function Categories() {
       </div>
 
       <div className="bg-neutral-50 pt-1 space-y-5 md:space-y-8 md:pt-4">
-        {/* Render Bestsellers if available */}
-        {homeData.bestsellers && homeData.bestsellers.length > 0 && (
-          <CategoryTileSection
-            title="Popular Categories"
-            tiles={homeData.bestsellers}
-            columns={4}
-            showProductCount={true}
-          />
-        )}
-
         {/* Render Main Categories */}
-        {homeData.categories && homeData.categories.length > 0 && (
+        {homeData.categories && homeData.categories.length > 0 ? (
           <CategoryTileSection
             title="Browse by Category"
             tiles={homeData.categories.map((c: any) => ({
               id: c.id || c._id,
+              categoryId: c._id || c.id,
               name: c.name,
               image: c.image,
-              slug: c.slug,
               type: "category"
             }))}
             columns={4}
           />
-        )}
-
-        {/* Render Category Hierarchy with Products */}
-        {homeData.categoryHierarchy && homeData.categoryHierarchy.length > 0 ? (
-          <>
-            {homeData.categoryHierarchy.map((category: any) => (
-              <div key={category.id} className="space-y-6">
-                {category.subcategories.map((subcat: any) => (
-                  <div key={subcat.id} className="mt-6 mb-6 md:mt-8 md:mb-8">
-                    <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 mb-3 md:mb-6">
-                      <h2 className="text-lg md:text-2xl font-semibold text-neutral-900 tracking-tight capitalize">
-                        {category.name} - {subcat.name}
-                      </h2>
-                    </div>
-                    <div className="px-4 md:px-6 lg:px-8">
-                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-4">
-                        {subcat.products.map((product: any) => (
-                          <ProductCard
-                            key={product.id || product._id}
-                            product={product}
-                            categoryStyle={true}
-                            showBadge={true}
-                            showPackBadge={false}
-                            showStockInfo={false}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </>
-        ) : !homeData.categories?.length && !homeData.bestsellers?.length && (
+        ) : (
           <div className="text-center py-12 md:py-16 text-neutral-500 px-4">
             <p className="text-lg md:text-xl mb-2">No categories found</p>
             <p className="text-sm md:text-base">

@@ -177,8 +177,8 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
         setSlug(section.slug);
         setDisplayType(section.displayType);
 
-        setSelectedCategories(section.categories?.map(c => c._id) || []);
-        setSelectedSubCategories(section.subCategories?.map(s => s._id) || []);
+        setSelectedCategories(section.categories?.map(c => c?._id).filter((id): id is string => !!id) || []);
+        setSelectedSubCategories(section.subCategories?.map(s => s?._id).filter((id): id is string => !!id) || []);
         setColumns(section.columns);
         setLimit(section.limit);
         setIsActive(section.isActive);
@@ -556,7 +556,7 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
                                                 <td className="p-4 capitalize">{section.displayType}</td>
                                                 <td className="p-4">
                                                     {section.categories && section.categories.length > 0
-                                                        ? section.categories.map((c: any) => c.name).join(", ")
+                                                        ? section.categories.map((c: any) => c?.name).filter(Boolean).join(", ")
                                                         : "None"}
                                                 </td>
                                                 <td className="p-4">{section.columns}</td>

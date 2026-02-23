@@ -70,6 +70,9 @@ import * as bestsellerCardController from "../modules/admin/controllers/adminBes
 // Lowest Prices Controllers
 import * as lowestPricesController from "../modules/admin/controllers/adminLowestPricesController";
 
+// Banner Controllers
+import * as bannerController from "../modules/admin/controllers/adminBannerController";
+
 const router = Router();
 
 // All routes require admin authentication
@@ -337,5 +340,13 @@ router.post("/lowest-prices-products", lowestPricesController.createLowestPrices
 router.put("/lowest-prices-products/:id", lowestPricesController.updateLowestPricesProduct);
 router.delete("/lowest-prices-products/:id", lowestPricesController.deleteLowestPricesProduct);
 router.put("/lowest-prices-products/reorder", lowestPricesController.reorderLowestPricesProducts);
+
+// ==================== Banner Routes ====================
+router.get("/banners", bannerController.getAllBanners);
+router.get("/banners/:id", bannerController.getBannerById);
+router.post("/banners", bannerController.createBanner);
+router.put("/banners/:id", bannerController.updateBanner);
+router.delete("/banners/:id", bannerController.deleteBanner);
+router.put("/banners/reorder", bannerController.reorderBanners);
 
 export default router;

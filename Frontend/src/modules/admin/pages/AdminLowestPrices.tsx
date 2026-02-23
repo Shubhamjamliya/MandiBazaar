@@ -67,9 +67,9 @@ export default function AdminLowestPrices() {
     // Filter products based on search term and exclude already added products
     const filteredProducts = availableProducts.filter((product) => {
         // Get IDs of products already in lowest prices
-        const existingProductIds = lowestPricesProducts.map((lp) =>
-            typeof lp.product === "string" ? lp.product : lp.product._id
-        );
+        const existingProductIds = lowestPricesProducts
+            .map((lp) => (typeof lp.product === "string" ? lp.product : lp.product?._id))
+            .filter(Boolean);
 
         // Exclude already added products
         if (existingProductIds.includes(product._id)) {
@@ -137,7 +137,7 @@ export default function AdminLowestPrices() {
     const handleEdit = (lowestPricesProduct: LowestPricesProduct) => {
         const productId = typeof lowestPricesProduct.product === "string"
             ? lowestPricesProduct.product
-            : lowestPricesProduct.product._id;
+            : lowestPricesProduct.product?._id || "";
         setSelectedProduct(productId);
         setOrder(lowestPricesProduct.order);
         setIsActive(lowestPricesProduct.isActive);
@@ -254,11 +254,10 @@ export default function AdminLowestPrices() {
                                                             setSelectedProduct(product._id);
                                                             setProductSearchTerm("");
                                                         }}
-                                                        className={`w-full text-left px-3 py-2 hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-b-0 ${
-                                                            selectedProduct === product._id
+                                                        className={`w-full text-left px-3 py-2 hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-b-0 ${selectedProduct === product._id
                                                                 ? "bg-teal-50 border-teal-200"
                                                                 : ""
-                                                        }`}
+                                                            }`}
                                                     >
                                                         <div className="text-sm font-medium text-neutral-900">
                                                             {product.productName}
@@ -332,17 +331,16 @@ export default function AdminLowestPrices() {
                             <button
                                 onClick={handleSubmit}
                                 disabled={loading}
-                                className={`w-full px-4 py-2 rounded font-medium transition-colors ${
-                                    loading
+                                className={`w-full px-4 py-2 rounded font-medium transition-colors ${loading
                                         ? "bg-gray-400 cursor-not-allowed text-white"
                                         : "bg-teal-600 hover:bg-teal-700 text-white"
-                                }`}
+                                    }`}
                             >
                                 {loading
                                     ? "Saving..."
                                     : editingId
-                                    ? "Update Product"
-                                    : "Add Product"}
+                                        ? "Update Product"
+                                        : "Add Product"}
                             </button>
                             {editingId && (
                                 <button
@@ -431,11 +429,10 @@ export default function AdminLowestPrices() {
                                                     </td>
                                                     <td className="p-4">
                                                         <span
-                                                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                                item.isActive
+                                                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.isActive
                                                                     ? "bg-green-100 text-green-800"
                                                                     : "bg-gray-100 text-gray-800"
-                                                            }`}
+                                                                }`}
                                                         >
                                                             {item.isActive ? "Active" : "Inactive"}
                                                         </span>
@@ -502,11 +499,10 @@ export default function AdminLowestPrices() {
                                     <button
                                         onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                                         disabled={currentPage === 1}
-                                        className={`px-3 py-1.5 rounded text-sm border ${
-                                            currentPage === 1
+                                        className={`px-3 py-1.5 rounded text-sm border ${currentPage === 1
                                                 ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300"
                                                 : "bg-white text-neutral-700 hover:bg-neutral-50 border-neutral-300"
-                                        }`}
+                                            }`}
                                     >
                                         Previous
                                     </button>
@@ -515,11 +511,10 @@ export default function AdminLowestPrices() {
                                             setCurrentPage((p) => Math.min(totalPages, p + 1))
                                         }
                                         disabled={currentPage === totalPages}
-                                        className={`px-3 py-1.5 rounded text-sm border ${
-                                            currentPage === totalPages
+                                        className={`px-3 py-1.5 rounded text-sm border ${currentPage === totalPages
                                                 ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300"
                                                 : "bg-white text-neutral-700 hover:bg-neutral-50 border-neutral-300"
-                                        }`}
+                                            }`}
                                     >
                                         Next
                                     </button>

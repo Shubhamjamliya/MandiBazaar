@@ -120,6 +120,7 @@ const AdminUsers = lazy(() => import("./modules/admin/pages/AdminUsers"));
 const AdminFAQ = lazy(() => import("./modules/admin/pages/AdminFAQ"));
 // AdminHomeSection removed - replaced by Category hierarchy
 const AdminBestsellerCards = lazy(() => import("./modules/admin/pages/AdminBestsellerCards"));
+const AdminBanners = lazy(() => import("./modules/admin/pages/AdminBanners"));
 const AdminLowestPrices = lazy(() => import("./modules/admin/pages/AdminLowestPrices"));
 const AdminShopByStore = lazy(() => import("./modules/admin/pages/AdminShopByStore"));
 const AdminAllOrders = lazy(() => import("./modules/admin/pages/AdminAllOrders"));
@@ -340,6 +341,7 @@ function App() {
                                         <Route path="faq" element={<AdminFAQ />} />
                                         {/* home-section route removed - Home Sections feature removed */}
                                         <Route path="bestseller-cards" element={<AdminBestsellerCards />} />
+                                        <Route path="banners" element={<AdminBanners />} />
                                         <Route path="lowest-prices" element={<AdminLowestPrices />} />
                                         <Route path="shop-by-store" element={<AdminShopByStore />} />
                                         <Route path="orders/all" element={<AdminAllOrders />} />

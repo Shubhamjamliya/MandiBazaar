@@ -38,6 +38,8 @@ export default function Home() {
     categoryHierarchy: [], // Category → Subcategory → Product hierarchy
     shops: [],
     promoBanners: [],
+    extraBanner1: [],
+    extraBanner3: [],
     trending: [],
     cookingIdeas: [],
   });
@@ -113,6 +115,18 @@ export default function Home() {
 
   const handleCategorySelect = async (category: any) => {
     const categoryId = category.categoryId || category.id || category._id;
+
+    // Handle Home redirect/reset
+    if (categoryId === 'home-redirect') {
+      setActiveInlineCategory(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Also scroll the main container if it exists
+      const mainElement = document.querySelector('main');
+      if (mainElement) {
+        mainElement.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
 
     // Toggle off if clicking the same one
     if (activeInlineCategory && (activeInlineCategory.categoryId || activeInlineCategory.id) === categoryId) {
@@ -263,7 +277,7 @@ export default function Home() {
       <div className="h-[120px]"></div>
 
       {/* Hero Banner - Show promo banners from backend */}
-      <SimpleBanner banners={homeData.promoBanners} />
+      {!activeInlineCategory && <SimpleBanner banners={homeData.promoBanners} />}
 
       {/* Service Categories Section */}
       {serviceCategories && serviceCategories.length > 0 && (
@@ -276,183 +290,193 @@ export default function Home() {
 
           {/* Inline Category Flow (Subcategories + Products) */}
           {activeInlineCategory && (
-            <InlineCategoryFlow
-              categoryId={activeInlineCategory.categoryId || activeInlineCategory.id}
-              categorySlug={activeInlineCategory.slug}
-              categoryName={activeInlineCategory.name}
-              subcategories={inlineSubcategories}
-              products={inlineProducts}
-              isLoading={isInlineLoading}
-            />
+            <div className="pt-4">
+              <InlineCategoryFlow
+                categoryId={activeInlineCategory.categoryId || activeInlineCategory.id}
+                categorySlug={activeInlineCategory.slug}
+                categoryName={activeInlineCategory.name}
+                subcategories={inlineSubcategories}
+                products={inlineProducts}
+                isLoading={isInlineLoading}
+              />
+            </div>
           )}
         </>
       )}
 
-      {/* Main content */}
-      <div className="space-y-4 pt-4">
+      {/* Main content - Only show other sections if NO category is active */}
+      {!activeInlineCategory && (
+        <div className="space-y-4 pt-4">
 
-        {/* Category Hierarchy - Category → Subcategory → Products */}
-        {homeData.categoryHierarchy && homeData.categoryHierarchy.length > 0 && (
-          <>
-            {homeData.categoryHierarchy
-              .filter((cat: any) => {
-                const catId = (cat.id || cat._id)?.toString();
-                const activeId = (activeInlineCategory?.categoryId || activeInlineCategory?.id)?.toString();
-                return catId !== activeId;
-              })
-              .map((category: any, catIndex: number) => {
-                return (
-                  <div key={category.id || category._id}>
-                    <InlineCategoryFlow
-                      categoryId={category.id || category._id}
-                      categorySlug={category.slug}
-                      categoryName={category.name}
-                      subcategories={category.subcategories || []}
-                      products={(category.subcategories || []).flatMap((sub: any) =>
-                        (sub.products || []).map((p: any) => ({
-                          ...p,
-                          // Ensure product has subcategory ID for tab matching
-                          subcategoryId: (sub._id || sub.id)?.toString()
-                        }))
-                      )}
-                      isLoading={false}
-                    />
+          {/* Category Hierarchy - Category → Subcategory → Products */}
+          {homeData.categoryHierarchy && homeData.categoryHierarchy.length > 0 && (
+            <>
+              {homeData.categoryHierarchy
+                .filter((cat: any) => {
+                  const catId = (cat.id || cat._id)?.toString();
+                  const activeId = (activeInlineCategory?.categoryId || activeInlineCategory?.id)?.toString();
 
-                    {/* Add banner after every 2 categories */}
-                    {(catIndex + 1) % 2 === 0 && (
-                      <InlineBanner
-                        images={["/banners/first.png", "/banners/second.png", "/banners/third.png"]}
+                  // Skip Vegetables section on main homepage list
+                  const isVegetables =
+                    cat.name?.toLowerCase() === "vegetables" ||
+                    cat.slug?.toLowerCase() === "vegetables";
+
+                  return catId !== activeId && !isVegetables;
+                })
+                .map((category: any, catIndex: number) => {
+                  return (
+                    <div key={category.id || category._id}>
+                      <InlineCategoryFlow
+                        categoryId={category.id || category._id}
+                        categorySlug={category.slug}
+                        categoryName={category.name}
+                        subcategories={category.subcategories || []}
+                        products={(category.subcategories || []).flatMap((sub: any) =>
+                          (sub.products || []).map((p: any) => ({
+                            ...p,
+                            // Ensure product has subcategory ID for tab matching
+                            subcategoryId: (sub._id || sub.id)?.toString()
+                          }))
+                        )}
+                        isLoading={false}
                       />
-                    )}
-                  </div>
-                );
-              })}
-          </>
-        )}
 
-        {/* Filtered Products Section (Legacy fallback if no category hierarchy, or complementary) */}
-        {activeTab !== "all" && filteredProducts.length > 0 && homeData.categoryHierarchy?.length === 0 && (
-          <div data-products-section className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
-            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 px-4 md:px-6 lg:px-8 capitalize">
-              {activeTab === "grocery" ? "Grocery Items" : activeTab}
-            </h2>
-            <div className="px-4 md:px-6 lg:px-8">
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 md:gap-4">
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    categoryStyle={true}
-                    showBadge={true}
-                    showPackBadge={false}
-                    showStockInfo={true}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+                      {/* Add banner after every 2 categories (Single Banner Only) */}
+                      {(catIndex + 1) % 2 === 0 && homeData.extraBanner1?.[0] && (
+                        <InlineBanner
+                          banners={[{ image: homeData.extraBanner1[0].image, link: homeData.extraBanner1[0].link }]}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+            </>
+          )}
 
-        {/* Bestsellers Section (Global Only) */}
-        {activeTab === "all" && (
-          <>
-            <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
-              <CategoryTileSection
-                title="Bestsellers"
-                tiles={
-                  homeData.bestsellers && homeData.bestsellers.length > 0
-                    ? homeData.bestsellers
-                      .slice(0, 6)
-                      .map((card: any) => {
-                        // Bestseller cards have categoryId and productImages array from backend
-                        return {
-                          id: card.id,
-                          categoryId: card.categoryId,
-                          name: card.name || "Category",
-                          productImages: card.productImages || [],
-                          productCount: card.productCount || 0,
-                        };
-                      })
-                    : []
-                }
-                columns={3}
-                showProductCount={true}
-              />
-            </div>
-
-            {/* Inline Banner after Bestsellers */}
-            <InlineBanner
-              images={["/banners/first.png", "/banners/second.png", "/banners/third.png"]}
-            />
-
-            {/* Featured this week Section */}
-            <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
-              <FeaturedThisWeek />
-            </div>
-
-            {/* Inline Banner after Featured */}
-            <InlineBanner
-              images={["/banners/first.png", "/banners/second.png", "/banners/third.png"]}
-            />
-
-            {/* Shop by Store Section */}
-            <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 px-4 md:px-6 lg:px-8">
-                Shop by Store
+          {/* Filtered Products Section (Legacy fallback if no category hierarchy, or complementary) */}
+          {activeTab !== "all" && filteredProducts.length > 0 && homeData.categoryHierarchy?.length === 0 && (
+            <div data-products-section className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 px-4 md:px-6 lg:px-8 capitalize">
+                {activeTab === "grocery" ? "Grocery Items" : activeTab}
               </h2>
               <div className="px-4 md:px-6 lg:px-8">
-                <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 md:gap-4">
-                  {(homeData.shops || []).map((tile: any) => {
-                    const hasImages =
-                      tile.image ||
-                      (tile.productImages &&
-                        tile.productImages.filter(Boolean).length > 0);
-
-                    return (
-                      <div key={tile.id} className="flex flex-col">
-                        <div
-                          onClick={() => {
-                            const storeSlug =
-                              tile.slug || tile.id.replace("-store", "");
-                            saveScrollPosition();
-                            navigate(`/store/${storeSlug}`);
-                          }}
-                          className="block bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl shadow-sm border border-gray-200 hover:shadow-lg hover:scale-105 transition-all cursor-pointer overflow-hidden">
-                          {hasImages ? (
-                            <img
-                              src={
-                                tile.image ||
-                                (tile.productImages
-                                  ? tile.productImages[0]
-                                  : "")
-                              }
-                              alt={tile.name}
-                              className="w-full h-20 object-cover"
-                            />
-                          ) : (
-                            <div
-                              className={`w-full h-20 flex items-center justify-center text-3xl font-bold ${tile.bgColor || "bg-gradient-to-br from-orange-100 to-orange-200 text-orange-600"
-                                }`}>
-                              {tile.name.charAt(0)}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Tile name - outside card */}
-                        <div className="mt-2 text-center">
-                          <span className="text-xs font-semibold text-gray-800 line-clamp-2 leading-tight">
-                            {tile.name}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 md:gap-4">
+                  {filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      categoryStyle={true}
+                      showBadge={true}
+                      showPackBadge={false}
+                      showStockInfo={true}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
-          </>
-        )}
-      </div>
+          )}
+
+          {/* Bestsellers Section (Global Only) */}
+          {activeTab === "all" && (
+            <>
+              <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
+                <CategoryTileSection
+                  title="Bestsellers"
+                  tiles={
+                    homeData.bestsellers && homeData.bestsellers.length > 0
+                      ? homeData.bestsellers
+                        .slice(0, 6)
+                        .map((card: any) => {
+                          // Bestseller cards have categoryId and productImages array from backend
+                          return {
+                            id: card.id,
+                            categoryId: card.categoryId,
+                            name: card.name || "Category",
+                            productImages: card.productImages || [],
+                            productCount: card.productCount || 0,
+                          };
+                        })
+                      : []
+                  }
+                  columns={3}
+                  showProductCount={true}
+                />
+              </div>
+
+              {/* Single Banner after Bestsellers */}
+              {homeData.extraBanner1?.map((banner: any) => (
+                <InlineBanner key={banner._id} banners={[{ image: banner.image, link: banner.link }]} />
+              ))}
+
+              {/* Featured this week Section */}
+              <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
+                <FeaturedThisWeek />
+              </div>
+
+              {/* Single Banner after Featured */}
+              {homeData.extraBanner3?.map((banner: any) => (
+                <InlineBanner key={banner._id} banners={[{ image: banner.image, link: banner.link }]} />
+              ))}
+
+              {/* Shop by Store Section */}
+              <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
+                <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 px-4 md:px-6 lg:px-8">
+                  Shop by Store
+                </h2>
+                <div className="px-4 md:px-6 lg:px-8">
+                  <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 md:gap-4">
+                    {(homeData.shops || []).map((tile: any) => {
+                      const hasImages =
+                        tile.image ||
+                        (tile.productImages &&
+                          tile.productImages.filter(Boolean).length > 0);
+
+                      return (
+                        <div key={tile.id} className="flex flex-col">
+                          <div
+                            onClick={() => {
+                              const storeSlug =
+                                tile.slug || tile.id.replace("-store", "");
+                              saveScrollPosition();
+                              navigate(`/store/${storeSlug}`);
+                            }}
+                            className="block bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl shadow-sm border border-gray-200 hover:shadow-lg hover:scale-105 transition-all cursor-pointer overflow-hidden">
+                            {hasImages ? (
+                              <img
+                                src={
+                                  tile.image ||
+                                  (tile.productImages
+                                    ? tile.productImages[0]
+                                    : "")
+                                }
+                                alt={tile.name}
+                                className="w-full h-20 object-cover"
+                              />
+                            ) : (
+                              <div
+                                className={`w-full h-20 flex items-center justify-center text-3xl font-bold ${tile.bgColor || "bg-gradient-to-br from-orange-100 to-orange-200 text-orange-600"
+                                  }`}>
+                                {tile.name.charAt(0)}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Tile name - outside card */}
+                          <div className="mt-2 text-center">
+                            <span className="text-xs font-semibold text-gray-800 line-clamp-2 leading-tight">
+                              {tile.name}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

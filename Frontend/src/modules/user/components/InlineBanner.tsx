@@ -1,32 +1,44 @@
 import { useState, useEffect, useRef } from "react";
 
 interface InlineBannerProps {
-  images: string[];
+  banners?: Array<{
+    id?: string;
+    image: string;
+    link?: string;
+  }>;
+  images?: string[];
   autoPlayInterval?: number;
 }
 
-export default function InlineBanner({ images, autoPlayInterval = 8000 }: InlineBannerProps) {
+export default function InlineBanner({ banners, images, autoPlayInterval = 8000 }: InlineBannerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Default fallback images if none provided
+  // Default fallback images
   const defaultImages = [
-    "/banners/first.png",
-    "/banners/second.png",
-    "/banners/third.png"
+    { image: "/banners/first.png" },
+    { image: "/banners/second.png" },
+    { image: "/banners/third.png" }
   ];
 
-  const displayImages = images && images.length > 0 ? images : defaultImages;
+  let displayBanners: Array<{ image: string; link?: string }> = [];
 
-  // Auto-scroll every 8 seconds
+  if (banners && banners.length > 0) {
+    displayBanners = banners;
+  } else if (images && images.length > 0) {
+    displayBanners = images.map(img => ({ image: img }));
+  } else {
+    displayBanners = defaultImages;
+  }
+
+  // Auto-scroll logic
   useEffect(() => {
-    if (displayImages.length <= 1) return;
+    if (displayBanners.length <= 1) return;
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => {
-        const nextIndex = (prev + 1) % displayImages.length;
-        
-        // Scroll to next banner
+        const nextIndex = (prev + 1) % displayBanners.length;
+
         if (scrollContainerRef.current) {
           const container = scrollContainerRef.current;
           const bannerWidth = container.offsetWidth;
@@ -35,32 +47,37 @@ export default function InlineBanner({ images, autoPlayInterval = 8000 }: Inline
             behavior: 'smooth'
           });
         }
-        
+
         return nextIndex;
       });
     }, autoPlayInterval);
 
     return () => clearInterval(interval);
-  }, [displayImages.length, autoPlayInterval]);
+  }, [displayBanners.length, autoPlayInterval]);
 
-  if (!displayImages || displayImages.length === 0) return null;
+  if (!displayBanners || displayBanners.length === 0) return null;
 
   return (
     <div className="px-4 my-4">
       {/* Horizontal Scrollable Container */}
-      <div 
+      <div
         ref={scrollContainerRef}
-        className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory" 
+        className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        {displayImages.map((image, index) => (
+        {displayBanners.map((banner, index) => (
           <div
             key={index}
             className="flex-shrink-0 w-full snap-center"
+            onClick={() => {
+              if (banner.link) {
+                window.location.href = banner.link;
+              }
+            }}
           >
-            <div className="relative rounded-2xl overflow-hidden shadow-md border border-green-100" style={{ height: "170px" }}>
+            <div className={`relative rounded-2xl overflow-hidden shadow-md border border-green-100 ${banner.link ? 'cursor-pointer' : ''}`} style={{ height: "170px" }}>
               <img
-                src={image}
+                src={banner.image}
                 alt={`Banner ${index + 1}`}
                 className="w-full h-full object-cover"
               />
@@ -68,16 +85,15 @@ export default function InlineBanner({ images, autoPlayInterval = 8000 }: Inline
           </div>
         ))}
       </div>
-      
+
       {/* Scroll Indicator Dots */}
-      {displayImages.length > 1 && (
+      {displayBanners.length > 1 && (
         <div className="flex justify-center gap-1.5 mt-3">
-          {displayImages.map((_, index) => (
+          {displayBanners.map((_: any, index: number) => (
             <div
               key={index}
-              className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                index === currentIndex ? 'bg-green-600' : 'bg-green-300'
-              }`}
+              className={`w-1.5 h-1.5 rounded-full transition-colors ${index === currentIndex ? 'bg-green-600' : 'bg-green-300'
+                }`}
             />
           ))}
         </div>

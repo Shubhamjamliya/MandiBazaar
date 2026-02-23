@@ -6,6 +6,7 @@ import Shop from "../../../models/Shop";
 // HomeSection import removed - replaced by Category hierarchy
 import BestsellerCard from "../../../models/BestsellerCard";
 import LowestPricesProduct from "../../../models/LowestPricesProduct";
+import Banner from "../../../models/Banner";
 import mongoose from "mongoose";
 import { cache } from "../../../utils/cache";
 import { findSellersWithinRange } from "../../../utils/locationHelper";
@@ -339,34 +340,42 @@ export const getHomeContent = async (req: Request, res: Response) => {
     // Filter out categories with no subcategories that have products
     const filteredHierarchy = categoryHierarchy.filter(c => c.subcategories.length > 0);
 
+    // Fetch active banners and group by type
+    const activeBanners = await Banner.find({ isActive: true }).sort({ order: 1 }).lean();
+
+    const promoBanners = activeBanners.filter(b => b.type === 'carousel');
+    const extraBanner1 = activeBanners.filter(b => b.type === 'banner-1');
+    const extraBanner3 = activeBanners.filter(b => b.type === 'banner-3');
+
+    // Default banners if none exist for carousel
+    const finalPromoBanners = promoBanners.length > 0 ? promoBanners : [
+      {
+        id: 1,
+        image: "https://img.freepik.com/free-vector/horizontal-banner-template-grocery-sales_23-2149432421.jpg",
+        link: "/category/grocery",
+      },
+      {
+        id: 2,
+        image: "https://img.freepik.com/free-vector/flat-supermarket-social-media-cover-template_23-2149363385.jpg",
+        link: "/category/snacks",
+      },
+    ];
+
     res.status(200).json({
       success: true,
       data: {
         bestsellers,
-        lowestPrices: validLowestPricesProducts, // Admin-selected products for LowestPricesEver section
+        lowestPrices: validLowestPricesProducts,
         categories,
-        // Category hierarchy (replaces homeSections)
         categoryHierarchy: filteredHierarchy,
-        // Keep homeSections as empty array for backward compatibility
         homeSections: [],
         shops,
-        promoBanners: [
-          {
-            id: 1,
-            image:
-              "https://img.freepik.com/free-vector/horizontal-banner-template-grocery-sales_23-2149432421.jpg",
-            link: "/category/grocery",
-          },
-          {
-            id: 2,
-            image:
-              "https://img.freepik.com/free-vector/flat-supermarket-social-media-cover-template_23-2149363385.jpg",
-            link: "/category/snacks",
-          },
-        ],
+        promoBanners: finalPromoBanners,
+        extraBanner1,
+        extraBanner3,
         trending,
         cookingIdeas,
-        promoCards: finalPromoCards, // Return dynamic or fallback cards
+        promoCards: finalPromoCards,
       },
     });
   } catch (error: any) {
