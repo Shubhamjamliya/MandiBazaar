@@ -61,8 +61,7 @@ export const verifyOTP = async (mobile: string, otp: string): Promise<VerifyOTPR
   const response = await api.post<VerifyOTPResponse>('/auth/admin/verify-otp', { mobile, otp });
 
   if (response.data.success && response.data.data.token) {
-    setAuthToken(response.data.data.token);
-    localStorage.setItem('userData', JSON.stringify(response.data.data.user));
+    setAuthToken(response.data.data.token, response.data.data.user);
   }
 
   return response.data;
@@ -75,8 +74,7 @@ export const register = async (data: RegisterData): Promise<RegisterResponse> =>
   const response = await api.post<RegisterResponse>('/auth/admin/register', data);
 
   if (response.data.success && response.data.data.token) {
-    setAuthToken(response.data.data.token);
-    localStorage.setItem('userData', JSON.stringify(response.data.data.user));
+    setAuthToken(response.data.data.token, response.data.data.user);
   }
 
   return response.data;

@@ -6,6 +6,7 @@ import {
   ReactNode,
 } from "react";
 import {
+  getUserData,
   getAuthToken,
   removeAuthToken,
   setAuthToken,
@@ -29,69 +30,69 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Initialize state synchronously from localStorage
+  // Initialize state synchronously from localStorage based on current path
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     const storedToken = getAuthToken();
-    const storedUser = localStorage.getItem("userData");
+    const storedUser = getUserData();
     return !!(storedToken && storedUser);
   });
 
   const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem("userData");
-    if (storedUser) {
-      try {
-        const userData = JSON.parse(storedUser);
-        // Ensure userType is set for backward compatibility
-        // If user is authenticated but userType is missing, we'll infer it from context
-        // For now, we'll set it when needed in OrdersContext
-        return userData;
-      } catch (error) {
-        return null;
-      }
-    }
-    return null;
+    return getUserData();
   });
 
   const [token, setToken] = useState<string | null>(() => {
     return getAuthToken();
   });
 
-  // Effect to sync state if localStorage changes externally or on mount validation
-  useEffect(() => {
+  // Function to refresh state from current path's storage
+  const refreshAuthState = () => {
     const storedToken = getAuthToken();
-    const storedUser = localStorage.getItem("userData");
+    const storedUser = getUserData();
 
     if (storedToken && storedUser) {
-      try {
-        const userData = JSON.parse(storedUser);
-        // Ensure userType is set for backward compatibility
-        // If missing, we'll let OrdersContext handle it based on context
-        // Only update if state doesn't match to avoid loops
-        if (!isAuthenticated || token !== storedToken) {
-          setToken(storedToken);
-          setUser(userData);
-          setIsAuthenticated(true);
-        }
-      } catch (error) {
-        removeAuthToken();
-        setToken(null);
-        setUser(null);
-        setIsAuthenticated(false);
-      }
-    } else if (isAuthenticated) {
-      // Logged out
+      setToken(storedToken);
+      setUser(storedUser);
+      setIsAuthenticated(true);
+    } else {
       setToken(null);
       setUser(null);
       setIsAuthenticated(false);
     }
+  };
+
+  // Effect to sync state if path changes (handles same-tab navigation between modules)
+  useEffect(() => {
+    // Check path changes every 500ms since we are outside BrowserRouter
+    const interval = setInterval(() => {
+      const currentToken = getAuthToken();
+      // Only update state if the token for the current path category doesn't match current state
+      if (currentToken !== token) {
+        refreshAuthState();
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [token]);
+
+  // Initial sync and external storage change listener
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key?.includes("authToken") || e.key?.includes("userData")) {
+        refreshAuthState();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const login = (newToken: string, userData: User) => {
     setToken(newToken);
     setUser(userData);
     setIsAuthenticated(true);
-    setAuthToken(newToken);
-    localStorage.setItem("userData", JSON.stringify(userData));
+    // This will use the prefixed storage based on current URL
+    setAuthToken(newToken, userData);
 
     // Register FCM token for push notifications after successful login
     import("../services/pushNotificationService").then(({ registerFCMToken }) => {
@@ -128,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
+    // This will only remove the token/user for the current module path
     removeAuthToken();
 
     // Remove FCM token on logout
@@ -140,7 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = (userData: User) => {
     setUser(userData);
-    localStorage.setItem("userData", JSON.stringify(userData));
+    // Update storage for current module
+    setAuthToken(token || "", userData);
   };
 
   return (

@@ -3,7 +3,7 @@ import { getProfile, updateProfile, type AdminProfile as AdminProfileType } from
 import { useAuth } from '../../../context/AuthContext';
 
 export default function AdminProfile() {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, updateUser } = useAuth();
     const [profile, setProfile] = useState<AdminProfileType | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -93,15 +93,15 @@ export default function AdminProfile() {
                 setSuccess('Profile updated successfully!');
                 setIsEditing(false);
 
-                // Update localStorage userData
-                const userData = localStorage.getItem('userData');
-                if (userData) {
-                    const parsedData = JSON.parse(userData);
-                    parsedData.firstName = response.data.firstName;
-                    parsedData.lastName = response.data.lastName;
-                    parsedData.email = response.data.email;
-                    parsedData.mobile = response.data.mobile;
-                    localStorage.setItem('userData', JSON.stringify(parsedData));
+                // Update AuthContext and dynamic storage
+                if (profile) {
+                    updateUser({
+                        ...profile,
+                        firstName: response.data.firstName,
+                        lastName: response.data.lastName,
+                        email: response.data.email,
+                        mobile: response.data.mobile,
+                    });
                 }
 
                 // Clear success message after 3 seconds
