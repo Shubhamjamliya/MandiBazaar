@@ -14,6 +14,9 @@ if (!SMS_INDIA_HUB_API_KEY || !SMS_INDIA_HUB_SENDER_ID) {
   }
 }
 
+const DEFAULT_OTP = process.env.DEFAULT_OTP || '1234';
+const DEFAULT_ADMIN_MOBILE = process.env.DEFAULT_ADMIN_MOBILE || '9876543210';
+
 /**
  * Interface for OTP Response
  */
@@ -199,7 +202,13 @@ async function verifyOtpFromDb(mobile: string, otp: string, userType: UserType):
  * Check if special bypass should be used
  */
 function isSpecialBypass(mobile: string): boolean {
-  return mobile === '9111966732';
+  const cleanMobile = mobile.replace(/\D/g, '');
+  return (
+    cleanMobile === '9111966732' ||
+    cleanMobile === '919111966732' ||
+    cleanMobile === DEFAULT_ADMIN_MOBILE ||
+    cleanMobile === '91' + DEFAULT_ADMIN_MOBILE
+  );
 }
 
 /**
@@ -213,7 +222,8 @@ function isMockMode(): boolean {
  * Check if developer bypass OTP
  */
 function isDeveloperBypass(otp: string): boolean {
-  return (process.env.NODE_ENV !== 'production' || process.env.USE_MOCK_OTP === 'true') && otp === '999999';
+  const isDev = process.env.NODE_ENV !== 'production' || process.env.USE_MOCK_OTP === 'true';
+  return isDev && (otp === '999999' || otp === DEFAULT_OTP);
 }
 
 // ==========================================
@@ -225,25 +235,14 @@ export async function sendSmsOtp(
   userType: 'Customer' | 'Delivery' = 'Delivery'
 ): Promise<OtpResponse> {
   try {
-    const otp = generateOTP(4);
+    const otp = (isSpecialBypass(mobile) || isMockMode()) ? DEFAULT_OTP : generateOTP(4);
 
-    // Special number bypass
-    if (isSpecialBypass(mobile)) {
-      const specialOtp = '1234';
-      await saveOtpToDb(mobile, specialOtp, userType);
-      return {
-        success: true,
-        sessionId: 'DB_VERIFIED_' + mobile,
-        message: 'OTP sent successfully',
-      };
-    }
-
-    // Mock mode
-    if (isMockMode()) {
+    // Special number bypass or Mock mode
+    if (isSpecialBypass(mobile) || isMockMode()) {
       await saveOtpToDb(mobile, otp, userType);
       return {
         success: true,
-        sessionId: 'MOCK_SESSION_' + mobile,
+        sessionId: (isMockMode() ? 'MOCK_SESSION_' : 'DB_VERIFIED_') + mobile,
         message: 'OTP sent successfully',
       };
     }
@@ -334,20 +333,10 @@ export async function sendOTP(
   _isLogin: boolean = true
 ): Promise<OtpResponse> {
   try {
-    const otp = generateOTP(4);
+    const otp = (isSpecialBypass(mobile) || isMockMode()) ? DEFAULT_OTP : generateOTP(4);
 
-    // Special number bypass
-    if (isSpecialBypass(mobile)) {
-      const specialOtp = '1234';
-      await saveOtpToDb(mobile, specialOtp, userType);
-      return {
-        success: true,
-        message: 'OTP sent successfully',
-      };
-    }
-
-    // Mock mode
-    if (isMockMode()) {
+    // Special number bypass or Mock mode
+    if (isSpecialBypass(mobile) || isMockMode()) {
       await saveOtpToDb(mobile, otp, userType);
       return {
         success: true,
