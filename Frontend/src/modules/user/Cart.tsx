@@ -51,11 +51,12 @@ export default function Cart() {
 
       {/* Cart Items */}
       <div className="px-4 md:px-6 lg:px-8 space-y-4 md:space-y-6 mb-4 md:mb-6">
-        {cart.items.map((item) => {
+        {cart.items.map((item, index) => {
           const { displayPrice, mrp, hasDiscount } = calculateProductPrice(item.product, item.variant);
+          const variantKey = item.variant || (item.product as any).variantId || (item.product as any).variantTitle || 'default';
           return (
             <div
-              key={item.product.id}
+              key={`${item.product.id || item.product._id}-${variantKey}-${index}`}
               className="bg-white rounded-lg border border-neutral-200 p-4 md:p-6 hover:shadow-md transition-shadow"
             >
               <div className="flex gap-4 md:gap-6">

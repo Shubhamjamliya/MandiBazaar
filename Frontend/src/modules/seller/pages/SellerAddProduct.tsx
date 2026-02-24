@@ -557,16 +557,7 @@ export default function SellerAddProduct() {
               {/* ── QUANTITY MODE ────────────────────────────────────────── */}
               {sellingUnit === "quantity" && (
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Variation Type</label>
-                    <select name="variationType" value={formData.variationType} onChange={handleChange} className={`${selectCls} max-w-xs`}>
-                      <option value="">Select Type (Optional)</option>
-                      <option value="Size">Size</option>
-                      <option value="Weight">Weight</option>
-                      <option value="Color">Color</option>
-                      <option value="Pack">Pack</option>
-                    </select>
-                  </div>
+
 
                   {/* Add Variation Row */}
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
@@ -707,6 +698,11 @@ export default function SellerAddProduct() {
                   <label className="block text-sm font-medium text-neutral-700 mb-2">Max Qty per Order</label>
                   <input type="number" name="totalAllowedQuantity" value={formData.totalAllowedQuantity} onChange={handleChange} placeholder="10" className={inputCls} />
                   <p className="text-xs text-neutral-400 mt-1">Leave 10 if no limit</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">Variation Label (e.g. Size, Pack)</label>
+                  <input type="text" name="variationType" value={formData.variationType} onChange={handleChange} placeholder="e.g. Size" className={inputCls} />
+                  <p className="text-xs text-neutral-500 mt-1">Used as 'Choose [Label]' in product details</p>
                 </div>
               </div>
             </div>

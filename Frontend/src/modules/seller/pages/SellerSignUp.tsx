@@ -366,8 +366,10 @@ export default function SellerSignUp() {
                           setFormData(prev => ({
                             ...prev,
                             searchLocation: address,
-                            latitude: lat.toString(),
-                            longitude: lng.toString(),
+                            ...(lat !== 0 && lng !== 0 ? {
+                              latitude: lat.toString(),
+                              longitude: lng.toString(),
+                            } : {}),
                             address: address,
                             city: components?.city || prev.city,
                           }));

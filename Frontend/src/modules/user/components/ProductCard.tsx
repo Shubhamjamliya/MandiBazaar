@@ -56,8 +56,7 @@ function ProductCard({
   // Single ref to track any cart operation in progress for this product
   const isOperationPendingRef = useRef(false);
 
-  const cartItem = cart.items.find((item) => item?.product && (item.product.id === (product as any).id || item.product._id === (product as any).id || item.product.id === product._id));
-  const inCartQty = cartItem?.quantity || 0;
+
 
   // Get Price and MRP using utility
   let { displayPrice, mrp, discount } = calculateProductPrice(product);
@@ -65,24 +64,48 @@ function ProductCard({
   // Fallback for weight-mode products where top-level price may be 0 (legacy save)
   const isWeightMode = (product as any).sellingUnit === 'weight';
   const weightVariants: any[] = (product as any).weightVariants || [];
-  if (isWeightMode && (!displayPrice || displayPrice === 0) && weightVariants.length > 0) {
-    const enabled = weightVariants.filter((v: any) => v.isEnabled);
-    const sorted = [...enabled].sort((a: any, b: any) => a.grams - b.grams);
-    const withPrice = sorted.filter((v: any) => Number(v.price) > 0);
-    const entry = withPrice[0] || sorted[sorted.length - 1];
-    if (entry) {
-      displayPrice = Number(entry.price) || 0;
-      if (Number(entry.mrp) > 0) mrp = Number(entry.mrp);
+
+  // Identify the "acting variant" for this card (usually the default/smallest one)
+  const actingWeightVariant = isWeightMode
+    ? [...weightVariants].filter((v: any) => v.isEnabled).sort((a: any, b: any) => a.grams - b.grams)[0]
+    : null;
+  const actingQuantityVariant = !isWeightMode && product.variations && product.variations.length > 0
+    ? product.variations[0]
+    : null;
+
+  const actingVariantId = isWeightMode
+    ? (actingWeightVariant ? `wv_${actingWeightVariant.label}` : undefined)
+    : actingQuantityVariant?._id;
+  const actingVariantTitle = isWeightMode
+    ? actingWeightVariant?.label
+    : (actingQuantityVariant?.title || actingQuantityVariant?.value || product.pack);
+
+  // Find the cart item for this specific product and variation
+  const cartItem = cart.items.find((item) => {
+    const itemProductId = item.product.id || item.product._id;
+    const productId = (product as any).id || product._id;
+    if (itemProductId !== productId) return false;
+
+    // If we have a specific variant we're acting on, match it
+    if (actingVariantId || actingVariantTitle) {
+      const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
+      const itemVariantTitle = (item.product as any).variantTitle || (item.product as any).pack;
+      return itemVariantId === actingVariantId || itemVariantTitle === actingVariantTitle;
     }
+
+    // If product has no variants at all, match by product ID only
+    return true;
+  });
+
+  const inCartQty = cartItem?.quantity || 0;
+
+  // Price calculation
+  if (isWeightMode && (!displayPrice || displayPrice === 0) && actingWeightVariant) {
+    displayPrice = Number(actingWeightVariant.price) || 0;
+    if (Number(actingWeightVariant.mrp) > 0) mrp = Number(actingWeightVariant.mrp);
   }
   // Pack label for weight products: show smallest priced variant label
-  const weightPackLabel = isWeightMode && weightVariants.length > 0
-    ? (() => {
-      const enabled = weightVariants.filter((v: any) => v.isEnabled && Number(v.price) > 0);
-      const sorted = [...enabled].sort((a: any, b: any) => a.grams - b.grams);
-      return sorted[0]?.label || '';
-    })()
-    : '';
+  const weightPackLabel = isWeightMode && actingWeightVariant ? actingWeightVariant.label : '';
 
   const handleCardClick = () => {
     navigate(`/product/${((product as any).id || product._id) as string}`);
@@ -92,22 +115,39 @@ function ProductCard({
     e.stopPropagation();
     e.preventDefault();
 
-    // Check if product is available in user's location
-    if (product.isAvailable === false) {
-      return;
-    }
-
-    // Prevent any operation while another is in progress
-    if (isOperationPendingRef.current) {
-      return;
-    }
+    if (product.isAvailable === false) return;
+    if (isOperationPendingRef.current) return;
 
     isOperationPendingRef.current = true;
-
     try {
-      await addToCart(product, addButtonRef.current);
+      // If weight mode, prepare the product object with the acting weight variant info
+      if (isWeightMode && actingWeightVariant) {
+        const productWithWeight = {
+          ...product,
+          price: actingWeightVariant.price,
+          mrp: actingWeightVariant.mrp || actingWeightVariant.price,
+          pack: actingWeightVariant.label,
+          variantTitle: actingWeightVariant.label,
+          variantId: `wv_${actingWeightVariant.label}`,
+          selectedWeightVariant: actingWeightVariant,
+        };
+        await addToCart(productWithWeight, addButtonRef.current);
+      } else if (actingQuantityVariant) {
+        // If quantity mode with variations, prepare the product object with the first variant
+        const productWithVariant = {
+          ...product,
+          price: actingQuantityVariant.discPrice || actingQuantityVariant.price,
+          mrp: actingQuantityVariant.price,
+          pack: actingQuantityVariant.title || actingQuantityVariant.value || product.pack,
+          selectedVariant: actingQuantityVariant,
+          variantId: actingQuantityVariant._id,
+          variantTitle: actingQuantityVariant.title || actingQuantityVariant.value,
+        };
+        await addToCart(productWithVariant, addButtonRef.current);
+      } else {
+        await addToCart(product, addButtonRef.current);
+      }
     } finally {
-      // Reset the flag after the operation truly completes
       isOperationPendingRef.current = false;
     }
   };
@@ -116,17 +156,17 @@ function ProductCard({
     e.stopPropagation();
     e.preventDefault();
 
-    // Prevent any operation while another is in progress
-    if (isOperationPendingRef.current || inCartQty <= 0) {
-      return;
-    }
+    if (isOperationPendingRef.current || inCartQty <= 0) return;
 
     isOperationPendingRef.current = true;
-
     try {
-      await updateQuantity(((product as any).id || product._id) as string, inCartQty - 1);
+      await updateQuantity(
+        ((product as any).id || product._id) as string,
+        inCartQty - 1,
+        actingVariantId,
+        actingVariantTitle
+      );
     } finally {
-      // Reset the flag after the operation truly completes
       isOperationPendingRef.current = false;
     }
   };
@@ -135,26 +175,22 @@ function ProductCard({
     e.stopPropagation();
     e.preventDefault();
 
-    // Check if product is available in user's location
-    if (product.isAvailable === false) {
-      return;
-    }
-
-    // Prevent any operation while another is in progress
-    if (isOperationPendingRef.current) {
-      return;
-    }
+    if (product.isAvailable === false) return;
+    if (isOperationPendingRef.current) return;
 
     isOperationPendingRef.current = true;
-
     try {
       if (inCartQty > 0) {
-        await updateQuantity(((product as any).id || product._id) as string, inCartQty + 1);
+        await updateQuantity(
+          ((product as any).id || product._id) as string,
+          inCartQty + 1,
+          actingVariantId,
+          actingVariantTitle
+        );
       } else {
-        await addToCart(product, addButtonRef.current);
+        await handleAdd(e);
       }
     } finally {
-      // Reset the flag after the operation truly completes
       isOperationPendingRef.current = false;
     }
   };

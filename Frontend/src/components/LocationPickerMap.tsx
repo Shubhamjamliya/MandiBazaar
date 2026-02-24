@@ -37,12 +37,17 @@ export default function LocationPickerMap({
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [center, setCenter] = useState(defaultCenter);
 
-  // Update center when props change
+  // Update center when props change from outside
   useEffect(() => {
-    if (initialLat && initialLng) {
-      setCenter({ lat: initialLat, lng: initialLng });
+    if (typeof initialLat === 'number' && typeof initialLng === 'number' && !isNaN(initialLat) && !isNaN(initialLng)) {
+      const newCenter = { lat: initialLat, lng: initialLng };
+      setCenter(newCenter);
+      // Explicitly pan the map if it's already loaded
+      if (map) {
+        map.panTo(newCenter);
+      }
     }
-  }, [initialLat, initialLng]);
+  }, [initialLat, initialLng, map]);
 
   // Memoize options to prevent re-renders that could freeze the map
   const mapOptions = useMemo(() => ({

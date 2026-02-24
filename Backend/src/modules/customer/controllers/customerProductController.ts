@@ -188,7 +188,10 @@ export const getProducts = async (req: Request, res: Response) => {
       // If no location provided, we show products but marked unavailable for strictness, 
       // OR we just show them. For now, let's mark based on nearbySellerIds.
       const isAvailable = nearbySellerIds.length > 0 && productObj.seller
-        ? nearbySellerIds.some(id => id.toString() === productObj.seller.toString())
+        ? nearbySellerIds.some(id => {
+          const sellerId = productObj.seller._id || productObj.seller;
+          return id.toString() === sellerId.toString();
+        })
         : !locationProvided; // If no location provided, assume available for browsing unless strict
 
       return {

@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import HomsterHeader from "./components/HomsterHeader";
 import ServiceCategoriesSection from "./components/ServiceCategoriesSection";
 import SimpleBanner from "./components/SimpleBanner";
 import InlineBanner from "./components/InlineBanner";
@@ -296,8 +295,7 @@ export default function Home() {
 
   return (
     <div className="bg-gradient-to-b from-green-100 via-green-50 to-green-50/20 min-h-screen pb-20 md:pb-0" ref={contentRef}>
-      {/* Homster Header */}
-      <HomsterHeader />
+      {/* Homster Header - Now managed in AppLayout for stability */}
 
       {/* Spacer for fixed header */}
       <div className="h-[175px]"></div>

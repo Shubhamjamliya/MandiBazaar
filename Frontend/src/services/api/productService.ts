@@ -54,6 +54,19 @@ export interface Product {
   galleryImageUrls: string[];
   variations: ProductVariation[];
   variationType?: string;
+  // Selling Unit Mode
+  sellingUnit?: "weight" | "quantity";
+  pricePerKg?: number;
+  weightVariants?: Array<{
+    _id?: string;
+    label: string;
+    grams: number;
+    price: number;
+    mrp: number;
+    stock: number;
+    isEnabled: boolean;
+  }>;
+
   createdAt?: string;
   updatedAt?: string;
   // Fallback for old fields if any legacy code uses them
@@ -105,7 +118,7 @@ export interface Shop {
   image?: string;
 }
 
-export interface UpdateProductData extends Partial<CreateProductData> {}
+export interface UpdateProductData extends Partial<CreateProductData> { }
 
 export interface GetProductsParams {
   search?: string;

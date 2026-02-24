@@ -5,6 +5,7 @@ import FloatingCartPill from './FloatingCartPill';
 import { useLocation as useLocationContext } from '../hooks/useLocation';
 import LocationPermissionRequest from './LocationPermissionRequest';
 import { useThemeContext } from '../context/ThemeContext';
+import HomsterHeader from '../modules/user/components/HomsterHeader';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -138,6 +139,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const isSearchPage = location.pathname === '/search';
   const isCheckoutPage = location.pathname === '/checkout' || location.pathname.startsWith('/checkout/');
   const isCartPage = location.pathname === '/cart';
+  const isHomePage = location.pathname === '/' || location.pathname === '/user/home';
+  const isOrderAgainPage = location.pathname === '/order-again';
+  const showHomsterHeader = isHomePage || isOrderAgainPage;
   const showHeader = isSearchPage && !isCheckoutPage && !isCartPage;
   const showSearchBar = isSearchPage && !isCheckoutPage && !isCartPage;
   const showFooter = !isCheckoutPage && !isProductDetailPage;
@@ -315,6 +319,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
               )}
             </header>
           )}
+
+          {/* Common Homster Header for Home and Order Again */}
+          {showHomsterHeader && <HomsterHeader />}
 
           {/* Scrollable Main Content */}
           <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide pb-24 md:pb-8">

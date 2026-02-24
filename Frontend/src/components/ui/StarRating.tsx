@@ -45,7 +45,7 @@ export default function StarRating({
         {Array.from({ length: fullStars }).map((_, i) => (
           <svg
             key={`full-${i}`}
-            className={`${starSize} text-yellow-400`}
+            className={`${starSize} text-yellow-400 drop-shadow-[0_0_2px_rgba(250,204,21,0.6)]`}
             fill="currentColor"
             viewBox="0 0 24 24"
           >
@@ -55,7 +55,7 @@ export default function StarRating({
 
         {/* Half star - using a simpler approach with masking */}
         {hasHalfStar && (
-          <div className="relative inline-block">
+          <div className="relative inline-block drop-shadow-[0_0_2px_rgba(250,204,21,0.4)]">
             <svg
               className={`${starSize} text-neutral-300`}
               fill="currentColor"

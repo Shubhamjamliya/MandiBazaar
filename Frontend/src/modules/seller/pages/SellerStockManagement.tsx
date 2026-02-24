@@ -89,19 +89,52 @@ export default function SellerStockManagement() {
                     // Convert products to stock items
                     const items: StockItem[] = [];
                     response.data.forEach((product: Product) => {
-                        product.variations.forEach((variation, index) => {
+                        // 1. Handle Weight Mode
+                        if (product.sellingUnit === "weight" && product.weightVariants && product.weightVariants.length > 0) {
+                            product.weightVariants.forEach((variant, index) => {
+                                items.push({
+                                    variationId: variant._id || `${product._id}-w-${index}`,
+                                    productId: product._id,
+                                    name: product.productName,
+                                    seller: user?.storeName || '',
+                                    image: resolveImageUrl(product.mainImage || product.mainImageUrl),
+                                    variation: variant.label,
+                                    stock: variant.stock,
+                                    status: product.publish ? 'Published' : 'Unpublished',
+                                    category: (product.category as any)?.name || 'Uncategorized',
+                                });
+                            });
+                        }
+                        // 2. Handle Quantity Mode with variations
+                        else if (product.variations && product.variations.length > 0) {
+                            product.variations.forEach((variation, index) => {
+                                items.push({
+                                    variationId: variation._id || `${product._id}-${index}`,
+                                    productId: product._id,
+                                    name: product.productName,
+                                    seller: user?.storeName || '',
+                                    image: resolveImageUrl(product.mainImage || product.mainImageUrl),
+                                    variation: variation.title || variation.value || variation.name || 'Default',
+                                    stock: variation.stock,
+                                    status: product.publish ? 'Published' : 'Unpublished',
+                                    category: (product.category as any)?.name || 'Uncategorized',
+                                });
+                            });
+                        }
+                        // 3. Fallback for products with NO variations and NO weight variants
+                        else {
                             items.push({
-                                variationId: variation._id || `${product._id}-${index}`,
+                                variationId: `${product._id}-default`,
                                 productId: product._id,
                                 name: product.productName,
                                 seller: user?.storeName || '',
                                 image: resolveImageUrl(product.mainImage || product.mainImageUrl),
-                                variation: variation.title || variation.value || variation.name || 'Default',
-                                stock: variation.stock,
+                                variation: 'Default',
+                                stock: product.stock as any || 0,
                                 status: product.publish ? 'Published' : 'Unpublished',
                                 category: (product.category as any)?.name || 'Uncategorized',
                             });
-                        });
+                        }
                     });
                     setStockItems(items);
                     if ((response as any).pagination) {

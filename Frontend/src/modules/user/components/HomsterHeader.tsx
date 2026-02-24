@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useLocation } from '../../../hooks/useLocation';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
@@ -12,7 +12,7 @@ const ATTR_PHRASES = [
   "Happy Shopping!"
 ];
 
-const SlidingPhrases = () => {
+const SlidingPhrases = memo(() => {
   const [phraseIndex, setPhraseIndex] = useState(0);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ const SlidingPhrases = () => {
       {ATTR_PHRASES.map((phrase, idx) => (
         <h1
           key={phrase}
-          className={`absolute inset-0 text-xl font-black bg-gradient-to-r from-emerald-900 to-emerald-800 bg-clip-text text-transparent leading-tight tracking-tight text-slide-up whitespace-nowrap ${idx === phraseIndex
+          className={`absolute inset-0 text-xl font-black bg-gradient-to-r from-emerald-900 to-emerald-800 bg-clip-text text-transparent leading-tight tracking-tight text-slide-up whitespace-nowrap transition-all duration-700 ${idx === phraseIndex
             ? 'translate-y-0 opacity-100'
             : 'translate-y-4 opacity-0 pointer-events-none'
             }`}
@@ -37,9 +37,9 @@ const SlidingPhrases = () => {
       ))}
     </div>
   );
-};
+});
 
-export default function HomsterHeader() {
+function HomsterHeader() {
   const navigate = useNavigate();
   const { location: userLocation } = useLocation();
 
@@ -194,3 +194,6 @@ export default function HomsterHeader() {
     </>
   );
 }
+
+const HomsterHeaderMemo = memo(HomsterHeader);
+export default HomsterHeaderMemo;
