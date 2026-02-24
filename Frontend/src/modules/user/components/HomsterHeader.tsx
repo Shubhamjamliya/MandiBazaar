@@ -12,9 +12,7 @@ const ATTR_PHRASES = [
   "Happy Shopping!"
 ];
 
-export default function HomsterHeader() {
-  const navigate = useNavigate();
-  const { location: userLocation } = useLocation();
+const SlidingPhrases = () => {
   const [phraseIndex, setPhraseIndex] = useState(0);
 
   useEffect(() => {
@@ -23,6 +21,27 @@ export default function HomsterHeader() {
     }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  return (
+    <div className="relative h-6 overflow-hidden">
+      {ATTR_PHRASES.map((phrase, idx) => (
+        <h1
+          key={phrase}
+          className={`absolute inset-0 text-xl font-black bg-gradient-to-r from-emerald-900 to-emerald-800 bg-clip-text text-transparent leading-tight tracking-tight text-slide-up whitespace-nowrap ${idx === phraseIndex
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-4 opacity-0 pointer-events-none'
+            }`}
+        >
+          {phrase}
+        </h1>
+      ))}
+    </div>
+  );
+};
+
+export default function HomsterHeader() {
+  const navigate = useNavigate();
+  const { location: userLocation } = useLocation();
 
   const locationDisplayText = userLocation?.address ||
     (userLocation?.city && userLocation?.state ? `${userLocation.city}, ${userLocation.state}` : '') ||
@@ -103,19 +122,7 @@ export default function HomsterHeader() {
 
               {/* Brand Section */}
               <div className="flex flex-col justify-center min-w-[150px] relative z-10 ml-1">
-                <div className="relative h-6 overflow-hidden">
-                  {ATTR_PHRASES.map((phrase, idx) => (
-                    <h1
-                      key={phrase}
-                      className={`absolute inset-0 text-xl font-black bg-gradient-to-r from-emerald-900 to-emerald-800 bg-clip-text text-transparent leading-tight tracking-tight text-slide-up whitespace-nowrap ${idx === phraseIndex
-                        ? 'translate-y-0 opacity-100'
-                        : 'translate-y-4 opacity-0 pointer-events-none'
-                        }`}
-                    >
-                      {phrase}
-                    </h1>
-                  ))}
-                </div>
+                <SlidingPhrases />
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                   <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-widest opacity-80">Fresh & Fast</p>

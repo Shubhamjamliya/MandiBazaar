@@ -17,8 +17,15 @@ export interface GetWishlistParams {
 }
 
 export const getWishlist = async (params?: GetWishlistParams): Promise<WishlistResponse> => {
-  const res = await api.get<WishlistResponse>("/customer/wishlist", { params });
-  return res.data;
+  const cacheKey = `wishlist-${JSON.stringify(params || {})}`;
+  return apiCache.getOrFetch(
+    cacheKey,
+    async () => {
+      const res = await api.get<WishlistResponse>("/customer/wishlist", { params });
+      return res.data;
+    },
+    1 * 60 * 1000 // 1 minute cache
+  );
 };
 
 export const addToWishlist = async (productId: string, latitude?: number, longitude?: number): Promise<WishlistResponse> => {

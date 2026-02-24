@@ -392,7 +392,7 @@ export default function Home() {
       )}
 
       {/* Category-Specific Product Sliders (Dynamic Sections) */}
-      {activeTab === "all" && homeData.categoryHierarchy && homeData.categoryHierarchy.length > 0 && (
+      {!activeInlineCategory && activeTab === "all" && homeData.categoryHierarchy && homeData.categoryHierarchy.length > 0 && (
         <div className="space-y-4">
           {/* Bestsellers Section (Global Only) */}
           {activeTab === "all" && bestsellerProducts.length > 0 && (

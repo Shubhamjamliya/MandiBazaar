@@ -1,3 +1,4 @@
+import React, { memo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
@@ -15,7 +16,8 @@ interface ServiceCategoriesSectionProps {
   onCategorySelect?: (category: ServiceCategory) => void;
 }
 
-export default function ServiceCategoriesSection({
+// Wrap export in memo
+const ServiceCategoriesSectionMemo = memo(function ServiceCategoriesSection({
   categories,
   activeCategoryId,
   onCategorySelect,
@@ -160,4 +162,6 @@ export default function ServiceCategoriesSection({
       `}</style>
     </div>
   );
-}
+});
+
+export default ServiceCategoriesSectionMemo;

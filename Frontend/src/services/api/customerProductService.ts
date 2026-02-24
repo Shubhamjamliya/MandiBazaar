@@ -57,8 +57,15 @@ export interface CategoryListResponse {
  * Location (latitude/longitude) is required to filter products by seller's service radius
  */
 export const getProducts = async (params?: GetProductsParams): Promise<ProductListResponse> => {
-    const response = await api.get<ProductListResponse>('/customer/products', { params });
-    return response.data;
+    const cacheKey = `customer-products-${JSON.stringify(params || {})}`;
+    return apiCache.getOrFetch(
+        cacheKey,
+        async () => {
+            const response = await api.get<ProductListResponse>('/customer/products', { params });
+            return response.data;
+        },
+        2 * 60 * 1000 // 2 minutes cache for product list
+    );
 };
 
 /**
@@ -93,9 +100,9 @@ export const getCategories = async (tree: boolean = false): Promise<CategoryList
     return apiCache.getOrFetch(
         cacheKey,
         async () => {
-    const url = tree ? '/customer/categories/tree' : '/customer/categories';
-    const response = await api.get<CategoryListResponse>(url);
-    return response.data;
+            const url = tree ? '/customer/categories/tree' : '/customer/categories';
+            const response = await api.get<CategoryListResponse>(url);
+            return response.data;
         },
         10 * 60 * 1000 // 10 minutes cache
     );

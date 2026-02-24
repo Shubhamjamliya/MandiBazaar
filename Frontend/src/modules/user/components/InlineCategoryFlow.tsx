@@ -68,26 +68,13 @@ export default function InlineCategoryFlow({
         });
     }, [subcategories, productsBySubcategory]);
 
-    // Auto-select first subcategory if none selected
-    React.useEffect(() => {
-        if (activeSubcategories.length > 0 && !activeSubcategoryId) {
-            const firstId = (activeSubcategories[0]._id || activeSubcategories[0].id)?.toString();
-            if (firstId) setActiveSubcategoryId(firstId);
-        }
-    }, [activeSubcategories, activeSubcategoryId]);
-
-    // Get products for currently selected subcategory
+    // Get products for currently selected subcategory or show all
     const displayProducts = useMemo(() => {
-        if (!activeSubcategoryId) {
-            // If no active subcategory, show all products or from the first subcategory
-            if (activeSubcategories.length > 0) {
-                const firstId = (activeSubcategories[0]._id || activeSubcategories[0].id)?.toString();
-                if (firstId) return productsBySubcategory[firstId] || [];
-            }
+        if (!activeSubcategoryId || activeSubcategoryId === 'all') {
             return products;
         }
         return productsBySubcategory[activeSubcategoryId] || [];
-    }, [activeSubcategoryId, productsBySubcategory, products, activeSubcategories]);
+    }, [activeSubcategoryId, productsBySubcategory, products]);
 
     if (isLoading) {
         return (
@@ -110,6 +97,20 @@ export default function InlineCategoryFlow({
             {activeSubcategories.length > 0 && (
                 <div className="mb-5 px-4 md:px-6 lg:px-8">
                     <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                        {/* Explicit 'All' Tab */}
+                        <button
+                            onClick={() => setActiveSubcategoryId(null)}
+                            className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 border whitespace-nowrap ${!activeSubcategoryId || activeSubcategoryId === 'all'
+                                ? "bg-green-600 text-white border-green-600 shadow-md shadow-green-600/20"
+                                : "bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:bg-green-50"
+                                }`}
+                        >
+                            All
+                            <span className={`ml-1.5 text-xs ${!activeSubcategoryId || activeSubcategoryId === 'all' ? "text-green-100" : "text-gray-400"}`}>
+                                ({products.length})
+                            </span>
+                        </button>
+
                         {activeSubcategories.map((subcat) => {
                             const subId = (subcat._id || subcat.id)?.toString();
                             const isActive = activeSubcategoryId === subId;
@@ -148,7 +149,7 @@ export default function InlineCategoryFlow({
                     className="px-4 md:px-6 lg:px-8"
                 >
                     {displayProducts.length > 0 ? (
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-4">
                             {displayProducts.map((product: Product) => (
                                 <ProductCard
                                     key={product.id || product._id}

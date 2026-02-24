@@ -101,11 +101,18 @@ export const getSubcategories = async (
   categoryId: string,
   params?: GetSubcategoriesParams
 ): Promise<ApiResponse<SubCategory[]>> => {
-  const response = await api.get<ApiResponse<SubCategory[]>>(
-    `/categories/${categoryId}/subcategories`,
-    { params }
+  const cacheKey = `subcategories-${categoryId}-${JSON.stringify(params || {})}`;
+  return apiCache.getOrFetch(
+    cacheKey,
+    async () => {
+      const response = await api.get<ApiResponse<SubCategory[]>>(
+        `/categories/${categoryId}/subcategories`,
+        { params }
+      );
+      return response.data;
+    },
+    5 * 60 * 1000 // 5 minutes cache
   );
-  return response.data;
 };
 
 

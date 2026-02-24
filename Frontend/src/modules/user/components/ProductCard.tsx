@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, memo } from 'react';
 import { Product } from '../../../types/domain';
 import { useCart } from '../../../context/CartContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -11,6 +11,7 @@ import Button from '../../../components/ui/button';
 import Badge from '../../../components/ui/badge';
 import StarRating from '../../../components/ui/StarRating';
 import { calculateProductPrice } from '../../../utils/priceUtils';
+import { useWishlist } from '../../../hooks/useWishlist';
 
 interface ProductCardProps {
   product: Product;
@@ -27,7 +28,7 @@ interface ProductCardProps {
   categoryStyle?: boolean;
 }
 
-export default function ProductCard({
+function ProductCard({
   product,
   showBadge = false,
   badgeText,
@@ -48,76 +49,12 @@ export default function ProductCard({
   const { showToast } = useToast(); // Get toast function
   const imageRef = useRef<HTMLImageElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
-  const [isWishlisted, setIsWishlisted] = useState(false);
+
+  // Use the optimized useWishlist hook
+  const { isWishlisted, toggleWishlist } = useWishlist(((product as any).id || product._id) as string);
+
   // Single ref to track any cart operation in progress for this product
   const isOperationPendingRef = useRef(false);
-
-  useEffect(() => {
-    // Only check wishlist if user is authenticated
-    if (!isAuthenticated) {
-      setIsWishlisted(false);
-      return;
-    }
-
-    const checkWishlist = async () => {
-      try {
-        const res = await getWishlist({
-          latitude: location?.latitude,
-          longitude: location?.longitude
-        });
-        if (res.success && res.data && res.data.products) {
-          const targetId = String((product as any).id || product._id);
-          const exists = res.data.products.some(p => String(p._id || (p as any).id) === targetId);
-          setIsWishlisted(exists);
-        }
-      } catch (e) {
-        // Silently fail if not logged in
-        setIsWishlisted(false);
-      }
-    };
-    checkWishlist();
-  }, [product.id, product._id, isAuthenticated, location?.latitude, location?.longitude]);
-
-  const toggleWishlist = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Redirect to login if not authenticated
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-
-    const targetId = String((product as any).id || product._id);
-    const previousState = isWishlisted;
-
-    try {
-      if (isWishlisted) {
-        // Optimistic update
-        setIsWishlisted(false);
-        await removeFromWishlist(targetId);
-        showToast('Removed from wishlist');
-      } else {
-        if (!location?.latitude || !location?.longitude) {
-          showToast('Location is required to add items to wishlist', 'error');
-          return;
-        }
-        // Optimistic update
-        setIsWishlisted(true);
-        await addToWishlist(
-          targetId,
-          location?.latitude,
-          location?.longitude
-        );
-        showToast('Added to wishlist');
-      }
-    } catch (e: any) {
-      console.error('Failed to toggle wishlist:', e);
-      setIsWishlisted(previousState);
-      const errorMessage = e.response?.data?.message || e.message || 'Failed to update wishlist';
-      showToast(errorMessage, 'error');
-    }
-  };
 
   const cartItem = cart.items.find((item) => item?.product && (item.product.id === (product as any).id || item.product._id === (product as any).id || item.product.id === product._id));
   const inCartQty = cartItem?.quantity || 0;
@@ -548,3 +485,5 @@ export default function ProductCard({
     </motion.div>
   );
 }
+
+export default memo(ProductCard);
