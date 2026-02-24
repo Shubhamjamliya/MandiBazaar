@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSellerProfile, updateSellerProfile } from '../../../services/api/auth/sellerAuthService';
 import { useAuth } from '../../../context/AuthContext';
@@ -90,6 +90,22 @@ const SellerAccountSettings = () => {
             [name]: value
         }));
     };
+
+    const handleLocationSelect = useCallback((lat: number, lng: number) => {
+        setSellerData(prev => {
+            // Only update if coordinates have actually changed significantly
+            const prevLat = parseFloat(prev.latitude);
+            const prevLng = parseFloat(prev.longitude);
+            if (Math.abs(prevLat - lat) < 0.00001 && Math.abs(prevLng - lng) < 0.00001) {
+                return prev;
+            }
+            return {
+                ...prev,
+                latitude: lat.toString(),
+                longitude: lng.toString()
+            };
+        });
+    }, [setSellerData]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -427,13 +443,7 @@ const SellerAccountSettings = () => {
                                                                     <LocationPickerMap
                                                                         initialLat={parseFloat(sellerData.latitude) || 26.9124}
                                                                         initialLng={parseFloat(sellerData.longitude) || 75.7873}
-                                                                        onLocationSelect={(lat, lng) => {
-                                                                            setSellerData(prev => ({
-                                                                                ...prev,
-                                                                                latitude: lat.toString(),
-                                                                                longitude: lng.toString()
-                                                                            }));
-                                                                        }}
+                                                                        onLocationSelect={handleLocationSelect}
                                                                     />
                                                                     <p className="mt-1 text-xs text-neutral-500 text-center">
                                                                         Selected Coordinates: {sellerData.latitude || 'Not selected'}, {sellerData.longitude || 'Not selected'}

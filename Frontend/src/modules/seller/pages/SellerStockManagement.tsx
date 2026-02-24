@@ -86,6 +86,11 @@ export default function SellerStockManagement() {
 
                 const response = await getProducts(params);
                 if (response.success && response.data) {
+                    const ensureStringId = (id: any) => {
+                        if (!id) return '';
+                        return typeof id === 'string' ? id : (id.$oid || String(id));
+                    };
+
                     // Convert products to stock items
                     const items: StockItem[] = [];
                     response.data.forEach((product: Product) => {
@@ -93,7 +98,7 @@ export default function SellerStockManagement() {
                         if (product.sellingUnit === "weight" && product.weightVariants && product.weightVariants.length > 0) {
                             product.weightVariants.forEach((variant, index) => {
                                 items.push({
-                                    variationId: variant._id || `${product._id}-w-${index}`,
+                                    variationId: ensureStringId(variant._id) || `${product._id}-w-${index}`,
                                     productId: product._id,
                                     name: product.productName,
                                     seller: user?.storeName || '',
@@ -109,7 +114,7 @@ export default function SellerStockManagement() {
                         else if (product.variations && product.variations.length > 0) {
                             product.variations.forEach((variation, index) => {
                                 items.push({
-                                    variationId: variation._id || `${product._id}-${index}`,
+                                    variationId: ensureStringId(variation._id) || `${product._id}-${index}`,
                                     productId: product._id,
                                     name: product.productName,
                                     seller: user?.storeName || '',

@@ -13,7 +13,7 @@ export interface ApiResponse<T> {
 }
 
 export interface ProductVariation {
-  _id?: string;
+  _id?: string | { $oid: string };
   name?: string; // Mapped from title if needed, or direct
   value?: string;
   title?: string; // Frontend uses title
@@ -26,7 +26,9 @@ export interface ProductVariation {
 
 export interface Product {
   _id: string;
+  id?: string; // Added for convenience in frontend
   productName: string;
+  stock?: number; // Added stock property
   seller: string | any; // Updated to allow populated object
   headerCategoryId?: string | any; // Updated to allow populated object
   category?: string | any; // Updated to allow populated object
@@ -58,7 +60,7 @@ export interface Product {
   sellingUnit?: "weight" | "quantity";
   pricePerKg?: number;
   weightVariants?: Array<{
-    _id?: string;
+    _id?: string | { $oid: string };
     label: string;
     grams: number;
     price: number;

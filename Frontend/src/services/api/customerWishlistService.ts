@@ -1,5 +1,6 @@
 import api from "./config";
 import { Product } from "./productService";
+import { apiCache } from "../../utils/apiCache";
 
 export interface WishlistResponse {
   success: boolean;

@@ -73,9 +73,14 @@ function ProductCard({
     ? product.variations[0]
     : null;
 
+  const actingVariantIdString = (id: any) => {
+    if (!id) return undefined;
+    return typeof id === 'string' ? id : (id.$oid || String(id));
+  };
+
   const actingVariantId = isWeightMode
     ? (actingWeightVariant ? `wv_${actingWeightVariant.label}` : undefined)
-    : actingQuantityVariant?._id;
+    : actingVariantIdString(actingQuantityVariant?._id);
   const actingVariantTitle = isWeightMode
     ? actingWeightVariant?.label
     : (actingQuantityVariant?.title || actingQuantityVariant?.value || product.pack);

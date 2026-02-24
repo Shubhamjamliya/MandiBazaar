@@ -145,11 +145,16 @@ export default function SellerProductList() {
 
   // Flatten products with variations for display
   // Handle products with weight variants or variations correctly
+  const ensureIdString = (id: any): string => {
+    if (!id) return "";
+    return typeof id === "string" ? id : (id.$oid || String(id));
+  };
+
   const allVariations = products.flatMap((product) => {
     // 1. Handle Weight Mode
     if (product.sellingUnit === "weight" && product.weightVariants && product.weightVariants.length > 0) {
       return product.weightVariants.map((variant, index) => ({
-        variationId: variant._id || `${product._id}-w-${index}`,
+        variationId: ensureIdString(variant._id) || `${product._id}-w-${index}`,
         productName: product.productName,
         sellerName: user?.storeName || "",
         productImage:
@@ -170,7 +175,7 @@ export default function SellerProductList() {
     // 2. Handle Quantity Mode with variations
     if (product.variations && product.variations.length > 0) {
       return product.variations.map((variation, index) => ({
-        variationId: variation._id || `${product._id}-${index}`,
+        variationId: ensureIdString(variation._id) || `${product._id}-${index}`,
         productName: product.productName,
         sellerName: user?.storeName || "",
         productImage:
@@ -720,8 +725,8 @@ export default function SellerProductList() {
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
                 className={`p-2 border border-teal-600 rounded ${currentPage === 1
-                    ? "text-neutral-400 cursor-not-allowed bg-neutral-50"
-                    : "text-teal-600 hover:bg-teal-50"
+                  ? "text-neutral-400 cursor-not-allowed bg-neutral-50"
+                  : "text-teal-600 hover:bg-teal-50"
                   }`}
                 aria-label="Previous page">
                 <svg
@@ -745,8 +750,8 @@ export default function SellerProductList() {
                     key={page}
                     onClick={() => setCurrentPage(page)}
                     className={`px-3 py-1.5 border border-teal-600 rounded font-medium text-sm ${currentPage === page
-                        ? "bg-teal-600 text-white"
-                        : "text-teal-600 hover:bg-teal-50"
+                      ? "bg-teal-600 text-white"
+                      : "text-teal-600 hover:bg-teal-50"
                       }`}>
                     {page}
                   </button>
@@ -758,8 +763,8 @@ export default function SellerProductList() {
                 }
                 disabled={currentPage === displayTotalPages}
                 className={`p-2 border border-teal-600 rounded ${currentPage === displayTotalPages
-                    ? "text-neutral-400 cursor-not-allowed bg-neutral-50"
-                    : "text-teal-600 hover:bg-teal-50"
+                  ? "text-neutral-400 cursor-not-allowed bg-neutral-50"
+                  : "text-teal-600 hover:bg-teal-50"
                   }`}
                 aria-label="Next page">
                 <svg

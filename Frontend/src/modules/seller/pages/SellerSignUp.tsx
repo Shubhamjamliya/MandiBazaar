@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { register, sendOTP, verifyOTP } from '../../../services/api/auth/sellerAuthService';
 import { removeAuthToken } from '../../../services/api/config';
@@ -7,7 +7,6 @@ import GoogleMapsAutocomplete from '../../../components/GoogleMapsAutocomplete';
 import { useAuth } from '../../../context/AuthContext';
 import { getCategories, Category } from '../../../services/api/categoryService';
 import LocationPickerMap from '../../../components/LocationPickerMap';
-import { useEffect } from 'react';
 
 export default function SellerSignUp() {
   const navigate = useNavigate();
@@ -93,6 +92,21 @@ export default function SellerSignUp() {
       };
     });
   };
+
+  const handleLocationSelect = useCallback((lat: number, lng: number) => {
+    setFormData(prev => {
+      const prevLat = parseFloat(prev.latitude);
+      const prevLng = parseFloat(prev.longitude);
+      if (Math.abs(prevLat - lat) < 0.00001 && Math.abs(prevLng - lng) < 0.00001) {
+        return prev;
+      }
+      return {
+        ...prev,
+        latitude: lat.toString(),
+        longitude: lng.toString()
+      };
+    });
+  }, [setFormData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -427,13 +441,7 @@ export default function SellerSignUp() {
                       <LocationPickerMap
                         initialLat={parseFloat(formData.latitude)}
                         initialLng={parseFloat(formData.longitude)}
-                        onLocationSelect={(lat, lng) => {
-                          setFormData(prev => ({
-                            ...prev,
-                            latitude: lat.toString(),
-                            longitude: lng.toString()
-                          }));
-                        }}
+                        onLocationSelect={handleLocationSelect}
                       />
                       <p className="mt-1 text-xs text-neutral-500 text-center">
                         Selected Coordinates: {formData.latitude}, {formData.longitude}

@@ -180,7 +180,7 @@ export default function OrderAgain() {
                         <div className="flex items-center gap-1">
                           {previewItems.filter(item => item?.product).map((item, idx) => (
                             <div key={idx} className="w-6 h-6 bg-neutral-100 rounded flex items-center justify-center flex-shrink-0 overflow-hidden border border-neutral-200" style={{ marginLeft: idx > 0 ? '-4px' : '0' }}>
-                              <img src={item.product.imageUrl || item.product.image} alt="" className="w-full h-full object-contain" />
+                              <img src={item.product.imageUrl || (item.product as any).image} alt="" className="w-full h-full object-contain" />
                             </div>
                           ))}
                           {order.items.length > 3 && (
