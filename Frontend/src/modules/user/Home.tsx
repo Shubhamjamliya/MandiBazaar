@@ -51,6 +51,7 @@ export default function Home() {
     marqueeText: '',
     trending: [],
     cookingIdeas: [],
+    lowestPrices: [],
   });
 
   const [products, setProducts] = useState<any[]>([]);
@@ -299,34 +300,31 @@ export default function Home() {
       <HomsterHeader />
 
       {/* Spacer for fixed header */}
-      <div className="h-[140px]"></div>
+      <div className="h-[175px]"></div>
 
-      {/* Hero Banner - Show promo banners from backend */}
-      {!activeInlineCategory && <SimpleBanner banners={homeData.promoBanners} />}
-
-      {/* Marquee Announcement Strip */}
+      {/* Marquee Announcement Strip - Moved above banner */}
       {homeData.marqueeText && !activeInlineCategory && (
-        <div className="w-full overflow-hidden bg-gradient-to-r from-green-600 to-emerald-500 shadow-sm">
+        <div className="w-full overflow-hidden bg-gradient-to-r from-emerald-600/90 to-green-500/90 backdrop-blur-sm shadow-sm">
           <div className="flex items-center">
-            <div className="flex-shrink-0 bg-green-700 px-3 py-2 flex items-center gap-1.5">
-              <span className="text-white text-xs font-bold tracking-wide whitespace-nowrap">🎉 OFFER</span>
+            <div className="flex-shrink-0 bg-emerald-700/40 px-3 py-1.5 flex items-center gap-1.5">
+              <span className="text-white text-[10px] font-black tracking-widest whitespace-nowrap">OFFER</span>
             </div>
-            <div className="flex-1 overflow-hidden py-2 px-3">
+            <div className="flex-1 overflow-hidden py-1.5 px-3">
               <div
                 className="flex whitespace-nowrap"
                 style={{
-                  animation: 'marqueeScroll 18s linear infinite',
+                  animation: 'marqueeScroll 25s linear infinite',
                 }}
               >
-                <span className="text-white text-xs font-semibold pr-16">{homeData.marqueeText}</span>
-                <span className="text-white text-xs font-semibold pr-16">{homeData.marqueeText}</span>
+                <span className="text-white text-xs font-bold pr-20">{homeData.marqueeText}</span>
+                <span className="text-white text-xs font-bold pr-20">{homeData.marqueeText}</span>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Service Categories Section */}
+      {/* Service Categories Section - Shifted Above Banner */}
       {serviceCategories && serviceCategories.length > 0 && (
         <>
           <ServiceCategoriesSection
@@ -351,9 +349,20 @@ export default function Home() {
         </>
       )}
 
+      {/* Hero Banner Area - Now below Categories */}
+      {!activeInlineCategory && (
+        <>
+          <SimpleBanner banners={homeData.promoBanners} />
+          <LowestPricesEver
+            activeTab={activeTab}
+            products={homeData.lowestPrices}
+          />
+        </>
+      )}
+
       {/* Main content - Only show other sections if NO category is active */}
       {!activeInlineCategory && (
-        <div className="space-y-4 pt-4">
+        <div className="space-y-4 pt-1">
 
 
           {/* Filtered Products Section (Legacy fallback if no category hierarchy, or complementary) */}
@@ -521,10 +530,13 @@ export default function Home() {
             </div>
           ))}
 
-          {/* Featured this week Section */}
+
+          {/* Featured this week Section - Hidden as requested */}
+          {/* 
           <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
             <FeaturedThisWeek />
-          </div>
+          </div> 
+          */}
 
           {/* Single Banner after Featured */}
           {homeData.extraBanner3?.map((banner: any) => (

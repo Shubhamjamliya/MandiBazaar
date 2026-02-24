@@ -39,9 +39,9 @@ export default function ServiceCategoriesSection({
   }
 
   return (
-    <div className="bg-gradient-to-br from-green-50 to-emerald-50 py-5 shadow-sm">
+    <div className="bg-gradient-to-br from-green-50 to-emerald-50 py-3 shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-4">
+      <div className="flex items-center justify-between mb-2 px-4">
         <div>
           <h2 className="text-base font-bold text-gray-800">
             Popular Categories
@@ -89,7 +89,7 @@ export default function ServiceCategoriesSection({
             </div>
 
             {/* Category Name */}
-            <div className="mt-2 text-center w-full">
+            <div className="mt-1 text-center w-full">
               <span className={`text-[10px] font-medium line-clamp-2 leading-tight ${!activeCategoryId ? "text-green-700 font-bold" : "text-gray-700"
                 }`}>
                 Home
@@ -135,7 +135,7 @@ export default function ServiceCategoriesSection({
                 </div>
 
                 {/* Category Name */}
-                <div className="mt-2 text-center w-full">
+                <div className="mt-1 text-center w-full">
                   <span className={`text-[10px] font-medium line-clamp-2 leading-tight ${isSelected ? "text-green-700 font-bold" : "text-gray-700"
                     }`}>
                     {category.name}

@@ -12,6 +12,7 @@
     "prebuild": "npm run copy-images"
   },
   "dependencies": {
+    "@lottiefiles/dotlottie-react": "^0.18.2",
     "@react-google-maps/api": "^2.20.8",
     "apexcharts": "^5.3.6",
     "axios": "^1.13.2",

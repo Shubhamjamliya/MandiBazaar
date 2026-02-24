@@ -118,7 +118,7 @@ export default function OrderAgain() {
       <HomsterHeader />
 
       {/* Spacer for fixed header */}
-      <div className="h-[160px]"></div>
+      <div className="h-[180px]"></div>
 
       {/* Orders Section - Show when orders exist */}
       {hasOrders && (
