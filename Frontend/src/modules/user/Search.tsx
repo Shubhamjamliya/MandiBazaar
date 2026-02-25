@@ -85,7 +85,7 @@ export default function Search() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
             </div>
           ) : searchResults.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+            <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
               {searchResults.map((product) => (
                 <ProductCard
                   key={product.id}
@@ -118,7 +118,7 @@ export default function Search() {
           {!contentLoading && trendingItems.length > 0 && (
             <div className="px-4 md:px-6 lg:px-8 py-4 md:py-6">
               <h2 className="text-lg md:text-2xl font-semibold text-neutral-900 mb-3 md:mb-6">Trending in your city</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
+              <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
                 {trendingItems.map((item) => (
                   <div
                     key={item.id || item._id}

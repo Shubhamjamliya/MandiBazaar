@@ -39,7 +39,11 @@ const SlidingPhrases = memo(() => {
   );
 });
 
-function HomsterHeader() {
+interface HomsterHeaderProps {
+  onLocationClick?: () => void;
+}
+
+function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
   const navigate = useNavigate();
   const { location: userLocation } = useLocation();
 
@@ -136,8 +140,8 @@ function HomsterHeader() {
         <div className="px-4 pb-0 flex items-center justify-between gap-1">
           <div className="flex-1 min-w-0 animate-fade-in-down" style={{ animationDelay: '0.1s' }}>
             <button
-              onClick={() => navigate('/location')}
-              className="flex items-center gap-2 w-full bg-emerald-50/40 hover:bg-emerald-50/70 transition-colors py-1.5 px-3 rounded-xl border border-emerald-50/50 group overflow-hidden"
+              onClick={() => onLocationClick ? onLocationClick() : navigate('/location')}
+              className="flex items-center gap-2 w-full bg-emerald-50/40 hover:bg-emerald-50/70 transition-colors py-1.5 px-3 rounded-xl border border-emerald-50/50 group overflow-hidden cursor-pointer"
             >
               <div className="flex-shrink-0 text-emerald-600 group-hover:scale-110 transition-transform">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

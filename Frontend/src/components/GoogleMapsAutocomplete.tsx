@@ -65,6 +65,8 @@ export default function GoogleMapsAutocomplete({
     }
   }, [loadError]);
 
+  const isProgrammaticChange = useRef(false);
+
   const initializeAutocomplete = useCallback(() => {
     if (!inputRef.current || !window.google?.maps?.places) return;
 
@@ -123,9 +125,15 @@ export default function GoogleMapsAutocomplete({
           }
         }
 
+        isProgrammaticChange.current = true;
         setInputValue(address);
         onChange(address, lat, lng, placeName, { city, state });
         setError('');
+
+        // Reset the flag after a short delay
+        setTimeout(() => {
+          isProgrammaticChange.current = false;
+        }, 100);
       });
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -140,13 +148,13 @@ export default function GoogleMapsAutocomplete({
     }
 
     return () => {
-       if (autocompleteRef.current) {
+      if (autocompleteRef.current) {
         try {
           window.google?.maps?.event?.clearInstanceListeners?.(autocompleteRef.current);
         } catch {
-           // Ignore
+          // Ignore
         }
-       }
+      }
     }
   }, [isLoaded, initializeAutocomplete]);
 
@@ -158,7 +166,10 @@ export default function GoogleMapsAutocomplete({
         value={inputValue}
         onChange={(e) => {
           setInputValue(e.target.value);
-          onChange(e.target.value, 0, 0, e.target.value);
+          // Only trigger onChange with 0,0 coords if it's an actual user typing
+          if (!isProgrammaticChange.current) {
+            onChange(e.target.value, 0, 0, e.target.value);
+          }
         }}
         placeholder={placeholder}
         className={`w-full px-3 py-2 border border-neutral-300 rounded-lg placeholder:text-neutral-400 focus:outline-none focus:border-orange-500 bg-white ${className}`}

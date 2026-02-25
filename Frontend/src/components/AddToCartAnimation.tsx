@@ -334,32 +334,39 @@ export default function AddToCartAnimation({
             >
               {/* Left: Product thumbnails */}
               <div className="flex items-center -space-x-4">
-                {thumbnailItems.map((item, idx) => (
-                  <motion.div
-                    key={item.product._id || item.product.id || `item-${idx}`}
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{
-                      delay: idx * 0.1,
-                      type: 'spring',
-                      stiffness: 500,
-                      damping: 25,
-                    }}
-                    className="w-7 h-7 rounded-full border-2 border-white/90 overflow-hidden bg-white flex-shrink-0 shadow-md"
-                  >
-                    {item.product.imageUrl || item.product.mainImage ? (
-                      <img
-                        src={item.product.imageUrl || item.product.mainImage}
-                        alt={item.product.name || item.product.productName || 'Product'}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-neutral-200 text-neutral-400 text-xs font-semibold">
-                        {(item.product.name || item.product.productName || 'P').charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
+                {thumbnailItems.map((item, idx) => {
+                  const itemId = item.id || '';
+                  const productId = item.product._id || item.product.id || '';
+                  const variantInfo = (item as any).variant || (item.product as any).variantId || '';
+                  const uniqueKey = itemId || `${productId}-${variantInfo}-${idx}`;
+
+                  return (
+                    <motion.div
+                      key={uniqueKey}
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{
+                        delay: idx * 0.1,
+                        type: 'spring',
+                        stiffness: 500,
+                        damping: 25,
+                      }}
+                      className="w-7 h-7 rounded-full border-2 border-white/90 overflow-hidden bg-white flex-shrink-0 shadow-md"
+                    >
+                      {item.product.imageUrl || item.product.mainImage ? (
+                        <img
+                          src={item.product.imageUrl || item.product.mainImage}
+                          alt={item.product.name || item.product.productName || 'Product'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-neutral-200 text-neutral-400 text-xs font-semibold">
+                          {(item.product.name || item.product.productName || 'P').charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </div>
 
               {/* Middle: Text */}

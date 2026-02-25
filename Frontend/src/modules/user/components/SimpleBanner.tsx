@@ -53,7 +53,7 @@ export default function SimpleBanner({ banners }: BannerProps) {
   }, [displayBanners.length]);
 
   return (
-    <div className="pb-4 bg-gradient-to-br from-green-50 to-emerald-50">
+    <div className="px-4 py-2">
       {/* Horizontal Scrollable Container */}
       <div
         ref={scrollContainerRef}
@@ -66,8 +66,7 @@ export default function SimpleBanner({ banners }: BannerProps) {
             className="flex-shrink-0 w-full snap-center"
           >
             <div
-              className="relative overflow-hidden cursor-pointer"
-              style={{ height: "220px" }}
+              className="relative overflow-hidden cursor-pointer rounded-2xl shadow-sm border border-emerald-100 aspect-[21/9] w-full"
               onClick={() => {
                 if (banner.link) {
                   window.location.href = banner.link;
@@ -82,15 +81,15 @@ export default function SimpleBanner({ banners }: BannerProps) {
                 />
               ) : (
                 <div
-                  className={`w-full h-full bg-gradient-to-r ${(banner as any).bgColor || "from-orange-400 to-orange-500"
+                  className={`w-full h-full bg-gradient-to-r ${(banner as any).bgColor || "from-emerald-600 to-green-500"
                     } flex items-center justify-center`}
                 >
-                  <div className="text-center text-white p-8">
-                    <h2 className="text-2xl font-black mb-2 tracking-tight">
+                  <div className="text-center text-white p-4 md:p-8">
+                    <h2 className="text-xl md:text-2xl font-black mb-1 md:mb-2 tracking-tight">
                       {banner.title || "Special Offer"}
                     </h2>
-                    <p className="text-base mb-4 opacity-90 font-medium">Check out our latest deals</p>
-                    <button className="bg-white text-orange-600 px-8 py-3 rounded-full text-sm font-black hover:bg-gray-50 transition-all shadow-xl active:scale-95">
+                    <p className="text-xs md:text-base mb-2 md:mb-4 opacity-90 font-medium">Check out our latest deals</p>
+                    <button className="bg-white text-emerald-600 px-4 md:px-8 py-1.5 md:py-3 rounded-full text-[10px] md:text-sm font-black hover:bg-gray-50 transition-all shadow-lg active:scale-95">
                       SHOP NOW
                     </button>
                   </div>
@@ -104,7 +103,7 @@ export default function SimpleBanner({ banners }: BannerProps) {
       </div>
 
       {/* Scroll Indicator Dots */}
-      <div className="flex justify-center gap-2 mt-4">
+      <div className="flex justify-center gap-2 mt-3">
         {displayBanners.map((_, index) => (
           <div
             key={index}

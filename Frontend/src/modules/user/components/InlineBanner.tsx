@@ -58,7 +58,7 @@ export default function InlineBanner({ banners, images, autoPlayInterval = 8000 
   if (!displayBanners || displayBanners.length === 0) return null;
 
   return (
-    <div className="px-4 my-4">
+    <div className="px-4 my-1">
       {/* Horizontal Scrollable Container */}
       <div
         ref={scrollContainerRef}
@@ -75,7 +75,7 @@ export default function InlineBanner({ banners, images, autoPlayInterval = 8000 
               }
             }}
           >
-            <div className={`relative rounded-2xl overflow-hidden shadow-md border border-green-100 ${banner.link ? 'cursor-pointer' : ''}`} style={{ height: "170px" }}>
+            <div className={`relative rounded-2xl overflow-hidden shadow-sm border border-green-100 aspect-[16/7] w-full ${banner.link ? 'cursor-pointer' : ''}`}>
               <img
                 src={banner.image}
                 alt={`Banner ${index + 1}`}

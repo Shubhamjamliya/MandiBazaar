@@ -278,7 +278,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
               {/* Location line - only show if user has provided location */}
               {userLocation && (userLocation.address || userLocation.city) && (
-                <div className="px-4 md:px-6 lg:px-8 py-3 flex items-center justify-between text-sm">
+                <div
+                  onClick={() => setShowLocationChangeModal(true)}
+                  className="px-4 md:px-6 lg:px-8 py-3 flex items-center justify-between text-sm cursor-pointer hover:bg-black/20 transition-colors"
+                >
                   <div className="flex items-center gap-2 overflow-hidden">
                     <div className="p-1 bg-white/20 rounded-md">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -294,7 +297,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     </span>
                   </div>
                   <button
-                    onClick={() => setShowLocationChangeModal(true)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowLocationChangeModal(true);
+                    }}
                     className="bg-white/20 hover:bg-white/30 text-white text-xs font-black px-3 py-1.5 rounded-lg backdrop-blur-md transition-all border border-white/10 ml-2"
                   >
                     CHANGE
@@ -321,7 +327,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           )}
 
           {/* Common Homster Header for Home and Order Again */}
-          {showHomsterHeader && <HomsterHeader />}
+          {showHomsterHeader && <HomsterHeader onLocationClick={() => setShowLocationChangeModal(true)} />}
 
           {/* Scrollable Main Content */}
           <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide pb-24 md:pb-8">
@@ -362,6 +368,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <LocationPermissionRequest
               onLocationGranted={() => setShowLocationChangeModal(false)}
               skipable={true}
+              forceShow={true}
               title="Change Location"
               description="Update your location to see products available near you."
             />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import ProductCard from './components/ProductCard';
 import { getWishlist, removeFromWishlist } from '../../services/api/customerWishlistService';
 import { Product } from '../../types/domain';
 import { useCart } from '../../context/CartContext';
@@ -70,57 +71,16 @@ export default function Wishlist() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
           </div>
         ) : products.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
             {products.map((product) => (
-              <motion.div
+              <ProductCard
                 key={product.id}
-                layout
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="bg-white rounded-xl border border-neutral-100 shadow-sm overflow-hidden flex flex-col relative"
-              >
-                <button
-                  onClick={() => handleRemove(product.id)}
-                  className="absolute top-2 right-2 z-10 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-red-500 shadow-sm"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
-                </button>
-
-                <Link to={`/product/${product.id}`} className="aspect-square bg-neutral-50 flex items-center justify-center p-4">
-                  {product.imageUrl || product.mainImage ? (
-                    <img src={product.imageUrl || product.mainImage} alt={product.name} className="w-full h-full object-contain" />
-                  ) : (
-                    <span className="text-4xl">📦</span>
-                  )}
-                </Link>
-
-                <div className="p-3 flex-1 flex flex-col">
-                  <h3 className="text-sm font-bold text-neutral-900 line-clamp-2 mb-1">{product.name}</h3>
-                  <div className="text-[10px] text-neutral-500 mb-2">{product.pack}</div>
-                  <div className="mt-auto flex flex-col gap-2">
-                    {(() => {
-                      const { displayPrice, mrp, hasDiscount } = calculateProductPrice(product);
-                      return (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-sm font-bold text-neutral-900">₹{displayPrice.toLocaleString('en-IN')}</span>
-                          {hasDiscount && (
-                            <span className="text-xs text-neutral-500 line-through">₹{mrp.toLocaleString('en-IN')}</span>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addToCart(product)}
-                      className="w-full border-green-600 text-green-600 hover:bg-green-50 rounded-lg h-8 text-xs font-bold"
-                    >
-                      ADD TO CART
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
+                product={product}
+                categoryStyle={true}
+                showHeartIcon={true}
+                showBadge={true}
+                showStockInfo={true}
+              />
             ))}
           </div>
         ) : (

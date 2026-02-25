@@ -41,28 +41,25 @@ const ServiceCategoriesSectionMemo = memo(function ServiceCategoriesSection({
   }
 
   return (
-    <div className="bg-gradient-to-br from-green-50 to-emerald-50 py-3 shadow-sm">
+    <div className="bg-gradient-to-br from-green-50 to-emerald-50 py-1.5 shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2 px-4">
+      <div className="flex items-center justify-between mb-1 px-4">
         <div>
-          <h2 className="text-base font-bold text-gray-800">
+          <h2 className="text-sm font-black text-emerald-900/80 uppercase tracking-tight">
             Popular Categories
           </h2>
         </div>
         <button
           onClick={() => navigate('/categories')}
-          className="text-xs text-green-600 font-semibold flex items-center gap-1 bg-white px-3 py-1.5 rounded-full hover:bg-green-50 transition-colors shadow-sm"
+          className="text-[10px] text-emerald-600 font-bold bg-white/60 px-2.5 py-1 rounded-lg hover:bg-white transition-colors border border-emerald-100/50"
         >
           View All
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
         </button>
       </div>
 
       {/* Horizontal Scrolling Categories */}
       <div className="overflow-x-auto scrollbar-hide">
-        <div className="flex gap-4 px-4 pb-2">
+        <div className="flex gap-4 px-4 pb-1">
           {/* Permanent Home Category */}
           <motion.div
             key="home-permanent"

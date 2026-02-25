@@ -5,13 +5,13 @@ import { Product } from '../../../types/domain';
 import { useCart } from '../../../context/CartContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocation } from '../../../hooks/useLocation';
-import { useToast } from '../../../context/ToastContext'; // Import useToast
-import { addToWishlist, removeFromWishlist, getWishlist } from '../../../services/api/customerWishlistService';
+import { useToast } from '../../../context/ToastContext';
 import Button from '../../../components/ui/button';
 import Badge from '../../../components/ui/badge';
 import StarRating from '../../../components/ui/StarRating';
 import { calculateProductPrice } from '../../../utils/priceUtils';
 import { useWishlist } from '../../../hooks/useWishlist';
+import VariantSelectorModal from './VariantSelectorModal';
 
 interface ProductCardProps {
   product: Product;
@@ -25,7 +25,7 @@ interface ProductCardProps {
   showOptionsText?: boolean;
   optionsCount?: number;
   compact?: boolean;
-  categoryStyle?: boolean;
+  categoryStyle?: boolean; // Kept for prop compatibility but layout is now unified
 }
 
 function ProductCard({
@@ -40,15 +40,14 @@ function ProductCard({
   showOptionsText = false,
   optionsCount = 2,
   compact = false,
-  categoryStyle = false,
 }: ProductCardProps) {
   const navigate = useNavigate();
   const { cart, addToCart, updateQuantity } = useCart();
-  const { isAuthenticated } = useAuth();
   const { location } = useLocation();
-  const { showToast } = useToast(); // Get toast function
+  const { showToast } = useToast();
   const imageRef = useRef<HTMLImageElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
+  const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
 
   // Use the optimized useWishlist hook
   const { isWishlisted, toggleWishlist } = useWishlist(((product as any).id || product._id) as string);
@@ -56,16 +55,13 @@ function ProductCard({
   // Single ref to track any cart operation in progress for this product
   const isOperationPendingRef = useRef(false);
 
-
-
   // Get Price and MRP using utility
   let { displayPrice, mrp, discount } = calculateProductPrice(product);
 
-  // Fallback for weight-mode products where top-level price may be 0 (legacy save)
+  // Fallback for weight-mode products where top-level price may be 0
   const isWeightMode = (product as any).sellingUnit === 'weight';
   const weightVariants: any[] = (product as any).weightVariants || [];
 
-  // Identify the "acting variant" for this card (usually the default/smallest one)
   const actingWeightVariant = isWeightMode
     ? [...weightVariants].filter((v: any) => v.isEnabled).sort((a: any, b: any) => a.grams - b.grams)[0]
     : null;
@@ -91,25 +87,31 @@ function ProductCard({
     const productId = (product as any).id || product._id;
     if (itemProductId !== productId) return false;
 
-    // If we have a specific variant we're acting on, match it
     if (actingVariantId || actingVariantTitle) {
       const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
       const itemVariantTitle = (item.product as any).variantTitle || (item.product as any).pack;
       return itemVariantId === actingVariantId || itemVariantTitle === actingVariantTitle;
     }
-
-    // If product has no variants at all, match by product ID only
     return true;
   });
 
   const inCartQty = cartItem?.quantity || 0;
 
-  // Price calculation
-  if (isWeightMode && (!displayPrice || displayPrice === 0) && actingWeightVariant) {
-    displayPrice = Number(actingWeightVariant.price) || 0;
-    if (Number(actingWeightVariant.mrp) > 0) mrp = Number(actingWeightVariant.mrp);
+  if (isWeightMode && actingWeightVariant) {
+    const vPrice = Number(actingWeightVariant.price) || 0;
+    const vMrp = Number(actingWeightVariant.mrp) || Number(product.mrp) || Number(product.compareAtPrice) || vPrice;
+
+    if (vPrice > 0) {
+      displayPrice = vPrice;
+      mrp = vMrp;
+      // Recalculate discount for the acting weight variant
+      if (mrp > displayPrice) {
+        discount = Math.round(((mrp - displayPrice) / mrp) * 100);
+      } else {
+        discount = 0;
+      }
+    }
   }
-  // Pack label for weight products: show smallest priced variant label
   const weightPackLabel = isWeightMode && actingWeightVariant ? actingWeightVariant.label : '';
 
   const handleCardClick = () => {
@@ -123,9 +125,16 @@ function ProductCard({
     if (product.isAvailable === false) return;
     if (isOperationPendingRef.current) return;
 
+    const variationsCount = (product.variations?.length || 0);
+    const weightVariantsCount = ((product as any).weightVariants || []).filter((v: any) => v.isEnabled).length;
+
+    if (variationsCount > 1 || weightVariantsCount > 1) {
+      setIsVariantModalOpen(true);
+      return;
+    }
+
     isOperationPendingRef.current = true;
     try {
-      // If weight mode, prepare the product object with the acting weight variant info
       if (isWeightMode && actingWeightVariant) {
         const productWithWeight = {
           ...product,
@@ -138,7 +147,6 @@ function ProductCard({
         };
         await addToCart(productWithWeight, addButtonRef.current);
       } else if (actingQuantityVariant) {
-        // If quantity mode with variations, prepare the product object with the first variant
         const productWithVariant = {
           ...product,
           price: actingQuantityVariant.discPrice || actingQuantityVariant.price,
@@ -160,9 +168,7 @@ function ProductCard({
   const handleDecrease = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-
     if (isOperationPendingRef.current || inCartQty <= 0) return;
-
     isOperationPendingRef.current = true;
     try {
       await updateQuantity(
@@ -179,10 +185,8 @@ function ProductCard({
   const handleIncrease = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-
     if (product.isAvailable === false) return;
     if (isOperationPendingRef.current) return;
-
     isOperationPendingRef.current = true;
     try {
       if (inCartQty > 0) {
@@ -207,13 +211,14 @@ function ProductCard({
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.97 }}
       transition={{ duration: 0.2 }}
-      className={`${categoryStyle ? 'bg-green-50' : 'bg-white'} rounded-lg shadow-sm overflow-hidden flex flex-col relative`}
+      className="bg-green-50 rounded-lg shadow-sm overflow-hidden flex flex-col relative h-full border border-neutral-100/50"
     >
       <div
         onClick={handleCardClick}
         className="cursor-pointer flex-1 flex flex-col"
       >
-        <div className={`w-full ${compact ? 'h-32 md:h-40' : categoryStyle ? 'h-28 md:h-36' : 'h-40 md:h-48'} bg-neutral-100 flex items-center justify-center overflow-hidden relative`}>
+        {/* Product Image Stack */}
+        <div className={`w-full ${compact ? 'h-32 md:h-40' : 'h-28 md:h-36'} bg-neutral-100 flex items-center justify-center overflow-hidden relative`}>
           {product.imageUrl || product.mainImage ? (
             <img
               ref={imageRef}
@@ -222,7 +227,6 @@ function ProductCard({
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
               onError={(e) => {
-                // Hide broken image and show fallback
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
                 const parent = target.parentElement;
@@ -235,35 +239,19 @@ function ProductCard({
               }}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-neutral-100 text-neutral-400 text-4xl">
+            <div className="w-full h-full flex items-center justify-center bg-neutral-100 text-neutral-400 text-4xl font-bold">
               {(product.name || product.productName || '?').charAt(0).toUpperCase()}
             </div>
           )}
 
-          {categoryStyle && showBadge && discount > 0 && (
-            <div className="absolute top-2 left-2 z-10 bg-green-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded">
+          {/* Discount Badge */}
+          {showBadge && discount > 0 && (
+            <div className="absolute top-2 left-2 z-10 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
               {discount}% off
             </div>
           )}
 
-          {!categoryStyle && showBadge && (badgeText || discount > 0) && (
-            <Badge
-              variant="destructive"
-              className="absolute top-2 left-2 z-10 text-xs px-2 py-1"
-            >
-              {badgeText || `${discount}% OFF`}
-            </Badge>
-          )}
-
-          {showPackBadge && (
-            <Badge
-              variant="outline"
-              className="absolute top-2 right-2 z-10 text-xs px-2 py-1 font-medium"
-            >
-              {product.variations?.[0]?.value || product.pack}
-            </Badge>
-          )}
-
+          {/* Wishlist Heart */}
           {showHeartIcon && (
             <button
               onClick={(e) => {
@@ -271,12 +259,11 @@ function ProductCard({
                 e.stopPropagation();
                 toggleWishlist(e);
               }}
-              className="absolute top-2 right-2 z-30 w-9 h-9 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all shadow-md group/heart"
-              aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+              className="absolute top-2 right-2 z-30 w-8 h-8 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all shadow-sm group/heart"
             >
               <svg
-                width="20"
-                height="20"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill={isWishlisted ? "#ef4444" : "none"}
                 xmlns="http://www.w3.org/2000/svg"
@@ -285,7 +272,7 @@ function ProductCard({
                 <path
                   d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -293,236 +280,116 @@ function ProductCard({
             </button>
           )}
 
-          {(product.variations?.length || 0) >= 2 && (
+          {/* Options Badge */}
+          {Math.max(product.variations?.length || 0, weightVariants.filter((v: any) => v.isEnabled).length) >= 2 && (
             <div className="absolute bottom-2 left-2 z-10">
-              <span className="text-[10px] font-bold text-neutral-700 bg-white/95 backdrop-blur-sm px-2 py-1 rounded shadow-sm border border-neutral-200">
-                {product.variations?.length} Options
+              <span className="text-[9px] font-bold text-neutral-700 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded shadow-sm border border-neutral-100">
+                {Math.max(product.variations?.length || 0, weightVariants.filter((v: any) => v.isEnabled).length)} Options
               </span>
             </div>
           )}
         </div>
 
-        {categoryStyle && (
-          <div className="px-2.5 pt-1.5 pb-0">
-            {inCartQty === 0 ? (
-              <div className="flex flex-col items-center w-full">
-                <div className="flex justify-center w-full">
-                  <Button
-                    ref={addButtonRef}
-                    variant="outline"
-                    size="sm"
-                    disabled={product.isAvailable === false}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAdd(e);
-                    }}
-                    className={`w-full border rounded-full font-semibold text-xs h-7 px-3 flex items-center justify-center uppercase tracking-wide ${product.isAvailable === false
-                      ? 'border-neutral-300 text-neutral-400 bg-neutral-50 cursor-not-allowed'
-                      : 'border-green-600 text-green-600 bg-transparent hover:bg-green-50'
-                      }`}
-                  >
-                    {product.isAvailable === false ? 'Out of Range' : 'ADD'}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center gap-1.5 bg-white border border-green-600 rounded-full px-1.5 py-0.5 h-7 w-full">
-                <Button
-                  variant="default"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDecrease(e);
-                  }}
-                  className="w-5 h-5 p-0 bg-transparent text-green-600 hover:bg-green-50 shadow-none"
-                  aria-label="Decrease quantity"
-                >
-                  −
-                </Button>
-                <span className="text-xs font-bold text-green-600 min-w-[1rem] text-center">
-                  {inCartQty}
-                </span>
-                <Button
-                  variant="default"
-                  size="icon"
-                  disabled={product.isAvailable === false}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleIncrease(e);
-                  }}
-                  className={`w-5 h-5 p-0 bg-transparent text-green-600 shadow-none ${product.isAvailable === false ? 'text-neutral-300 cursor-not-allowed' : 'hover:bg-green-50'
-                    }`}
-                  aria-label="Increase quantity"
-                >
-                  +
-                </Button>
-              </div>
+        {/* ADD Button Row (Style 1 Sequence) */}
+        <div className="px-2.5 pt-1.5 pb-0">
+          {inCartQty === 0 ? (
+            <Button
+              ref={addButtonRef}
+              variant="outline"
+              size="sm"
+              disabled={product.isAvailable === false}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAdd(e);
+              }}
+              className={`w-full border rounded-full font-bold text-[10px] h-7 px-3 flex items-center justify-center uppercase tracking-wide transition-all ${product.isAvailable === false
+                ? 'border-neutral-200 text-neutral-400 bg-neutral-50 cursor-not-allowed'
+                : 'border-green-600 text-green-600 bg-white hover:bg-green-50 shadow-sm'
+                }`}
+            >
+              {product.isAvailable === false ? 'Out of Range' : 'ADD'}
+            </Button>
+          ) : (
+            <div className="flex items-center justify-center gap-2 bg-white border border-green-600 rounded-full px-1.5 py-0.5 h-7 w-full shadow-sm">
+              <Button
+                variant="default"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDecrease(e);
+                }}
+                className="w-5 h-5 p-0 bg-transparent text-green-600 hover:bg-green-50 shadow-none font-bold"
+              >
+                −
+              </Button>
+              <span className="text-[11px] font-black text-green-600 min-w-[1rem] text-center">
+                {inCartQty}
+              </span>
+              <Button
+                variant="default"
+                size="icon"
+                disabled={product.isAvailable === false}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleIncrease(e);
+                }}
+                className={`w-5 h-5 p-0 bg-transparent text-green-600 shadow-none font-bold ${product.isAvailable === false ? 'text-neutral-300' : 'hover:bg-green-50'
+                  }`}
+              >
+                +
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Product Info (Style 1 Sequence) */}
+        <div className="px-2.5 pt-1.5 md:pt-2 pb-2 md:pb-3 flex-1 flex flex-col">
+          {/* 1. Weight/Pack */}
+          <p className="text-[9px] text-neutral-500 font-medium mb-0.5 leading-tight uppercase tracking-tight">
+            {weightPackLabel || (product.pack && product.pack !== "Standard" ? product.pack : (product.variations?.[0]?.value || product.variations?.[0]?.title)) || '1 piece'}
+          </p>
+
+          {/* 2. Name */}
+          <h3 className="text-[10px] font-bold text-neutral-900 mb-1 line-clamp-2 leading-tight min-h-[1.75rem] max-h-[1.75rem] overflow-hidden">
+            {product.name || product.productName || ''}
+          </h3>
+
+          {/* 3. Rating & Delivery Row */}
+          <div className="flex items-center justify-between mb-1 gap-1">
+            <StarRating
+              rating={(product.rating || (product as any).rating) || 0}
+              reviewCount={(product.reviews || (product as any).reviewsCount) || 0}
+              size="sm"
+              showCount={true}
+            />
+            <div className="flex items-center gap-0.5 whitespace-nowrap">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-neutral-400">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+              <span className="text-[8px] text-neutral-500 font-bold uppercase tracking-tighter">14 MINS</span>
+            </div>
+          </div>
+
+          {/* 4. Pricing Row */}
+          <div className="mt-auto flex items-baseline gap-1.5">
+            <span className="text-[12px] font-black text-neutral-900 leading-none">
+              ₹{displayPrice.toLocaleString('en-IN')}
+            </span>
+            {mrp && mrp > displayPrice && (
+              <span className="text-[9px] text-neutral-400 line-through font-medium leading-none">
+                ₹{mrp.toLocaleString('en-IN')}
+              </span>
             )}
           </div>
-        )}
-
-        <div className={`${compact ? 'p-3 md:p-4' : categoryStyle ? 'px-2.5 md:px-3 pt-1.5 md:pt-2 pb-2 md:pb-3' : 'p-4 md:p-5'} flex-1 flex flex-col`}>
-          {categoryStyle ? (
-            // Category Style Layout: Quantity, Name, Time, % off, Price
-            <>
-              {/* 1. Quantity */}
-              {!showPackBadge && (weightPackLabel || product.pack || product.variations?.[0]?.value) && (
-                <p className="text-[9px] text-neutral-600 mb-0.5 leading-tight">
-                  {weightPackLabel || product.variations?.[0]?.value || product.pack}
-                </p>
-              )}
-
-              {/* 2. Name */}
-              <h3 className="text-[10px] font-bold text-neutral-900 mb-0.5 line-clamp-2 leading-tight min-h-[1.75rem] max-h-[1.75rem] overflow-hidden">
-                {product.name || product.productName || ''}
-              </h3>
-
-              {/* 2.5. Rating */}
-              <div className="mb-0.5">
-                <StarRating
-                  rating={(product.rating || (product as any).rating) || 0}
-                  reviewCount={(product.reviews || (product as any).reviewsCount) || 0}
-                  size="sm"
-                  showCount={true}
-                />
-              </div>
-
-              {/* 3. Time */}
-              <p className="text-[9px] text-neutral-600 mb-0.5 flex items-center gap-0.5 leading-tight">
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                  <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                <span>14 MINS</span>
-              </p>
-
-              {/* 4. % OFF */}
-              {discount > 0 && (
-                <p className="text-[9px] font-semibold text-green-600 mb-0.5 leading-tight">
-                  {discount}% OFF
-                </p>
-              )}
-
-              {/* 5. Price with discount */}
-              <div className="mt-auto">
-                <div className="flex items-baseline gap-1 flex-wrap">
-                  <span className="text-[11px] font-bold text-neutral-900 leading-tight">
-                    ₹{displayPrice.toLocaleString('en-IN')}
-                  </span>
-                  {mrp && mrp > displayPrice && (
-                    <span className="text-[8px] text-neutral-500 line-through leading-tight">
-                      ₹{mrp.toLocaleString('en-IN')}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </>
-          ) : (
-            // Non-category style layout (original)
-            <>
-              {!showPackBadge && (
-                <p className={`${compact ? 'text-[10px] md:text-xs' : 'text-xs md:text-sm'} text-neutral-500 mb-1`}>
-                  {weightPackLabel || product.variations?.[0]?.value || product.pack}
-                </p>
-              )}
-
-              <h3 className={`${compact ? 'text-xs md:text-sm' : 'text-sm md:text-base'} font-semibold text-neutral-900 ${compact ? 'mb-1' : 'mb-2'} line-clamp-2 ${compact ? 'min-h-[2rem]' : 'min-h-[2.5rem]'}`}>
-                {product.name || product.productName || ''}
-              </h3>
-
-              {/* Always show rating */}
-              <div className={`${compact ? 'mb-1' : 'mb-2'}`}>
-                <StarRating
-                  rating={(product.rating || (product as any).rating) || 0}
-                  reviewCount={(product.reviews || (product as any).reviewsCount) || 0}
-                  size={compact ? 'sm' : 'md'}
-                  showCount={true}
-                />
-              </div>
-
-              {showStockInfo && (
-                <p className="text-xs text-green-600 mb-2 font-medium">
-                  Fast delivery
-                </p>
-              )}
-
-              {showVegetarianIcon && (
-                <div className="flex items-center gap-1 mb-2">
-                  <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-white rounded-full"></div>
-                  </div>
-                  <span className="text-xs text-neutral-600">Vegetarian</span>
-                </div>
-              )}
-
-              <div className="mt-auto mb-2">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-base font-bold text-neutral-900">
-                    ₹{displayPrice}
-                  </span>
-                  {mrp && mrp > displayPrice && (
-                    <span className="text-xs text-neutral-500 line-through">
-                      ₹{mrp}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
         </div>
       </div>
 
-      {!categoryStyle && (
-        <div className={`${compact ? 'px-3 pb-3' : 'px-4 pb-4'}`}>
-          <div className="mt-auto">
-            {inCartQty === 0 ? (
-              <div>
-                <Button
-                  ref={addButtonRef}
-                  variant="outline"
-                  size="sm"
-                  disabled={product.isAvailable === false}
-                  onClick={handleAdd}
-                  className={`w-full border h-8 text-xs font-semibold uppercase tracking-wide ${product.isAvailable === false
-                    ? 'border-neutral-300 text-neutral-400 bg-neutral-50 cursor-not-allowed'
-                    : 'border-green-600 text-green-600 hover:bg-green-50'
-                    }`}
-                >
-                  {product.isAvailable === false ? 'Out of Range' : 'Add'}
-                </Button>
-                <div className="h-4 mt-1">
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center gap-2 bg-white border border-green-600 rounded-full px-2 py-0.5 h-8">
-                <Button
-                  variant="default"
-                  size="icon"
-                  onClick={handleDecrease}
-                  className="w-6 h-6 p-0 bg-transparent text-green-600 hover:bg-green-50 shadow-none"
-                  aria-label="Decrease quantity"
-                >
-                  −
-                </Button>
-                <span className="text-xs font-bold text-green-600 min-w-[1.5rem] text-center">
-                  {inCartQty}
-                </span>
-                <Button
-                  variant="default"
-                  size="icon"
-                  disabled={product.isAvailable === false}
-                  onClick={handleIncrease}
-                  className={`w-6 h-6 p-0 bg-transparent text-green-600 shadow-none ${product.isAvailable === false ? 'text-neutral-300 cursor-not-allowed' : 'hover:bg-green-50'
-                    }`}
-                  aria-label="Increase quantity"
-                >
-                  +
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <VariantSelectorModal
+        isOpen={isVariantModalOpen}
+        onClose={() => setIsVariantModalOpen(false)}
+        product={product}
+      />
     </motion.div>
   );
 }

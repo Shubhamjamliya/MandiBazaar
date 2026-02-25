@@ -18,13 +18,11 @@ export const getHomeContent = async (req: Request, res: Response) => {
     // Find sellers within user's location range
     const userLat = latitude ? parseFloat(latitude as string) : null;
     const userLng = longitude ? parseFloat(longitude as string) : null;
+    const locationProvided = userLat !== null && userLng !== null;
 
     let nearbySellerIds: mongoose.Types.ObjectId[] = [];
-    if (userLat !== null && userLng !== null) {
-      nearbySellerIds = await findSellersWithinRange(userLat, userLng);
-    } else {
-      // If no location provided, return empty sellers list to enforce filtering
-      nearbySellerIds = [];
+    if (locationProvided) {
+      nearbySellerIds = await findSellersWithinRange(userLat!, userLng!);
     }
 
     // 1. Featured / Bestsellers - Get bestseller cards from admin configuration
@@ -140,9 +138,9 @@ export const getHomeContent = async (req: Request, res: Response) => {
           reviewsCount: p.reviewsCount || 0,
           seller: p.seller,
           categoryId: categoryId.toString(),
-          isAvailable: nearbySellerIds && nearbySellerIds.length > 0
-            ? nearbySellerIds.some(id => id.toString() === p.seller?.toString())
-            : false,
+          isAvailable: (locationProvided && nearbySellerIds.length > 0)
+            ? nearbySellerIds.some(id => id.toString() === (p.seller?._id || p.seller)?.toString())
+            : !locationProvided,
         });
       });
     }
@@ -176,9 +174,9 @@ export const getHomeContent = async (req: Request, res: Response) => {
       .map((item: any) => {
         const product = item.product;
         // Check if the product's seller is within range
-        const isAvailable = nearbySellerIds && nearbySellerIds.length > 0 && product.seller
-          ? nearbySellerIds.some(id => id.toString() === product.seller.toString())
-          : false;
+        const isAvailable = (locationProvided && nearbySellerIds.length > 0 && product.seller)
+          ? nearbySellerIds.some(id => id.toString() === (product.seller._id || product.seller).toString())
+          : !locationProvided;
 
         return {
           id: product._id.toString(),
@@ -345,7 +343,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
             const products = await Product.find(productQuery)
               .sort({ createdAt: -1 })
               .limit(20)
-              .select("productName mainImage price mrp discount rating reviewsCount pack seller")
+              .select("productName mainImage price mrp compareAtPrice discount rating reviewsCount pack variations weightVariants sellingUnit seller")
               .lean();
 
             return {
@@ -353,9 +351,9 @@ export const getHomeContent = async (req: Request, res: Response) => {
               name: subcat.name,
               image: subcat.image || "",
               products: products.map((p: any) => {
-                const isAvailable = nearbySellerIds && nearbySellerIds.length > 0 && p.seller
-                  ? nearbySellerIds.some(id => id.toString() === p.seller.toString())
-                  : false;
+                const isAvailable = (locationProvided && nearbySellerIds.length > 0 && p.seller)
+                  ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
+                  : !locationProvided;
                 return {
                   id: p._id.toString(),
                   productId: p._id.toString(),
@@ -369,6 +367,9 @@ export const getHomeContent = async (req: Request, res: Response) => {
                   rating: p.rating || 0,
                   reviewsCount: p.reviewsCount || 0,
                   pack: p.pack || "",
+                  variations: p.variations || [],
+                  weightVariants: p.weightVariants || [],
+                  sellingUnit: p.sellingUnit || "unit",
                   isAvailable,
                   seller: p.seller,
                 };
@@ -404,13 +405,13 @@ export const getHomeContent = async (req: Request, res: Response) => {
         const directProducts = await Product.find(directProductQuery)
           .sort({ createdAt: -1 })
           .limit(20)
-          .select("productName mainImage price mrp discount rating reviewsCount pack seller")
+          .select("productName mainImage price mrp compareAtPrice discount rating reviewsCount pack variations weightVariants sellingUnit seller")
           .lean();
 
         const mappedDirectProducts = directProducts.map((p: any) => {
-          const isAvailable = nearbySellerIds && nearbySellerIds.length > 0 && p.seller
-            ? nearbySellerIds.some(id => id.toString() === p.seller.toString())
-            : false;
+          const isAvailable = (locationProvided && nearbySellerIds.length > 0 && p.seller)
+            ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
+            : !locationProvided;
           return {
             id: p._id.toString(),
             productId: p._id.toString(),
@@ -424,6 +425,9 @@ export const getHomeContent = async (req: Request, res: Response) => {
             rating: p.rating || 0,
             reviewsCount: p.reviewsCount || 0,
             pack: p.pack || "",
+            variations: p.variations || [],
+            weightVariants: p.weightVariants || [],
+            sellingUnit: p.sellingUnit || "unit",
             isAvailable,
             seller: p.seller,
           };

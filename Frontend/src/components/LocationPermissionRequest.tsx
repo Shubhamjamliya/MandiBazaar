@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from '../hooks/useLocation';
 import GoogleMapsAutocomplete from './GoogleMapsAutocomplete';
 
@@ -7,6 +7,7 @@ interface LocationPermissionRequestProps {
   skipable?: boolean;
   title?: string;
   description?: string;
+  forceShow?: boolean;
 }
 
 export default function LocationPermissionRequest({
@@ -14,6 +15,7 @@ export default function LocationPermissionRequest({
   skipable = false,
   title = 'Location Access Required',
   description = 'We need your location to show you products available near you and enable delivery services.',
+  forceShow = false,
 }: LocationPermissionRequestProps) {
   const { requestLocation, updateLocation, isLocationEnabled, isLocationLoading, locationError, locationPermissionStatus, clearLocation } = useLocation();
   const [showManualInput, setShowManualInput] = useState(false);
@@ -23,11 +25,11 @@ export default function LocationPermissionRequest({
 
   // Auto-grant if already enabled or session permission exists
   useEffect(() => {
-    if (isLocationEnabled) {
+    if (isLocationEnabled && !forceShow) {
       console.log('[LocationPermissionRequest] Location is enabled, notifying parent.');
       onLocationGranted();
     }
-  }, [isLocationEnabled, onLocationGranted]);
+  }, [isLocationEnabled, onLocationGranted, forceShow]);
 
   const handleAllowLocation = async () => {
     // Clear any previous errors before retrying
@@ -49,12 +51,12 @@ export default function LocationPermissionRequest({
     }
   };
 
-  const handleManualLocationSelect = (address: string, lat: number, lng: number, _placeName: string) => {
+  const handleManualLocationSelect = useCallback((address: string, lat: number, lng: number, _placeName: string) => {
     setManualAddress(address);
     setManualLat(lat);
     setManualLng(lng);
     // placeName is available but not stored separately as we use address
-  };
+  }, []);
 
   const handleSaveManualLocation = async () => {
     if (!manualAddress || manualLat === 0 || manualLng === 0) {
@@ -75,7 +77,7 @@ export default function LocationPermissionRequest({
     }
   };
 
-  if (isLocationEnabled) {
+  if (isLocationEnabled && !forceShow) {
     return null;
   }
 
