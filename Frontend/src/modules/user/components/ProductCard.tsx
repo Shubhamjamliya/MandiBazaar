@@ -12,6 +12,7 @@ import StarRating from '../../../components/ui/StarRating';
 import { calculateProductPrice } from '../../../utils/priceUtils';
 import { useWishlist } from '../../../hooks/useWishlist';
 import VariantSelectorModal from './VariantSelectorModal';
+import { getVariantStyle } from '../../../utils/variantStyleUtils';
 
 interface ProductCardProps {
   product: Product;
@@ -345,12 +346,14 @@ function ProductCard({
         {/* Product Info (Style 1 Sequence) */}
         <div className="px-2.5 pt-1.5 md:pt-2 pb-2 md:pb-3 flex-1 flex flex-col">
           {/* 1. Weight/Pack */}
-          <p className="text-[9px] text-neutral-500 font-medium mb-0.5 leading-tight uppercase tracking-tight">
-            {weightPackLabel || (product.pack && product.pack !== "Standard" ? product.pack : (product.variations?.[0]?.value || product.variations?.[0]?.title)) || '1 piece'}
-          </p>
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase tracking-tight ${getVariantStyle(weightPackLabel || (product.pack && product.pack !== "Standard" ? product.pack : (product.variations?.[0]?.value || product.variations?.[0]?.title)) || '1 piece').bg} ${getVariantStyle(weightPackLabel || (product.pack && product.pack !== "Standard" ? product.pack : (product.variations?.[0]?.value || product.variations?.[0]?.title)) || '1 piece').text} ${getVariantStyle(weightPackLabel || (product.pack && product.pack !== "Standard" ? product.pack : (product.variations?.[0]?.value || product.variations?.[0]?.title)) || '1 piece').border}`}>
+              {weightPackLabel || (product.pack && product.pack !== "Standard" ? product.pack : (product.variations?.[0]?.value || product.variations?.[0]?.title)) || '1 piece'}
+            </span>
+          </div>
 
           {/* 2. Name */}
-          <h3 className="text-[10px] font-bold text-neutral-900 mb-1 line-clamp-2 leading-tight min-h-[1.75rem] max-h-[1.75rem] overflow-hidden">
+          <h3 className="text-[12px] font-bold text-neutral-900 mb-1 line-clamp-2 leading-tight min-h-[2rem] max-h-[2rem] overflow-hidden">
             {product.name || product.productName || ''}
           </h3>
 
@@ -390,7 +393,7 @@ function ProductCard({
         onClose={() => setIsVariantModalOpen(false)}
         product={product}
       />
-    </motion.div>
+    </motion.div >
   );
 }
 

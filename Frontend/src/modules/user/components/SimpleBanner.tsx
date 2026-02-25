@@ -53,7 +53,7 @@ export default function SimpleBanner({ banners }: BannerProps) {
   }, [displayBanners.length]);
 
   return (
-    <div className="px-4 py-2">
+    <div className="px-4 py-2 bg-gradient-to-b from-white to-[#f0fdf4]">
       {/* Horizontal Scrollable Container */}
       <div
         ref={scrollContainerRef}
@@ -99,17 +99,6 @@ export default function SimpleBanner({ banners }: BannerProps) {
               <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Scroll Indicator Dots */}
-      <div className="flex justify-center gap-2 mt-3">
-        {displayBanners.map((_, index) => (
-          <div
-            key={index}
-            className={`h-1.5 rounded-full transition-all duration-300 ${index === currentIndex ? 'w-6 bg-emerald-600' : 'w-1.5 bg-emerald-200'
-              }`}
-          />
         ))}
       </div>
     </div>

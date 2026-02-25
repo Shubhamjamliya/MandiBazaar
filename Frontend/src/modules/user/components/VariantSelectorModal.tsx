@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Product } from '../../../types/domain';
 import { useCart } from '../../../context/CartContext';
 import Button from '../../../components/ui/button';
+import { getVariantStyle } from '../../../utils/variantStyleUtils';
 
 interface VariantSelectorModalProps {
   isOpen: boolean;
@@ -192,9 +193,9 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
                         </AnimatePresence>
                       </div>
                       <div className="text-left">
-                        <p className={`text-sm font-medium transition-colors ${isSelected ? 'text-green-900' : 'text-neutral-800'}`}>
+                        <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold border uppercase tracking-tight mb-1 ${getVariantStyle(isWeightMode ? v.label : (v.title || v.value)).bg} ${getVariantStyle(isWeightMode ? v.label : (v.title || v.value)).text} ${getVariantStyle(isWeightMode ? v.label : (v.title || v.value)).border}`}>
                           {isWeightMode ? v.label : (v.title || v.value)}
-                        </p>
+                        </span>
                         {discount > 0 && (
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-[10px] font-bold text-white bg-green-600 px-1.5 py-0.5 rounded-[4px] leading-none uppercase tracking-tighter">

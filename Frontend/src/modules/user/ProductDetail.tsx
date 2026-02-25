@@ -16,6 +16,7 @@ import { getProductById } from '../../services/api/customerProductService';
 import WishlistButton from '../../components/WishlistButton';
 import StarRating from "../../components/ui/StarRating";
 import { calculateProductPrice } from '../../utils/priceUtils';
+import { getVariantStyle } from "../../utils/variantStyleUtils";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -611,10 +612,10 @@ export default function ProductDetail() {
                       onClick={() => setSelectedWeightIndex(idx)}
                       disabled={outOfStock}
                       className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border-2 flex items-center gap-2 ${isSelected
-                        ? 'border-green-600 bg-green-600 text-white shadow-md shadow-green-600/20 scale-[1.02]'
+                        ? `${getVariantStyle(wv.label).bg.replace('50', '600')} text-white border-transparent shadow-md scale-[1.02]`
                         : outOfStock
                           ? 'border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed'
-                          : 'border-neutral-200 bg-white text-neutral-700 hover:border-green-400 hover:bg-green-50 shadow-sm'
+                          : `border-transparent ${getVariantStyle(wv.label).bg} ${getVariantStyle(wv.label).text} hover:scale-[1.02] shadow-sm`
                         }`}
                     >
                       {wv.label}
@@ -645,10 +646,10 @@ export default function ProductDetail() {
                       onClick={() => setSelectedVariantIndex(index)}
                       disabled={isOutOfStock}
                       className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border-2 flex items-center gap-2 ${isSelected
-                        ? "border-green-600 bg-green-600 text-white shadow-md shadow-green-600/20 scale-[1.02]"
+                        ? `${getVariantStyle(vTitle).bg.replace('50', '600')} text-white border-transparent shadow-md scale-[1.02]`
                         : isOutOfStock
                           ? "border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed"
-                          : "border-neutral-200 bg-white text-neutral-700 hover:border-green-400 hover:bg-green-50 shadow-sm"
+                          : `border-transparent ${getVariantStyle(vTitle).bg} ${getVariantStyle(vTitle).text} hover:scale-[1.02] shadow-sm`
                         }`}>
                       {vTitle}
                       {isOutOfStock && (

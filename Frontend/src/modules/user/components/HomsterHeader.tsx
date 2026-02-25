@@ -93,7 +93,7 @@ function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
           animation: fade-in-down 0.5s ease-out forwards;
         }
         .glass-header {
-          background: rgba(240, 253, 244, 0.8);
+          background: #ffffff;
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
         }
@@ -110,7 +110,7 @@ function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
         }
       `}</style>
 
-      <div className="fixed top-0 left-0 right-0 z-50 glass-header shadow-md border-b border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white">
+      <div className="fixed top-0 left-0 right-0 z-50 glass-header shadow-sm border-b border-neutral-100 bg-white">
         {/* ULTRA-FRONT FAST DELIVERY ANIMATION - Using Local Shopping Cart (Temporarily Commented Out) */}
         {/* <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-50 overflow-hidden">
           <div className="animate-run-across flex items-center h-full">
@@ -158,7 +158,7 @@ function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
           <div className="flex-1 min-w-0 animate-fade-in-down" style={{ animationDelay: '0.1s' }}>
             <button
               onClick={() => onLocationClick ? onLocationClick() : navigate('/location')}
-              className="flex items-center gap-2 w-full bg-emerald-50/40 hover:bg-emerald-50/70 transition-colors py-1.5 px-3 rounded-xl border border-emerald-50/50 group overflow-hidden cursor-pointer"
+              className="flex items-center gap-2 w-full transition-colors py-1.5 px-1 group overflow-hidden cursor-pointer"
             >
               <div className="flex-shrink-0 text-emerald-600 group-hover:scale-110 transition-transform">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

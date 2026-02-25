@@ -246,7 +246,7 @@ export default function HomeHero({ activeTab = 'all', onTabChange }: HomeHeroPro
   };
 
   const theme = getTheme(activeTab || 'all');
-  const heroGradient = `linear-gradient(to bottom right, ${theme.primary[0]}, ${theme.primary[1]}, ${theme.primary[2]})`;
+  const heroGradient = `linear-gradient(to bottom, #ffffff, #f0fdf4)`;
 
   // Helper to convert RGB to RGBA
   const rgbToRgba = (rgb: string, alpha: number) => {

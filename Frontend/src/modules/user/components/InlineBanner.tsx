@@ -58,7 +58,7 @@ export default function InlineBanner({ banners, images, autoPlayInterval = 8000 
   if (!displayBanners || displayBanners.length === 0) return null;
 
   return (
-    <div className="px-4 my-1">
+    <div className="px-4 my-1 bg-gradient-to-b from-white to-[#f0fdf4]">
       {/* Horizontal Scrollable Container */}
       <div
         ref={scrollContainerRef}
@@ -85,19 +85,6 @@ export default function InlineBanner({ banners, images, autoPlayInterval = 8000 
           </div>
         ))}
       </div>
-
-      {/* Scroll Indicator Dots */}
-      {displayBanners.length > 1 && (
-        <div className="flex justify-center gap-1.5 mt-3">
-          {displayBanners.map((_: any, index: number) => (
-            <div
-              key={index}
-              className={`w-1.5 h-1.5 rounded-full transition-colors ${index === currentIndex ? 'bg-green-600' : 'bg-green-300'
-                }`}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

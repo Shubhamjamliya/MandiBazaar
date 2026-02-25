@@ -294,7 +294,7 @@ export default function Home() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-green-100 via-green-50 to-green-50/20 min-h-screen pb-20 md:pb-0" ref={contentRef}>
+    <div className="bg-white min-h-screen pb-20 md:pb-0" ref={contentRef}>
       {/* Homster Header - Now managed in AppLayout for stability */}
 
       {/* Spacer for fixed header */}
@@ -333,8 +333,16 @@ export default function Home() {
           <ServiceCategoriesSection
             categories={serviceCategories}
             activeCategoryId={activeInlineCategory ? (activeInlineCategory.categoryId || activeInlineCategory.id) : null}
-            onCategorySelect={handleCategorySelect}
           />
+
+          {/* Tagline Image Below Category Section */}
+          <div className="px-4 py-2 flex justify-center">
+            <img
+              src="/assets/TAG-line.png"
+              alt="Mandi Bazaar Tagline"
+              className="w-full max-w-lg object-contain"
+            />
+          </div>
 
           {/* Inline Category Flow (Subcategories + Products) */}
           {activeInlineCategory && (
@@ -353,7 +361,7 @@ export default function Home() {
       )}
 
       {/* Lowest Prices Ever Section */}
-      {!activeInlineCategory && (
+      {!activeInlineCategory && homeData.lowestPrices && homeData.lowestPrices.length > 0 && (
         <LowestPricesEver
           activeTab={activeTab}
           products={homeData.lowestPrices}

@@ -41,7 +41,7 @@ const ServiceCategoriesSectionMemo = memo(function ServiceCategoriesSection({
   }
 
   return (
-    <div className="bg-gradient-to-br from-green-50 to-emerald-50 py-1.5 shadow-sm">
+    <div className="bg-gradient-to-b from-[#f0fdf4] to-white py-1.5 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between mb-1 px-4">
         <div>
