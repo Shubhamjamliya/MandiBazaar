@@ -37,12 +37,13 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
     return typeof id === 'object' ? (id.$oid || String(id)) : String(id);
   };
 
-  // Reset selection when product changes or modal opens
+  // Reset selection when modal opens or product ID changes
+  // We use a stable ID comparison to prevent jumps during cart updates
   useEffect(() => {
     if (isOpen && variants.length > 0) {
       setSelectedVariant(variants[0]);
     }
-  }, [product, isOpen, variants]);
+  }, [isOpen, product.id, (product as any)._id]);
 
   if (!isOpen) return null;
 
@@ -87,7 +88,7 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
     <AnimatePresence>
       {isOpen && (
         <div
-          className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden"
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Backdrop */}
@@ -100,24 +101,19 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
               e.stopPropagation();
               onClose();
             }}
-            className="absolute inset-0 bg-neutral-900/60 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-neutral-900/40 backdrop-blur-[4px]"
           />
 
           {/* Modal Container */}
           <motion.div
             layout
-            initial={{ y: "100%", opacity: 0.5 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: "100%", opacity: 0.5 }}
-            transition={{ type: "spring", damping: 30, stiffness: 350, mass: 0.8 }}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 400 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-[440px] bg-white rounded-t-[32px] sm:rounded-[28px] overflow-hidden shadow-2xl flex flex-col"
+            className="relative w-full max-w-[400px] bg-white rounded-[32px] overflow-hidden shadow-2xl flex flex-col"
           >
-            {/* Mobile Grab Handle */}
-            <div className="sm:hidden flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-neutral-200" />
-            </div>
-
             {/* Header */}
             <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
               <div className="flex items-center gap-4 text-left">
@@ -132,10 +128,10 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-black text-neutral-900 line-clamp-1">
+                  <h3 className="text-sm font-bold text-neutral-900 line-clamp-1">
                     {product.name || product.productName}
                   </h3>
-                  <p className="text-[11px] text-green-600 font-bold uppercase tracking-wider">
+                  <p className="text-[11px] text-green-600 font-medium uppercase tracking-wider">
                     {variants.length} Options Available
                   </p>
                 </div>
@@ -156,7 +152,7 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
 
             {/* Variants List */}
             <div className="px-5 py-6 max-h-[50vh] overflow-y-auto scrollbar-hide space-y-3">
-              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.1em] mb-4 text-left">
+              <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.1em] mb-4 text-left">
                 Choose Pack Size
               </p>
 
@@ -196,12 +192,12 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
                         </AnimatePresence>
                       </div>
                       <div className="text-left">
-                        <p className={`text-sm font-bold transition-colors ${isSelected ? 'text-green-900' : 'text-neutral-800'}`}>
+                        <p className={`text-sm font-medium transition-colors ${isSelected ? 'text-green-900' : 'text-neutral-800'}`}>
                           {isWeightMode ? v.label : (v.title || v.value)}
                         </p>
                         {discount > 0 && (
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[10px] font-extrabold text-white bg-green-600 px-1.5 py-0.5 rounded-[4px] leading-none uppercase tracking-tighter">
+                            <span className="text-[10px] font-bold text-white bg-green-600 px-1.5 py-0.5 rounded-[4px] leading-none uppercase tracking-tighter">
                               {discount}% OFF
                             </span>
                             <span className="text-[10px] text-neutral-400 line-through font-medium">₹{mrp}</span>
@@ -210,7 +206,7 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={`text-[15px] font-black tracking-tight ${isSelected ? 'text-green-700' : 'text-neutral-900'}`}>
+                      <p className={`text-[15px] font-bold tracking-tight ${isSelected ? 'text-green-700' : 'text-neutral-900'}`}>
                         ₹{price}
                       </p>
                     </div>
@@ -226,7 +222,7 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
                 whileTap={{ scale: 0.97 }}
                 onClick={(e) => handleAddToCart(e)}
                 disabled={!selectedVariant}
-                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-neutral-100 disabled:text-neutral-400 text-white h-[52px] rounded-2xl font-black flex items-center justify-between px-6 shadow-xl shadow-green-200/50 transition-all disabled:shadow-none"
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-neutral-100 disabled:text-neutral-400 text-white h-[52px] rounded-2xl font-bold flex items-center justify-between px-6 shadow-xl shadow-green-200/50 transition-all disabled:shadow-none"
               >
                 <span className="uppercase tracking-widest text-[11px]">Add to cart</span>
                 <div className="flex items-center gap-2">

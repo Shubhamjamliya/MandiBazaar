@@ -17,6 +17,7 @@ export interface Product {
   pack: string;
   price: number;
   mrp?: number;
+  compareAtPrice?: number;
   discPrice?: number;
   variations?: Array<{
     title?: string; // made optional as per user data which has name/value

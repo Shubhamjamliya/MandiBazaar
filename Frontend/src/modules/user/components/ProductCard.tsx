@@ -246,7 +246,7 @@ function ProductCard({
 
           {/* Discount Badge */}
           {showBadge && discount > 0 && (
-            <div className="absolute top-2 left-2 z-10 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
+            <div className="absolute top-2 left-2 z-10 bg-green-600 text-white text-[12px] font-bold px-2 py-0.5 rounded shadow-sm">
               {discount}% off
             </div>
           )}
@@ -373,11 +373,11 @@ function ProductCard({
 
           {/* 4. Pricing Row */}
           <div className="mt-auto flex items-baseline gap-1.5">
-            <span className="text-[12px] font-black text-neutral-900 leading-none">
+            <span className="text-[16px] md:text-[18px] font-black text-neutral-900 leading-none">
               ₹{displayPrice.toLocaleString('en-IN')}
             </span>
             {mrp && mrp > displayPrice && (
-              <span className="text-[9px] text-neutral-400 line-through font-medium leading-none">
+              <span className="text-[12px] text-neutral-400 line-through font-medium leading-none">
                 ₹{mrp.toLocaleString('en-IN')}
               </span>
             )}

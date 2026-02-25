@@ -1,6 +1,7 @@
 import { Product } from './domain';
 
 export interface CartItem {
+  id?: string;
   product: Product;
   quantity: number;
   variant?: any;

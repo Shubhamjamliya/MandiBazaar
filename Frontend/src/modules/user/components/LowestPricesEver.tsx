@@ -101,7 +101,7 @@ const ProductCard = memo(({
 
             {/* Red Discount Badge - Top Left */}
             {discount > 0 && (
-              <div className="absolute top-1 left-1 z-10 bg-red-600 text-white text-[9px] font-bold px-1 py-0.5 rounded">
+              <div className="absolute top-1 left-1 z-10 bg-red-600 text-white text-[12px] font-bold px-1.5 py-0.5 rounded">
                 {discount}% OFF
               </div>
             )}
@@ -277,11 +277,11 @@ const ProductCard = memo(({
           {/* Price */}
           <div className="mb-1">
             <div className="flex items-baseline gap-1">
-              <span className="text-[13px] font-bold text-neutral-900">
+              <span className="text-[17px] font-bold text-neutral-900">
                 ₹{displayPrice.toLocaleString('en-IN')}
               </span>
               {hasDiscount && (
-                <span className="text-[10px] text-neutral-400 line-through">
+                <span className="text-[12px] text-neutral-400 line-through">
                   ₹{mrp.toLocaleString('en-IN')}
                 </span>
               )}
