@@ -143,6 +143,7 @@ const SellerAccountSettings = () => {
                     latitude: data.latitude || (locationCoords[1]?.toString() || ''),
                     longitude: data.longitude || (locationCoords[0]?.toString() || ''),
                     searchLocation: data.searchLocation || data.address || '',
+                    address: data.address || data.searchLocation || '',
                     serviceRadiusKm: (data.serviceRadiusKm || 10).toString(),
                 });
                 if (updateUser) {
@@ -174,36 +175,36 @@ const SellerAccountSettings = () => {
     const tabs = [
         {
             id: 'profile',
-            label: 'Profile Info',
+            label: 'Profile',
             icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
             )
         },
         {
             id: 'store',
-            label: 'Store Details',
+            label: 'Store',
             icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
             )
         },
         {
             id: 'branding',
-            label: 'Store Branding',
+            label: 'Branding',
             icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
             )
         },
         {
             id: 'bank',
-            label: 'Bank & Tax',
+            label: 'Payments',
             icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
             )
@@ -213,78 +214,74 @@ const SellerAccountSettings = () => {
     return (
         <div className="min-h-screen bg-gray-50/50">
             {/* Header Section */}
-            <div className="bg-white border-b border-gray-200">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Settings</h1>
-                            <p className="mt-1 text-sm text-gray-500">Manage your store preferences and profile details</p>
+            <div className="bg-white border-b border-gray-200 pt-8">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                        <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 rounded-2xl bg-teal-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-teal-200">
+                                {sellerData.sellerName?.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Account Settings</h1>
+                                <p className="text-sm text-gray-500 font-medium">Manage your professional presence on Mandi Bazaar</p>
+                            </div>
                         </div>
-                        <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => setIsEditing(!isEditing)}
-                            className={`px-5 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 shadow-sm flex items-center gap-2 ${isEditing
-                                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
-                                : 'bg-teal-600 text-white hover:bg-teal-700 hover:shadow-md'
-                                }`}
-                        >
-                            {isEditing ? (
-                                <>
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                    Cancel Editing
-                                </>
-                            ) : (
-                                <>
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                                    Edit Profile
-                                </>
-                            )}
-                        </motion.button>
+                        <div className="flex items-center gap-3">
+                            <div className="px-3 py-1 bg-teal-50 text-teal-700 text-xs font-bold rounded-full border border-teal-100 uppercase tracking-wider">
+                                {sellerData.status || 'Active'}
+                            </div>
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => setIsEditing(!isEditing)}
+                                className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isEditing
+                                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                                    : 'bg-teal-600 text-white hover:bg-teal-700 shadow-md shadow-teal-100'
+                                    }`}
+                            >
+                                {isEditing ? (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        Cancel
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                        Edit Profile
+                                    </>
+                                )}
+                            </motion.button>
+                        </div>
+                    </div>
+
+                    {/* Top Tabs Bar */}
+                    <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`relative pb-4 px-1 text-sm font-bold transition-all duration-200 whitespace-nowrap flex items-center gap-2 ${activeTab === tab.id
+                                    ? 'text-teal-600'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                {tab.icon}
+                                {tab.label}
+                                {activeTab === tab.id && (
+                                    <motion.div
+                                        layoutId="activeTabBorder"
+                                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-600"
+                                    />
+                                )}
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
                 <div className="flex flex-col lg:flex-row gap-8">
-                    {/* Sidebar Navigation */}
-                    <nav className="w-full lg:w-64 flex-shrink-0 space-y-1">
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2">
-                            {tabs.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${activeTab === tab.id
-                                        ? 'bg-teal-50 text-teal-700 shadow-sm ring-1 ring-teal-200'
-                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                        }`}
-                                >
-                                    <span className={`${activeTab === tab.id ? 'text-teal-600' : 'text-gray-400'}`}>
-                                        {tab.icon}
-                                    </span>
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Status Card */}
-                        <div className="mt-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-5 text-white shadow-lg">
-                            <div className="flex items-center justify-between mb-4">
-                                <span className="text-xs font-semibold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded">
-                                    Account Status
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg font-bold">
-                                    {sellerData.sellerName?.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                    <p className="font-medium">{sellerData.sellerName}</p>
-                                    <p className="text-xs text-indigo-100 uppercase">{sellerData.status || 'Active'}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </nav>
+                    {/* Sidebar Navigation removed and replaced with top tabs above */}
 
                     {/* Main Content Area */}
                     <div className="flex-1">
@@ -424,12 +421,12 @@ const SellerAccountSettings = () => {
                                                                         setSellerData(prev => ({
                                                                             ...prev,
                                                                             searchLocation: address,
+                                                                            address: address, // Keep both in sync during search
                                                                             ...(lat !== 0 && lng !== 0 ? {
                                                                                 latitude: lat.toString(),
                                                                                 longitude: lng.toString(),
                                                                             } : {}),
-                                                                            address: address,
-                                                                            city: components?.city || prev.city,
+                                                                            city: components?.city || prev.city || '',
                                                                         }));
                                                                     }}
                                                                     placeholder="Search and select your store location..."
@@ -453,7 +450,7 @@ const SellerAccountSettings = () => {
                                                         ) : (
                                                             <textarea
                                                                 name="address"
-                                                                value={sellerData.address || sellerData.searchLocation || ''}
+                                                                value={sellerData.searchLocation || sellerData.address || ''}
                                                                 disabled={true}
                                                                 rows={3}
                                                                 className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-50/50 text-gray-500 resize-none"
