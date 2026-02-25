@@ -155,7 +155,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
       .populate({
         path: "product",
         select:
-          "productName mainImage price mrp discount status publish category subcategory seller",
+          "productName mainImage price mrp compareAtPrice discount status publish category subcategory seller weightVariants variations sellingUnit pack smallDescription rating reviewsCount",
         populate: { path: "category", select: "name slug" },
         match: {
           status: "Active",
@@ -186,7 +186,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
           mainImage: product.mainImage,
           imageUrl: product.mainImage,
           price: product.price,
-          mrp: product.mrp || product.price,
+          mrp: product.mrp || product.compareAtPrice || product.price,
           discount: product.discount || (product.mrp && product.price ? Math.round(((product.mrp - product.price) / product.mrp) * 100) : 0),
           categoryId: product.category?._id?.toString() || product.category?.toString() || "",
           subcategory: product.subcategory?.toString() || "",
@@ -194,6 +194,13 @@ export const getHomeContent = async (req: Request, res: Response) => {
           publish: product.publish,
           isAvailable,
           seller: product.seller,
+          // Add these fields
+          weightVariants: product.weightVariants || [],
+          variations: product.variations || [],
+          sellingUnit: product.sellingUnit || 'unit',
+          pack: product.pack || '',
+          rating: product.rating || 0,
+          reviewsCount: product.reviewsCount || 0,
         };
       });
 

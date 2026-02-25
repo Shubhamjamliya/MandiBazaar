@@ -34,8 +34,8 @@ export const calculateProductPrice = (product: any, variationSelector?: number |
   const displayPrice = (variation?.discPrice && variation.discPrice > 0)
     ? variation.discPrice
     : (product.discPrice && product.discPrice > 0)
-    ? product.discPrice
-    : (variation?.price || product.price || 0);
+      ? product.discPrice
+      : (variation?.price || product.price || 0);
 
   const mrp = variation?.price || product.mrp || product.compareAtPrice || product.price || 0;
 
