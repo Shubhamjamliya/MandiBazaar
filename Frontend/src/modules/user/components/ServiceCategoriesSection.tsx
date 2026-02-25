@@ -64,8 +64,21 @@ const ServiceCategoriesSectionMemo = memo(function ServiceCategoriesSection({
           <motion.div
             key="home-permanent"
             initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.2 }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              y: [0, -3, 0]
+            }}
+            transition={{
+              opacity: { duration: 0.2 },
+              scale: { duration: 0.2 },
+              y: {
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }
+            }}
+            whileHover={{ scale: 1.05, y: -5 }}
             whileTap={{ scale: 0.95 }}
             className="flex-shrink-0 flex flex-col items-center cursor-pointer"
             onClick={() => {
@@ -78,12 +91,12 @@ const ServiceCategoriesSectionMemo = memo(function ServiceCategoriesSection({
             style={{ width: "70px" }}
           >
             {/* Circular Image Container for Home */}
-            <div className={`w-16 h-16 rounded-full shadow-md hover:shadow-lg transition-all overflow-hidden border-2 ${!activeCategoryId ? "border-green-600 ring-2 ring-green-100" : "border-green-100"
+            <div className={`w-16 h-16 rounded-full shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border-2 ${!activeCategoryId ? "border-green-600 ring-2 ring-green-100" : "border-green-100"
               }`}>
               <img
                 src="/assets/Home-icon.png"
                 alt="Home"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transform transition-transform duration-500 hover:scale-110"
               />
             </div>
 
@@ -96,27 +109,41 @@ const ServiceCategoriesSectionMemo = memo(function ServiceCategoriesSection({
             </div>
           </motion.div>
 
-          {categories.map((category) => {
+          {categories.map((category, index) => {
             const isSelected = activeCategoryId === (category.categoryId || category.id || category.slug);
             return (
               <motion.div
                 key={category.id}
                 initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.2 }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  y: [0, -3, 0]
+                }}
+                transition={{
+                  opacity: { duration: 0.2, delay: index * 0.05 },
+                  scale: { duration: 0.2, delay: index * 0.05 },
+                  y: {
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: index * 0.2 // Staggered floating effect
+                  }
+                }}
+                whileHover={{ scale: 1.05, y: -5 }}
                 whileTap={{ scale: 0.95 }}
                 className="flex-shrink-0 flex flex-col items-center cursor-pointer"
                 onClick={() => handleCategoryClick(category)}
                 style={{ width: "70px" }}
               >
                 {/* Circular Image Container */}
-                <div className={`w-16 h-16 bg-white rounded-full shadow-md hover:shadow-lg transition-all overflow-hidden flex items-center justify-center border-2 ${isSelected ? "border-green-600 ring-2 ring-green-100" : "border-green-100"
+                <div className={`w-16 h-16 bg-white rounded-full shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden flex items-center justify-center border-2 ${isSelected ? "border-green-600 ring-2 ring-green-100" : "border-green-100"
                   }`}>
                   {category.image ? (
                     <img
                       src={category.image}
                       alt={category.name}
-                      className="w-full h-full object-cover rounded-full"
+                      className="w-full h-full object-cover rounded-full transform transition-transform duration-500 hover:scale-110"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';

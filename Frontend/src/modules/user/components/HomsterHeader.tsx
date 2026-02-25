@@ -1,15 +1,24 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, memo, lazy, Suspense } from 'react';
 import { useLocation } from '../../../hooks/useLocation';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const ATTR_PHRASES = [
-  "Mandi Bazaar",
-  "Fresh from Farm",
-  "Quality Grocery",
-  "Lowest Prices",
-  "Fast Delivery",
-  "Happy Shopping!"
+const DotLottieReact = lazy(() =>
+  import('@lottiefiles/dotlottie-react').then(module => ({ default: module.DotLottieReact }))
+);
+
+interface Phrase {
+  text: string;
+  gradient: string;
+}
+
+const ATTR_PHRASES: Phrase[] = [
+  { text: "Mandi Bazaar", gradient: "from-emerald-600 to-green-500" },      // Spinach/Leafy Green
+  { text: "Fresh from Farm", gradient: "from-orange-500 to-amber-400" },   // Carrot/Orange
+  { text: "Quality Grocery", gradient: "from-purple-600 to-fuchsia-500" }, // Eggplant/Grapes
+  { text: "Lowest Prices", gradient: "from-red-500 to-rose-400" },         // Tomato/Apple
+  { text: "Fast Delivery", gradient: "from-yellow-500 to-amber-300" },    // Lemon/Banana
+  { text: "Happy Shopping!", gradient: "from-teal-500 to-emerald-400" }    // Mint/Cilantro
 ];
 
 const SlidingPhrases = memo(() => {
@@ -18,23 +27,27 @@ const SlidingPhrases = memo(() => {
   useEffect(() => {
     const interval = setInterval(() => {
       setPhraseIndex((prev) => (prev + 1) % ATTR_PHRASES.length);
-    }, 3000);
+    }, 5000); // Slower interval
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="relative h-6 overflow-hidden">
-      {ATTR_PHRASES.map((phrase, idx) => (
-        <h1
-          key={phrase}
-          className={`absolute inset-0 text-xl font-black bg-gradient-to-r from-emerald-900 to-emerald-800 bg-clip-text text-transparent leading-tight tracking-tight text-slide-up whitespace-nowrap transition-all duration-700 ${idx === phraseIndex
-            ? 'translate-y-0 opacity-100'
-            : 'translate-y-4 opacity-0 pointer-events-none'
-            }`}
+    <div className="relative h-7 overflow-hidden" style={{ perspective: '1000px' }}>
+      <AnimatePresence initial={false}>
+        <motion.h1
+          key={ATTR_PHRASES[phraseIndex].text}
+          initial={{ y: "100%", rotateX: -90, opacity: 0 }}
+          animate={{ y: 0, rotateX: 0, opacity: 1 }}
+          exit={{ y: "-100%", rotateX: 90, opacity: 0 }}
+          transition={{
+            duration: 1.5, // Slower duration
+            ease: [0.22, 1, 0.36, 1] // Smooth bespoke easing
+          }}
+          className={`absolute inset-0 text-xl font-black bg-gradient-to-r ${ATTR_PHRASES[phraseIndex].gradient} bg-clip-text text-transparent leading-tight tracking-tight whitespace-nowrap`}
         >
-          {phrase}
-        </h1>
-      ))}
+          {ATTR_PHRASES[phraseIndex].text}
+        </motion.h1>
+      </AnimatePresence>
     </div>
   );
 });
@@ -46,6 +59,13 @@ interface HomsterHeaderProps {
 function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
   const navigate = useNavigate();
   const { location: userLocation } = useLocation();
+  const [showAnimation, setShowAnimation] = useState(false);
+
+  useEffect(() => {
+    // Defer animation loading to ensure page content renders first
+    const timer = setTimeout(() => setShowAnimation(true), 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const locationDisplayText = userLocation?.address ||
     (userLocation?.city && userLocation?.state ? `${userLocation.city}, ${userLocation.state}` : '') ||
@@ -76,9 +96,6 @@ function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
           background: rgba(240, 253, 244, 0.8);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
-        }
-        .text-slide-up {
-          transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes run-across {
           0% { left: -100px; opacity: 0; }
@@ -111,8 +128,8 @@ function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
         {/* Top Section - Logo & Name */}
         <div className="px-4 pt-3 pb-1 relative z-10">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 animate-fade-in-down relative">
-              <div className="relative group animate-bounce-slow">
+            <div className="flex items-center gap-3 animate-fade-in-down relative flex-1">
+              <div className="relative group animate-bounce-slow flex-shrink-0">
                 <div className="absolute inset-0 bg-emerald-200/40 rounded-full blur-md group-hover:bg-emerald-300/50 transition-all"></div>
                 <div className="relative h-11 w-11 bg-white rounded-xl shadow-sm flex items-center justify-center border border-emerald-100 p-1">
                   <img
@@ -125,7 +142,7 @@ function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
               </div>
 
               {/* Brand Section */}
-              <div className="flex flex-col justify-center min-w-[150px] relative z-10 ml-1">
+              <div className="flex flex-col justify-center flex-1 relative z-10 ml-1 overflow-hidden">
                 <SlidingPhrases />
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -165,13 +182,18 @@ function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
               className="relative group transition-transform active:scale-95 flex items-center justify-center -top-10"
             >
               <div className="absolute inset-0 bg-emerald-100/30 rounded-full blur-3xl group-hover:bg-emerald-200/50 transition-all scale-150"></div>
-              <div className="w-32 h-48 relative z-10 -mt-12 -mb-24 -mr-6 -ml-4">
-                <DotLottieReact
-                  src="/assets/animations/vegetable.json"
-                  loop
-                  autoplay
-                  style={{ width: '100%', height: '100%' }}
-                />
+              <div className="w-32 h-48 relative z-10 -mt-12 -mb-24 -mr-6 -ml-4 flex items-center justify-center">
+                {showAnimation && (
+                  <Suspense fallback={<div className="w-full h-full" />}>
+                    <DotLottieReact
+                      src="/assets/animations/vegetable.json"
+                      loop
+                      autoplay
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  </Suspense>
+                )}
+                {!showAnimation && <div className="w-full h-full" />}
               </div>
             </button>
           </div>
