@@ -93,7 +93,7 @@ function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
           animation: fade-in-down 0.5s ease-out forwards;
         }
         .glass-header {
-          background: #ffffff;
+          background: #f0fffb;
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
         }
@@ -110,7 +110,7 @@ function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
         }
       `}</style>
 
-      <div className="fixed top-0 left-0 right-0 z-50 glass-header shadow-sm border-b border-neutral-100 bg-white">
+      <div className="fixed top-0 left-0 right-0 z-50 glass-header shadow-sm border-b border-emerald-100/50 bg-[#f0fffb]">
         {/* ULTRA-FRONT FAST DELIVERY ANIMATION - Using Local Shopping Cart (Temporarily Commented Out) */}
         {/* <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-50 overflow-hidden">
           <div className="animate-run-across flex items-center h-full">

@@ -564,6 +564,16 @@ export default function LowestPricesEver({ activeTab = 'all', products: adminPro
         </div>
       </div>
 
+      {/* Tagline Image */}
+      <div className="px-4 pb-4 flex justify-center relative z-10">
+        <img
+          src="/assets/TAG-line.png"
+          alt="Mandi Bazaar Tagline"
+          className="w-full max-w-[180px] md:max-w-xs object-contain"
+          style={{ opacity: 0.9 }}
+        />
+      </div>
+
       {/* Horizontal Scrollable Product Cards */}
       <div
         ref={scrollContainerRef}

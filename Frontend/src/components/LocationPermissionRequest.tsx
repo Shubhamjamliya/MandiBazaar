@@ -20,8 +20,8 @@ export default function LocationPermissionRequest({
   const { requestLocation, updateLocation, isLocationEnabled, isLocationLoading, locationError, locationPermissionStatus, clearLocation } = useLocation();
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualAddress, setManualAddress] = useState('');
-  const [manualLat, setManualLat] = useState(0);
-  const [manualLng, setManualLng] = useState(0);
+  const [manualLat, setManualLat] = useState<number | null>(null);
+  const [manualLng, setManualLng] = useState<number | null>(null);
 
   // Auto-grant if already enabled or session permission exists
   useEffect(() => {
@@ -55,11 +55,10 @@ export default function LocationPermissionRequest({
     setManualAddress(address);
     setManualLat(lat);
     setManualLng(lng);
-    // placeName is available but not stored separately as we use address
   }, []);
 
   const handleSaveManualLocation = async () => {
-    if (!manualAddress || manualLat === 0 || manualLng === 0) {
+    if (!manualAddress || manualLat === null || manualLng === null) {
       return;
     }
 
@@ -198,7 +197,7 @@ export default function LocationPermissionRequest({
               </button>
               <button
                 onClick={handleSaveManualLocation}
-                disabled={!manualAddress || manualLat === 0}
+                disabled={!manualAddress || !manualLat}
                 className="flex-1 py-2 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save Location

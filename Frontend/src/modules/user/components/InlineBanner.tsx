@@ -58,7 +58,7 @@ export default function InlineBanner({ banners, images, autoPlayInterval = 8000 
   if (!displayBanners || displayBanners.length === 0) return null;
 
   return (
-    <div className="px-4 my-1 bg-gradient-to-b from-white to-[#f0fdf4]">
+    <div className="px-4 mb-1 bg-[#f0fffb]">
       {/* Horizontal Scrollable Container */}
       <div
         ref={scrollContainerRef}

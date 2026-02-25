@@ -298,7 +298,7 @@ export default function Home() {
       {/* Homster Header - Now managed in AppLayout for stability */}
 
       {/* Spacer for fixed header */}
-      <div className="h-[175px]"></div>
+      <div className="h-[168px]"></div>
 
       {/* Marquee Announcement Strip - Moved above banner */}
       {homeData.marqueeText && !activeInlineCategory && (
@@ -335,14 +335,6 @@ export default function Home() {
             activeCategoryId={activeInlineCategory ? (activeInlineCategory.categoryId || activeInlineCategory.id) : null}
           />
 
-          {/* Tagline Image Below Category Section */}
-          <div className="px-4 py-2 flex justify-center">
-            <img
-              src="/assets/TAG-line.png"
-              alt="Mandi Bazaar Tagline"
-              className="w-full max-w-lg object-contain"
-            />
-          </div>
 
           {/* Inline Category Flow (Subcategories + Products) */}
           {activeInlineCategory && (
