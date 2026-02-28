@@ -311,6 +311,14 @@ export const createWithdrawalRequest = async (
 
         await withdrawRequest.save();
 
+        // Notify Admin of new payout request
+        const { sendAdminPayoutRequestNotification } = await import("./notificationService");
+        try {
+            await sendAdminPayoutRequestNotification(user.name || user.sellerName || 'User', amount);
+        } catch (notifyError) {
+            console.error("Error sending admin payout request notification:", notifyError);
+        }
+
         return {
             success: true,
             message: 'Withdrawal request created successfully',

@@ -1,7 +1,7 @@
 import { messaging, getToken, onMessage } from './firebase';
 import { getAuthToken } from './api/config';
 
-const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || 'BNtQ-yWzXEuz_T9O0xQeEGi52R4-8nNjVbBao1oT4VuASPq0uiLhfPk81_ULMXl3eTsmpMQDhzKDSk47fgohgVQ';
+const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || 'BO3Sg4gAQOyEZLqVAUSIGJQi5rVLqpUTgGxOEdCN23xLHqZ0k0Z54FlY_sZJXY1vUKeoJZKFCVhuUrbE7MANm30';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.mandibazaar.com/api/v1';
 
 /**
@@ -21,6 +21,14 @@ async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null
         console.warn('⚠️ Service Workers are not supported in this browser');
         return null;
     }
+}
+
+/**
+ * Get current notification permission status
+ */
+export function getNotificationPermissionStatus(): NotificationPermission {
+    if (!('Notification' in window)) return 'denied';
+    return Notification.permission;
 }
 
 /**
@@ -87,10 +95,18 @@ async function getFCMToken(): Promise<string | null> {
  */
 export async function registerFCMToken(forceUpdate: boolean = false): Promise<string | null> {
     try {
-        // Check if already registered
-        const savedToken = localStorage.getItem('fcm_token_web');
+        // Check if already registered for the correct project
+        const TOKEN_KEY = 'fcm_token_mandibazaar_6c730';
+        const savedToken = localStorage.getItem(TOKEN_KEY);
+
+        // If old project token exists, remove it
+        if (localStorage.getItem('fcm_token_web')) {
+            localStorage.removeItem('fcm_token_web');
+            forceUpdate = true;
+        }
+
         if (savedToken && !forceUpdate) {
-            console.log('ℹ️ FCM token already registered');
+            console.log('ℹ️ FCM token already registered for current project');
             return savedToken;
         }
 
@@ -128,8 +144,8 @@ export async function registerFCMToken(forceUpdate: boolean = false): Promise<st
         });
 
         if (response.ok) {
-            localStorage.setItem('fcm_token_web', token);
-            console.log('✅ FCM token registered with backend');
+            localStorage.setItem(TOKEN_KEY, token);
+            console.log('✅ FCM token registered with backend for project 6c730');
             return token;
         } else {
             const error = await response.json();
@@ -156,9 +172,11 @@ export function setupForegroundNotificationHandler(handler?: (payload: any) => v
 
         // Show notification even when app is in focus
         if ('Notification' in window && Notification.permission === 'granted') {
-            const notification = new Notification(payload.notification?.title || 'New Notification', {
-                body: payload.notification?.body || '',
-                icon: payload.notification?.icon || '/favicon.png',
+            const title = payload.notification?.title || payload.data?.title || 'New Notification';
+            const body = payload.notification?.body || payload.data?.body || '';
+            const notification = new Notification(title, {
+                body: body,
+                icon: payload.notification?.icon || payload.data?.icon || '/favicon.png',
                 badge: '/favicon.png',
                 tag: payload.data?.type || 'notification',
                 requireInteraction: false,

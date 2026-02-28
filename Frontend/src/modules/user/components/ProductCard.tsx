@@ -8,7 +8,7 @@ import { useLocation } from '../../../hooks/useLocation';
 import { useToast } from '../../../context/ToastContext';
 import Button from '../../../components/ui/button';
 import Badge from '../../../components/ui/badge';
-import StarRating from '../../../components/ui/StarRating';
+
 import { calculateProductPrice } from '../../../utils/priceUtils';
 import { useWishlist } from '../../../hooks/useWishlist';
 import VariantSelectorModal from './VariantSelectorModal';
@@ -21,7 +21,6 @@ interface ProductCardProps {
   showPackBadge?: boolean;
   showStockInfo?: boolean;
   showHeartIcon?: boolean;
-  showRating?: boolean;
   showVegetarianIcon?: boolean;
   showOptionsText?: boolean;
   optionsCount?: number;
@@ -36,7 +35,6 @@ function ProductCard({
   showPackBadge = false,
   showStockInfo = false,
   showHeartIcon = false,
-  showRating = false,
   showVegetarianIcon = false,
   showOptionsText = false,
   optionsCount = 2,
@@ -357,14 +355,8 @@ function ProductCard({
             {product.name || product.productName || ''}
           </h3>
 
-          {/* 3. Rating & Delivery Row */}
-          <div className="flex items-center justify-between mb-1 gap-1">
-            <StarRating
-              rating={(product.rating || (product as any).rating) || 0}
-              reviewCount={(product.reviews || (product as any).reviewsCount) || 0}
-              size="sm"
-              showCount={true}
-            />
+          {/* 3. Delivery Row */}
+          <div className="flex items-center justify-start mb-1 gap-1">
             <div className="flex items-center gap-0.5 whitespace-nowrap">
               <svg width="8" height="8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-neutral-400">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />

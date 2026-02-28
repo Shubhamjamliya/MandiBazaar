@@ -158,8 +158,8 @@ export const updateOrderStatus = asyncHandler(
       new: true,
       runValidators: true,
     })
-      .populate("customer", "name email phone")
-      .populate("deliveryBoy", "name mobile")
+      .populate("customer", "_id name email phone")
+      .populate("deliveryBoy", "_id name mobile")
       .populate("items");
 
     if (!order) {
@@ -167,6 +167,20 @@ export const updateOrderStatus = asyncHandler(
         success: false,
         message: "Order not found",
       });
+    }
+
+    // Send push notification to customer for status update
+    const { sendCustomerOrderNotification } = await import("../../../services/notificationService");
+    try {
+      await sendCustomerOrderNotification(
+        order._id.toString(),
+        order.orderNumber,
+        (order.customer as any)._id.toString(),
+        order.total,
+        status
+      );
+    } catch (notifyError) {
+      console.error("Error sending order status notification:", notifyError);
     }
 
 
@@ -240,6 +254,14 @@ export const assignDeliveryBoy = asyncHandler(
     order.deliveryBoyStatus = "Assigned";
     order.assignedAt = new Date();
     await order.save();
+
+    // Send push notification to delivery partner
+    const { sendDeliveryTaskNotification } = await import("../../../services/notificationService");
+    try {
+      await sendDeliveryTaskNotification(deliveryBoyId, order.orderNumber);
+    } catch (notifyError) {
+      console.error("Error sending delivery task notification:", notifyError);
+    }
 
     // Create or update delivery assignment
     await DeliveryAssignment.findOneAndUpdate(

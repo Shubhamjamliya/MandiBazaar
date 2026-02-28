@@ -34,8 +34,7 @@ export interface Product {
   categoryId: string;
   category?: Category;
   tags?: string[];
-  rating?: number;
-  reviews?: number;
+
   deliveryTime?: number;
   stock?: number;
   publish?: boolean;

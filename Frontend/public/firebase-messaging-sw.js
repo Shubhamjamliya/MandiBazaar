@@ -4,13 +4,13 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-comp
 
 // Firebase configuration (Production credentials)
 const firebaseConfig = {
-    apiKey: 'AIzaSyDdzURk5KJykQwmtUdOg-Lbdj4HjUT9G8g',
-    authDomain: 'mandibazaar2.firebaseapp.com',
-    projectId: 'mandibazaar2',
-    storageBucket: 'mandibazaar2.firebasestorage.app',
-    messagingSenderId: '88524532800',
-    appId: '1:88524532800:web:347183dc062e619a48c3a5',
-    measurementId: 'G-GCPBFW3F1B'
+    apiKey: 'AIzaSyDZOWhiIdZ32WLxh9z5jw9x_F9BsdLNCmE',
+    authDomain: 'mandibazaar-6c730.firebaseapp.com',
+    projectId: 'mandibazaar-6c730',
+    storageBucket: 'mandibazaar-6c730.firebasestorage.app',
+    messagingSenderId: '1009195769964',
+    appId: '1:1009195769964:web:06129c5bee4687ad3ef849',
+    measurementId: 'G-NH1P7LMDDL'
 };
 
 // Initialize Firebase in service worker

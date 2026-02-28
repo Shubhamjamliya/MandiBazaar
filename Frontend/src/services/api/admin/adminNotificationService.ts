@@ -142,3 +142,17 @@ export const deleteNotification = async (
   );
   return response.data;
 };
+
+/**
+ * Send a test push notification to a specific user
+ */
+export const testPushNotification = async (
+  recipientId: string,
+  recipientType: "Admin" | "Seller" | "Customer" | "Delivery"
+): Promise<ApiResponse<any>> => {
+  const response = await api.post<ApiResponse<any>>(
+    "/admin/notifications/test",
+    { recipientId, recipientType }
+  );
+  return response.data;
+};

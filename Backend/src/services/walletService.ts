@@ -143,6 +143,16 @@ export const processCustomerWalletTransaction = async (
 
   await customer.save();
 
+  // Send push notification if it's a credit (Cashback)
+  if (type === "credit") {
+    const { sendCashbackNotification } = await import("./notificationService");
+    try {
+      await sendCashbackNotification(customer._id.toString(), amount);
+    } catch (notifyError) {
+      console.error("Error sending cashback notification:", notifyError);
+    }
+  }
+
   return {
     customer,
     transaction: {

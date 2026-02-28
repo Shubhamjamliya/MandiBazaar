@@ -273,3 +273,37 @@ export const deleteNotification = asyncHandler(
     });
   }
 );
+
+/**
+ * Send a test push notification to a specific user
+ */
+export const testPushNotification = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { recipientId, recipientType } = req.body;
+
+    if (!recipientId || !recipientType) {
+      return res.status(400).json({
+        success: false,
+        message: "Recipient ID and type (Admin, Seller, Customer, or Delivery) are required",
+      });
+    }
+
+    const { sendTestNotification } = await import("../../../services/notificationService");
+
+    try {
+      const result = await sendTestNotification(recipientId, recipientType);
+
+      return res.status(200).json({
+        success: true,
+        message: "Test notification sent successfully",
+        data: result
+      });
+    } catch (error: any) {
+      console.error("Test notification error:", error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to send test notification"
+      });
+    }
+  }
+);

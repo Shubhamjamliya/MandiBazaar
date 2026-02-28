@@ -4,6 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 
 export default function AdminProfile() {
     const { isAuthenticated, updateUser } = useAuth();
+    const { showToast } = (window as any).useToast ? (window as any).useToast() : { showToast: (...args: any[]) => console.log(...args) };
     const [profile, setProfile] = useState<AdminProfileType | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -318,6 +319,53 @@ export default function AdminProfile() {
                                     </button>
                                 </div>
                             )}
+
+                            {/* Test Notification Section */}
+                            <div className="mt-8 pt-6 border-t border-neutral-100 bg-neutral-50 px-6 py-5 rounded-b-lg">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <p className="font-bold text-neutral-800">Push Notifications</p>
+                                        <p className="text-xs text-neutral-500">Enable and test real-time alerts on this device.</p>
+                                    </div>
+                                    <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${(window as any).Notification?.permission === 'granted'
+                                        ? 'bg-green-50 text-green-700 border-green-200'
+                                        : 'bg-amber-50 text-amber-700 border-amber-200'
+                                        }`}>
+                                        {(window as any).Notification?.permission || 'Unsupported'}
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-3">
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                setSaving(true);
+                                                setError(null);
+                                                setSuccess(null);
+                                                const { sendSelfTestNotification } = await import('../../../services/api/notificationService');
+                                                const res = await sendSelfTestNotification();
+                                                if (res.success && res.details) {
+                                                    setSuccess(`Test request sent! Successful on ${res.details.successCount} device(s).`);
+                                                } else {
+                                                    setError(res.message || 'Failed to send test notification. Try refreshing the page.');
+                                                }
+                                            } catch (err: any) {
+                                                setError(err.response?.data?.message || 'Error sending test notification');
+                                            } finally {
+                                                setSaving(false);
+                                            }
+                                        }}
+                                        disabled={saving}
+                                        className="w-full px-4 py-2 bg-neutral-900 hover:bg-black text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95 disabled:opacity-50"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                        </svg>
+                                        Send Test Push
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

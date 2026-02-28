@@ -274,27 +274,50 @@ router.post("/test", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Send test notification
-    const response = await sendPushNotification(uniqueTokens, {
-      title: "🔔 Test Notification",
-      body: "This is a test push notification from Mandi Bazaar!",
+    console.log(`📡 Preparing test notification for ${userType} user ${userId}`);
+    const { sendNotificationToUser } = await import("../services/firebaseAdmin");
+
+    const response = await sendNotificationToUser(userId, userType, {
+      title: "🔔 Mandi Bazaar Test Notification",
+      body: "If you see this, your device is correctly registered for real-time alerts!",
       data: {
         type: "test",
         timestamp: new Date().toISOString(),
-        link: "/",
+        link: "/admin/profile",
       },
       icon: "/favicon.png",
     });
 
-    console.log(`✅ Test notification sent to ${userType} user ${userId}`);
+    if (!response) {
+      res.json({
+        success: false,
+        message: "Failed to process test notification. No valid tokens found for this device.",
+      });
+      return;
+    }
+
+    console.log(`✅ Test notification results for user ${userId}:`, {
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+      responses: response.responses.map((r: any) => r.success ? 'Success' : `Error: ${r.error?.message || (r.error as any)?.code || 'Unknown'}`)
+    });
 
     res.json({
       success: true,
-      message: "Test notification sent successfully",
+      message: response.failureCount === 0
+        ? "Test notification successfully sent to all your devices!"
+        : `Sent to ${response.successCount} device(s), but ${response.failureCount} failed.`,
       details: {
         totalTokens: uniqueTokens.length,
         successCount: response.successCount,
         failureCount: response.failureCount,
+        errorMessages: response.responses
+          .filter((r: any) => !r.success)
+          .map((r: any) => {
+            const err = r.error as any;
+            if (!err) return "Unknown Error";
+            return err.message || err.code || "Registration Error";
+          })
       },
     });
   } catch (error: any) {

@@ -3,6 +3,7 @@ import {
   getNotifications,
   createNotification,
   deleteNotification,
+  testPushNotification,
   Notification as NotificationType,
   CreateNotificationData,
 } from '../../../services/api/admin/adminNotificationService';
@@ -14,8 +15,14 @@ export default function AdminNotification() {
     message: '',
   });
 
+  const [testData, setTestData] = useState({
+    recipientId: '',
+    recipientType: 'Admin' as 'Admin' | 'Seller' | 'Customer' | 'Delivery',
+  });
+
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [loading, setLoading] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -76,6 +83,39 @@ export default function AdminNotification() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleTestInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setTestData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSendTestPush = async () => {
+    setError('');
+    setSuccessMessage('');
+
+    if (!testData.recipientId.trim()) {
+      setError('Please enter a recipient ID for test push');
+      return;
+    }
+
+    setTestLoading(true);
+    try {
+      const response = await testPushNotification(
+        testData.recipientId.trim(),
+        testData.recipientType
+      );
+
+      if (response.success) {
+        setSuccessMessage('Test push notification sent successfully!');
+      } else {
+        setError(response.message || 'Failed to send test push');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Error sending test push');
+    } finally {
+      setTestLoading(false);
+    }
   };
 
   const handleSendNotification = async (e: React.FormEvent) => {
@@ -344,6 +384,51 @@ export default function AdminNotification() {
                   </button>
                 </div>
               </form>
+
+              {/* Test Push Section */}
+              <div className="mt-8 pt-8 border-t border-neutral-200">
+                <h3 className="text-md font-semibold text-neutral-800 mb-4">Send Test Push Notification</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Recipient ID (User ID)
+                    </label>
+                    <input
+                      type="text"
+                      name="recipientId"
+                      value={testData.recipientId}
+                      onChange={handleTestInputChange}
+                      placeholder="Enter MongoDB User ID"
+                      disabled={testLoading}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Recipient Type
+                    </label>
+                    <select
+                      name="recipientType"
+                      value={testData.recipientType}
+                      onChange={handleTestInputChange}
+                      disabled={testLoading}
+                      className="w-full px-3 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                    >
+                      <option value="Admin">Admin</option>
+                      <option value="Seller">Seller</option>
+                      <option value="Customer">Customer</option>
+                      <option value="Delivery">Delivery Boy</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={handleSendTestPush}
+                    disabled={testLoading || !testData.recipientId}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded font-medium transition-colors"
+                  >
+                    {testLoading ? 'Sending Test...' : 'Send Test Notification'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -516,8 +601,8 @@ export default function AdminNotification() {
                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                     disabled={currentPage === 1 || loading}
                     className={`p-2 border border-green-600 rounded ${currentPage === 1
-                        ? 'text-neutral-400 cursor-not-allowed bg-neutral-50'
-                        : 'text-green-600 hover:bg-green-50'
+                      ? 'text-neutral-400 cursor-not-allowed bg-neutral-50'
+                      : 'text-green-600 hover:bg-green-50'
                       }`}
                     aria-label="Previous page"
                   >
@@ -554,8 +639,8 @@ export default function AdminNotification() {
                         onClick={() => setCurrentPage(pageNum)}
                         disabled={loading}
                         className={`px-3 py-1.5 border border-green-600 rounded font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed ${currentPage === pageNum
-                            ? 'bg-green-600 text-white'
-                            : 'text-green-600 hover:bg-green-50'
+                          ? 'bg-green-600 text-white'
+                          : 'text-green-600 hover:bg-green-50'
                           }`}
                       >
                         {pageNum}
@@ -569,8 +654,8 @@ export default function AdminNotification() {
                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages || loading}
                     className={`p-2 border border-green-600 rounded ${currentPage === totalPages
-                        ? 'text-neutral-400 cursor-not-allowed bg-neutral-50'
-                        : 'text-green-600 hover:bg-green-50'
+                      ? 'text-neutral-400 cursor-not-allowed bg-neutral-50'
+                      : 'text-green-600 hover:bg-green-50'
                       }`}
                     aria-label="Next page"
                   >

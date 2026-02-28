@@ -924,6 +924,19 @@ export const approveProductRequest = asyncHandler(
       });
     }
 
+    // Send push notification to seller
+    const { sendProductStatusNotification } = await import("../../../services/notificationService");
+    try {
+      await sendProductStatusNotification(
+        product.seller.toString(),
+        product._id.toString(),
+        status === "Active" ? "Approved" : "Rejected",
+        rejectionReason
+      );
+    } catch (notifyError) {
+      console.error("Error sending product status notification:", notifyError);
+    }
+
     return res.status(200).json({
       success: true,
       message: `Product ${status === "Active" ? "approved" : "rejected"

@@ -14,7 +14,6 @@ interface Phrase {
 
 const ATTR_PHRASES: Phrase[] = [
   { text: "Mandi Bazaar", gradient: "from-emerald-600 to-green-500" },      // Spinach/Leafy Green
-  { text: "Fresh from Farm", gradient: "from-orange-500 to-amber-400" },   // Carrot/Orange
   { text: "Quality Grocery", gradient: "from-purple-600 to-fuchsia-500" }, // Eggplant/Grapes
   { text: "Lowest Prices", gradient: "from-red-500 to-rose-400" },         // Tomato/Apple
   { text: "Fast Delivery", gradient: "from-yellow-500 to-amber-300" },    // Lemon/Banana

@@ -338,6 +338,14 @@ export async function notifyDeliveryBoysOfNewOrder(
                 notifiedIds.add(idString);
                 io.to(roomName).emit('new-order', orderData);
                 console.log(`📤 Emitted new-order to connected delivery boy room: ${roomName}`);
+
+                // Send push notification to delivery partner
+                const { sendDeliveryTaskNotification } = await import("./notificationService");
+                try {
+                    await sendDeliveryTaskNotification(idString, order.orderNumber);
+                } catch (notifyError) {
+                    console.error(`Error sending push notification to delivery partner ${idString}:`, notifyError);
+                }
             } else {
                 console.log(`⏩ Skipping disconnected delivery boy: ${idString}`);
             }
@@ -431,7 +439,7 @@ export async function handleOrderAcceptance(
 
         // Also emit to individual rooms (notifiedId is already a string from Set)
         if (state) {
-             for (const notifiedId of state.notifiedDeliveryBoys) {
+            for (const notifiedId of state.notifiedDeliveryBoys) {
                 const notifiedIdString = String(notifiedId).trim();
                 io.to(`delivery-${notifiedIdString}`).emit('order-accepted', {
                     orderId,
@@ -441,10 +449,10 @@ export async function handleOrderAcceptance(
             // Clean up notification state
             notificationStates.delete(orderId);
         } else {
-             // If no state, we can't emit to specific originally notified list,
-             // but 'delivery-notifications' room covers the general case.
-             // We can also try to emit to the accepting delivery boy just in case
-             io.to(`delivery-${normalizedDeliveryBoyId}`).emit('order-accepted', {
+            // If no state, we can't emit to specific originally notified list,
+            // but 'delivery-notifications' room covers the general case.
+            // We can also try to emit to the accepting delivery boy just in case
+            io.to(`delivery-${normalizedDeliveryBoyId}`).emit('order-accepted', {
                 orderId,
                 acceptedBy: normalizedDeliveryBoyId,
             });

@@ -5,20 +5,20 @@ import { getMessaging, getToken, onMessage } from "firebase/messaging";
 const firebaseConfig = {
   apiKey:
     import.meta.env.VITE_FIREBASE_API_KEY ||
-    "AIzaSyDdzURk5KJykQwmtUdOg-Lbdj4HjUT9G8g",
+    "AIzaSyDZOWhiIdZ32WLxh9z5jw9x_F9BsdLNCmE",
   authDomain:
     import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ||
-    "mandibazaar2.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "mandibazaar2",
+    "mandibazaar-6c730.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "mandibazaar-6c730",
   storageBucket:
     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ||
-    "mandibazaar2.firebasestorage.app",
+    "mandibazaar-6c730.firebasestorage.app",
   messagingSenderId:
-    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "88524532800",
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1009195769964",
   appId:
     import.meta.env.VITE_FIREBASE_APP_ID ||
-    "1:88524532800:web:347183dc062e619a48c3a5",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-GCPBFW3F1B",
+    "1:1009195769964:web:06129c5bee4687ad3ef849",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-NH1P7LMDDL",
 };
 
 // Initialize Firebase

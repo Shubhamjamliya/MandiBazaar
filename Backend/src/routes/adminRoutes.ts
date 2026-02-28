@@ -234,6 +234,7 @@ router.patch(
   "/notifications/mark-read",
   notificationController.markMultipleAsRead
 ); // Legacy support
+router.post("/notifications/test", notificationController.testPushNotification);
 
 // ==================== Wallet & Withdrawal Routes ====================
 router.get("/financial/dashboard", walletController.getFinancialDashboard);

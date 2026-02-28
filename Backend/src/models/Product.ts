@@ -80,8 +80,7 @@ export interface IProduct extends Document {
   marketer?: string;
 
   // Ratings
-  rating: number;
-  reviewsCount: number;
+
   discount: number; // Calculated percentage
 
   returnPolicyText?: string;
@@ -318,8 +317,7 @@ const ProductSchema = new Schema<IProduct>(
     marketer: { type: String, trim: true },
 
     // Ratings
-    rating: { type: Number, default: 0, min: 0, max: 5 },
-    reviewsCount: { type: Number, default: 0, min: 0 },
+
     discount: { type: Number, default: 0, min: 0, max: 100 },
 
     returnPolicyText: { type: String, trim: true },

@@ -13,11 +13,26 @@ export function initializeFirebaseAdmin() {
         let credential;
 
         // Check if Firebase credentials are provided via environment variables (production)
-        const envCredentials = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_CREDENTIALS;
+        let envCredentials = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_CREDENTIALS;
         if (envCredentials) {
-            console.log('🔧 Using Firebase credentials from environment variable (production mode)');
-            // Handle potential double quoting or escaping issues if they arise, but standard JSON.parse should work for valid JSON string
+            console.log('🔧 Using Firebase credentials from environment variable');
+
+            // Clean up the string to ensure it is valid JSON
+            envCredentials = envCredentials.trim();
+            if (envCredentials.startsWith("'") && envCredentials.endsWith("'")) {
+                envCredentials = envCredentials.substring(1, envCredentials.length - 1);
+            }
+            if (envCredentials.startsWith('"') && envCredentials.endsWith('"')) {
+                envCredentials = envCredentials.substring(1, envCredentials.length - 1);
+            }
+
             const serviceAccount = JSON.parse(envCredentials);
+
+            // Fix private_key if it contains escaped newlines
+            if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
+                serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+            }
+
             credential = admin.credential.cert(serviceAccount);
         }
         // Fall back to service account file (development)
@@ -62,8 +77,11 @@ export async function sendPushNotification(
         console.warn('Firebase Admin not initialized. Skipping notification send.');
         return {
             successCount: 0,
-            failureCount: tokens.length,
-            responses: []
+            failureCount: tokens ? tokens.length : 0,
+            responses: (tokens || []).map(() => ({
+                success: false,
+                error: { code: 'messaging/internal-error', message: 'Firebase Admin not initialized' }
+            }))
         };
     }
 
@@ -77,7 +95,7 @@ export async function sendPushNotification(
             };
         }
 
-        const message = {
+        const message: any = {
             notification: {
                 title: payload.title,
                 body: payload.body
@@ -85,6 +103,19 @@ export async function sendPushNotification(
             data: {
                 ...(payload.data || {}),
                 ...(payload.icon && { icon: payload.icon })
+            },
+            webpush: {
+                notification: {
+                    title: payload.title,
+                    body: payload.body,
+                    icon: payload.icon || '/favicon.png',
+                    badge: '/favicon.png',
+                    tag: payload.data?.type || 'default',
+                    requireInteraction: false
+                },
+                fcm_options: {
+                    link: payload.data?.link || '/'
+                }
             },
             tokens: tokens
         };
@@ -185,8 +216,11 @@ export async function sendNotificationToUser(
                 if (!resp.success && uniqueTokens[idx]) {
                     // Check if error is due to invalid token
                     const errorCode = (resp.error as any)?.code;
+                    const errorMsg = (resp.error as any)?.message;
                     if (errorCode === 'messaging/invalid-registration-token' ||
-                        errorCode === 'messaging/registration-token-not-registered') {
+                        errorCode === 'messaging/registration-token-not-registered' ||
+                        errorCode === 'messaging/mismatched-credential' ||
+                        errorMsg?.includes('SenderId mismatch')) {
                         invalidTokens.push(uniqueTokens[idx]);
                     }
                 }

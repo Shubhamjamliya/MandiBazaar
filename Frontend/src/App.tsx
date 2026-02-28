@@ -146,12 +146,19 @@ const AdminBillingSettings = lazy(() => import("./modules/admin/pages/AdminBilli
 function App() {
   // Initialize push notifications on app load
   useEffect(() => {
-    initializePushNotifications();
+    const initPush = async () => {
+      await initializePushNotifications();
+
+      // Auto-register token if user is already logged in
+      const { registerFCMToken } = await import("./services/pushNotificationService");
+      registerFCMToken().catch(err => console.error("Auto-registration failed:", err));
+    };
+
+    initPush();
 
     // Setup foreground notification handler
     setupForegroundNotificationHandler((payload) => {
       console.log('Notification received in app:', payload);
-      // You can add custom handling here (e.g., show toast, update UI)
     });
   }, []);
 

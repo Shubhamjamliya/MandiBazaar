@@ -186,6 +186,14 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     cashCollected: 0,
   } as any);
 
+  // Notify Admin of new registration
+  const { sendAdminNewRegistrationNotification } = await import("../../../services/notificationService");
+  try {
+    await sendAdminNewRegistrationNotification(`Delivery Partner: ${name}`);
+  } catch (notifyError) {
+    console.error("Error sending admin registration notification for delivery partner:", notifyError);
+  }
+
   // Generate token (Optional: usually registration doesn't login immediately if approval needed, but for seamless UX we can)
   // However, FE Flow: Register -> OTP -> Login. So we return success, then FE calls sendSmsOtp.
 

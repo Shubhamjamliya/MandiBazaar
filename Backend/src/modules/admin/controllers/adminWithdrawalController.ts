@@ -74,6 +74,19 @@ export const approveWithdrawal = async (req: Request, res: Response) => {
         request.processedAt = new Date();
         await request.save();
 
+        // Send push notification
+        const { sendWithdrawalStatusNotification } = await import("../../../services/notificationService");
+        try {
+            await sendWithdrawalStatusNotification(
+                request.userId.toString(),
+                request.userType === 'SELLER' ? 'Seller' : 'Delivery',
+                request.amount,
+                'Approved'
+            );
+        } catch (notifyError) {
+            console.error("Error sending withdrawal approval notification:", notifyError);
+        }
+
         return res.status(200).json({
             success: true,
             message: 'Withdrawal request approved successfully',
@@ -117,6 +130,20 @@ export const rejectWithdrawal = async (req: Request, res: Response) => {
         request.processedAt = new Date();
         if (remarks) request.remarks = remarks;
         await request.save();
+
+        // Send push notification
+        const { sendWithdrawalStatusNotification } = await import("../../../services/notificationService");
+        try {
+            await sendWithdrawalStatusNotification(
+                request.userId.toString(),
+                request.userType === 'SELLER' ? 'Seller' : 'Delivery',
+                request.amount,
+                'Rejected',
+                remarks
+            );
+        } catch (notifyError) {
+            console.error("Error sending withdrawal rejection notification:", notifyError);
+        }
 
         return res.status(200).json({
             success: true,
@@ -189,6 +216,19 @@ export const completeWithdrawal = async (req: Request, res: Response) => {
         request.processedBy = new mongoose.Types.ObjectId(adminId);
         request.processedAt = new Date();
         await request.save({ session });
+
+        // Send push notification
+        const { sendWithdrawalStatusNotification } = await import("../../../services/notificationService");
+        try {
+            await sendWithdrawalStatusNotification(
+                request.userId.toString(),
+                request.userType === 'SELLER' ? 'Seller' : 'Delivery',
+                request.amount,
+                'Completed'
+            );
+        } catch (notifyError) {
+            console.error("Error sending withdrawal completion notification:", notifyError);
+        }
 
         await session.commitTransaction();
 

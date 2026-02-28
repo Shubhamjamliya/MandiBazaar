@@ -189,9 +189,9 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   const location =
     longitude && latitude
       ? {
-          type: "Point" as const,
-          coordinates: [longitude, latitude],
-        }
+        type: "Point" as const,
+        coordinates: [longitude, latitude],
+      }
       : undefined;
 
   // Create new seller with GeoJSON location (password not required during signup)
@@ -217,6 +217,14 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     balance: 0,
     categories: req.body.categories || [],
   });
+
+  // Notify Admin of new registration
+  const { sendAdminNewRegistrationNotification } = await import("../../../services/notificationService");
+  try {
+    await sendAdminNewRegistrationNotification(storeName);
+  } catch (notifyError) {
+    console.error("Error sending admin registration notification:", notifyError);
+  }
 
   // Generate token
   const token = generateToken(seller._id.toString(), "Seller");
