@@ -43,7 +43,7 @@ export default function SellerSignUp() {
       try {
         const res = await getCategories();
         if (res.success && Array.isArray(res.data)) {
-          setCategories(res.data.filter(cat => cat.status === 'Published'));
+          setCategories(res.data.filter(cat => cat.status === 'Active'));
         }
       } catch (err) {
         console.error('Error fetching categories:', err);

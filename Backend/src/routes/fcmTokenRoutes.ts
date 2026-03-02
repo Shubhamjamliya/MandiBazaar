@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { sendPushNotification } from "../services/firebaseAdmin";
+// import { sendPushNotification } from "../services/firebaseAdmin";
 import Customer from "../models/Customer";
 import Admin from "../models/Admin";
 import Seller from "../models/Seller";
