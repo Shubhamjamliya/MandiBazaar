@@ -117,3 +117,28 @@ video {
     transform: translateX(-50%);
   }
 }
+
+/* Ensure Google Maps Autocomplete results are visible over modals */
+.pac-container {
+  z-index: 9999 !important;
+  border-radius: 12px;
+  margin-top: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: none;
+  font-family: inherit;
+}
+
+.pac-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.pac-item:hover {
+  background-color: #f7f7f7;
+}
+
+.pac-icon {
+  margin-right: 10px;
+}

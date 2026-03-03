@@ -106,21 +106,30 @@ export const updateSeller = asyncHandler(
     // Remove password from update data if present
     delete updateData.password;
 
-    // Handle location update (convert lat/lng to GeoJSON)
-    if (updateData.latitude && updateData.longitude) {
-      const latitude = parseFloat(updateData.latitude);
-      const longitude = parseFloat(updateData.longitude);
+    // Optimized Location update
+    if (updateData.latitude || updateData.longitude || updateData.address || updateData.city || updateData.searchLocation) {
+      const currentSeller = await Seller.findById(id);
+      const lat = updateData.latitude ? parseFloat(updateData.latitude) : (currentSeller?.location?.latitude || 0);
+      const lng = updateData.longitude ? parseFloat(updateData.longitude) : (currentSeller?.location?.longitude || 0);
 
-      if (!isNaN(latitude) && !isNaN(longitude)) {
-        // Update GeoJSON location for geospatial queries
-        updateData.location = {
-          type: "Point",
-          coordinates: [longitude, latitude], // MongoDB GeoJSON: [longitude, latitude]
-        };
-        // Ensure string fields are also synchronized
-        updateData.latitude = latitude.toString();
-        updateData.longitude = longitude.toString();
-      }
+      updateData.location = {
+        address: updateData.address || currentSeller?.location?.address || updateData.searchLocation,
+        city: updateData.city || currentSeller?.location?.city,
+        state: updateData.state || currentSeller?.location?.state,
+        pincode: updateData.pincode || currentSeller?.location?.pincode,
+        latitude: lat,
+        longitude: lng,
+        searchLocation: updateData.searchLocation || updateData.address || currentSeller?.location?.searchLocation,
+        type: "Point" as const,
+        coordinates: [lng, lat],
+        updatedAt: new Date()
+      };
+
+      // Sync legacy top-level fields for backward compatibility if needed
+      updateData.address = updateData.location.address;
+      updateData.city = updateData.location.city;
+      updateData.latitude = lat.toString();
+      updateData.longitude = lng.toString();
     }
 
     // Handle serviceRadiusKm update

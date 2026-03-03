@@ -39,13 +39,13 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
       walletAmount: customer.walletAmount,
       totalOrders: customer.totalOrders,
       totalSpent: customer.totalSpent,
-      latitude: customer.latitude,
-      longitude: customer.longitude,
-      address: customer.address,
-      city: customer.city,
-      state: customer.state,
-      pincode: customer.pincode,
-      locationUpdatedAt: customer.locationUpdatedAt,
+      latitude: customer.location?.latitude,
+      longitude: customer.location?.longitude,
+      address: customer.location?.address,
+      city: customer.location?.city,
+      state: customer.location?.state,
+      pincode: customer.location?.pincode,
+      locationUpdatedAt: customer.location?.updatedAt,
     },
   });
 });
@@ -115,12 +115,12 @@ export const updateProfile = asyncHandler(
         walletAmount: customer.walletAmount,
         totalOrders: customer.totalOrders,
         totalSpent: customer.totalSpent,
-        latitude: customer.latitude,
-        longitude: customer.longitude,
-        address: customer.address,
-        city: customer.city,
-        state: customer.state,
-        pincode: customer.pincode,
+        latitude: customer.location?.latitude,
+        longitude: customer.location?.longitude,
+        address: customer.location?.address,
+        city: customer.location?.city,
+        state: customer.location?.state,
+        pincode: customer.location?.pincode,
         notificationPreferences: customer.notificationPreferences,
         accountPrivacy: customer.accountPrivacy,
         donationStats: customer.donationStats,
@@ -161,14 +161,18 @@ export const updateLocation = asyncHandler(
       });
     }
 
-    // Update location fields
-    customer.latitude = latitude;
-    customer.longitude = longitude;
-    customer.address = address;
-    customer.city = city;
-    customer.state = state;
-    customer.pincode = pincode;
-    customer.locationUpdatedAt = new Date();
+    // Update location field nested object
+    customer.location = {
+      latitude,
+      longitude,
+      address,
+      city,
+      state,
+      pincode,
+      type: 'Point',
+      coordinates: [longitude, latitude], // MongoDB expects [lng, lat] for 2dsphere
+      updatedAt: new Date(),
+    };
 
     await customer.save();
 
@@ -176,13 +180,13 @@ export const updateLocation = asyncHandler(
       success: true,
       message: "Location updated successfully",
       data: {
-        latitude: customer.latitude,
-        longitude: customer.longitude,
-        address: customer.address,
-        city: customer.city,
-        state: customer.state,
-        pincode: customer.pincode,
-        locationUpdatedAt: customer.locationUpdatedAt,
+        latitude: customer.location.latitude,
+        longitude: customer.location.longitude,
+        address: customer.location.address,
+        city: customer.location.city,
+        state: customer.location.state,
+        pincode: customer.location.pincode,
+        locationUpdatedAt: customer.location.updatedAt,
       },
     });
   }
@@ -201,14 +205,12 @@ export const getLocation = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  const customer = await Customer.findById(userId).select(
-    "latitude longitude address city state pincode locationUpdatedAt"
-  );
+  const customer = await Customer.findById(userId);
 
-  if (!customer) {
+  if (!customer || !customer.location) {
     return res.status(404).json({
       success: false,
-      message: "Customer not found",
+      message: "Location not found for this user",
     });
   }
 
@@ -216,13 +218,13 @@ export const getLocation = asyncHandler(async (req: Request, res: Response) => {
     success: true,
     message: "Location retrieved successfully",
     data: {
-      latitude: customer.latitude,
-      longitude: customer.longitude,
-      address: customer.address,
-      city: customer.city,
-      state: customer.state,
-      pincode: customer.pincode,
-      locationUpdatedAt: customer.locationUpdatedAt,
+      latitude: customer.location.latitude,
+      longitude: customer.location.longitude,
+      address: customer.location.address,
+      city: customer.location.city,
+      state: customer.location.state,
+      pincode: customer.location.pincode,
+      locationUpdatedAt: customer.location.updatedAt,
     },
   });
 });

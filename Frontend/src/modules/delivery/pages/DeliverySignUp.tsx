@@ -279,12 +279,12 @@ export default function DeliverySignUp() {
           }}>
           <div className="mb-0 -mt-4">
             <img
-              src="/assets/mandibazaar.png"
+              src="/assets/logo/logo.png"
               alt="Mandi Bazaar Delivery"
-              className="h-44 w-full max-w-xs mx-auto object-fill object-bottom"
+              className="h-32 w-auto mx-auto object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-1 -mt-12">
+          <h1 className="text-2xl font-bold text-white mb-1">
             Delivery Sign Up
           </h1>
           <p className="text-green-50 text-sm -mt-2">

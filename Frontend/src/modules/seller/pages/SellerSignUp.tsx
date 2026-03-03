@@ -239,18 +239,29 @@ export default function SellerSignUp() {
       </button>
 
       {/* Sign Up Card */}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+      <div className="w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden border border-green-100/50">
         {/* Header Section */}
-        <div className="px-6 py-4 text-center border-b border-green-700" style={{ backgroundColor: 'rgb(21 178 74 / var(--tw-bg-opacity, 1))' }}>
-          <div className="mb-0 -mt-4">
-            <img
-              src="/assets/mandibazaar.png"
-              alt="Mandi Bazaar"
-              className="h-44 w-full max-w-xs mx-auto object-fill object-bottom"
-            />
+        <div className="relative px-8 pt-12 pb-10 text-center bg-gradient-to-br from-green-600 via-emerald-500 to-green-600">
+          {/* Decorative Elements */}
+          <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+            <div className="absolute top-4 left-4 w-24 h-24 border-4 border-white rounded-full"></div>
+            <div className="absolute bottom-4 right-4 w-20 h-20 border-4 border-white rounded-full"></div>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-1 -mt-12">Seller Sign Up</h1>
-          <p className="text-green-50 text-sm -mt-2">Create your seller account</p>
+
+          <div className="relative z-10">
+            {/* Logo */}
+            <div className="inline-block mb-6">
+              <div className="w-28 h-28 bg-white rounded-3xl shadow-2xl p-4 flex items-center justify-center border-4 border-green-300/50 transform hover:scale-105 transition-transform duration-300">
+                <img
+                  src="/assets/logo/logo.png"
+                  alt="Mandi Bazaar"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            </div>
+            <h1 className="text-3xl font-black text-white mb-2 tracking-tight leading-none">Seller Sign Up</h1>
+            <p className="text-green-50 text-sm font-bold opacity-90 uppercase tracking-widest">Create your premium merchant account</p>
+          </div>
         </div>
 
         {/* Sign Up Form */}

@@ -43,7 +43,8 @@ export default function CheckoutAddress() {
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+    libraries: ['places'] as any
   });
 
   // Get user's current location on mount
@@ -167,7 +168,7 @@ export default function CheckoutAddress() {
       newErrors.city = 'City is required';
     }
     if (!address.state?.trim()) {
-        newErrors.state = 'State is required';
+      newErrors.state = 'State is required';
     }
     if (!address.pincode.trim()) {
       newErrors.pincode = 'Pincode is required';
@@ -303,7 +304,7 @@ export default function CheckoutAddress() {
 
       <div className="px-4 py-3 border-b border-neutral-200">
         <label className="block text-xs font-medium text-neutral-700 mb-2">
-           Delivery Address Details
+          Delivery Address Details
         </label>
       </div>
 

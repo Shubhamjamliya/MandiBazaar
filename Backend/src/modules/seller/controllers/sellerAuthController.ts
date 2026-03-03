@@ -185,31 +185,30 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  // Create GeoJSON location point [longitude, latitude] if provided
-  const location =
-    longitude && latitude
-      ? {
-        type: "Point" as const,
-        coordinates: [longitude, latitude],
-      }
-      : undefined;
+  // Create Optimized Location object
+  const locationObj = {
+    address: address || req.body.searchLocation,
+    city: city,
+    searchLocation: req.body.searchLocation || address,
+    latitude: latitude || 0,
+    longitude: longitude || 0,
+    type: "Point" as const,
+    coordinates: [longitude || 0, latitude || 0] as [number, number],
+    updatedAt: new Date()
+  };
 
-  // Create new seller with GeoJSON location (password not required during signup)
+  // Create new seller with Optimized location (password not required during signup)
   const seller = await Seller.create({
     sellerName,
     mobile,
     email,
-    // password field removed - sellers don't need password during signup
     storeName,
     category,
-    address,
+    address: address || req.body.searchLocation, // Keep sync for now
     city,
     ...(serviceableArea && { serviceableArea }),
-    searchLocation: req.body.searchLocation,
-    latitude: req.body.latitude,
-    longitude: req.body.longitude,
-    location, // GeoJSON location for geospatial queries
-    serviceRadiusKm, // Service radius in kilometers
+    location: locationObj, // Optimized location
+    serviceRadiusKm,
     status: "Pending",
     requireProductApproval: false,
     viewCustomerDetails: false,
@@ -286,21 +285,31 @@ export const updateProfile = asyncHandler(
     ];
     restrictedFields.forEach((field) => delete updates[field]);
 
-    // Handle location update (convert lat/lng to GeoJSON)
-    if (updates.latitude && updates.longitude) {
-      const latitude = parseFloat(updates.latitude);
-      const longitude = parseFloat(updates.longitude);
+    // Optimized Location update
+    if (updates.latitude || updates.longitude || updates.address || updates.city || updates.searchLocation) {
+      const currentSeller = await Seller.findById(sellerId);
+      const lat = updates.latitude ? parseFloat(updates.latitude) : (currentSeller?.location?.latitude || 0);
+      const lng = updates.longitude ? parseFloat(updates.longitude) : (currentSeller?.location?.longitude || 0);
 
-      if (!isNaN(latitude) && !isNaN(longitude)) {
-        // Update GeoJSON location for geospatial queries
-        updates.location = {
-          type: "Point",
-          coordinates: [longitude, latitude], // MongoDB GeoJSON: [longitude, latitude]
-        };
-        // Ensure string fields are also synchronized
-        updates.latitude = latitude.toString();
-        updates.longitude = longitude.toString();
-      }
+      updates.location = {
+        address: updates.address || currentSeller?.location?.address || updates.searchLocation,
+        city: updates.city || currentSeller?.location?.city,
+        state: updates.state || currentSeller?.location?.state,
+        pincode: updates.pincode || currentSeller?.location?.pincode,
+        latitude: lat,
+        longitude: lng,
+        searchLocation: updates.searchLocation || updates.address || currentSeller?.location?.searchLocation,
+        type: "Point" as const,
+        coordinates: [lng, lat],
+        updatedAt: new Date()
+      };
+
+      // Sync legacy top-level fields for backward compatibility if needed, 
+      // but consolidate real data in 'location'
+      updates.address = updates.location.address;
+      updates.city = updates.location.city;
+      updates.latitude = lat.toString();
+      updates.longitude = lng.toString();
     }
 
     // Handle serviceRadiusKm update

@@ -11,14 +11,19 @@ export interface ICustomer extends Document {
   deliveryOtp: string; // Permanent 4-digit OTP for delivery verification
   totalOrders: number;
   totalSpent: number;
-  // Location fields
-  latitude?: number;
-  longitude?: number;
-  address?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
-  locationUpdatedAt?: Date;
+  walletAmount: number;
+  // Optimized Location field
+  location?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    type: 'Point';
+    coordinates: [number, number]; // [longitude, latitude]
+    updatedAt?: Date;
+  };
   createdAt: Date;
   updatedAt: Date;
   notificationPreferences?: {
@@ -107,31 +112,30 @@ const CustomerSchema = new Schema<ICustomer>(
       default: 0,
       min: [0, 'Total spent cannot be negative'],
     },
-    // Location fields
-    latitude: {
+    walletAmount: {
       type: Number,
+      default: 0,
+      min: [0, 'Wallet amount cannot be negative'],
     },
-    longitude: {
-      type: Number,
-    },
-    address: {
-      type: String,
-      trim: true,
-    },
-    city: {
-      type: String,
-      trim: true,
-    },
-    state: {
-      type: String,
-      trim: true,
-    },
-    pincode: {
-      type: String,
-      trim: true,
-    },
-    locationUpdatedAt: {
-      type: Date,
+    // Optimized Location field
+    location: {
+      address: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      pincode: { type: String, trim: true },
+      latitude: { type: Number },
+      longitude: { type: Number },
+      // GeoJSON location for geospatial queries
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point',
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: [0, 0],
+      },
+      updatedAt: { type: Date }
     },
     notificationPreferences: {
       email: { type: Boolean, default: true },
@@ -161,6 +165,10 @@ const CustomerSchema = new Schema<ICustomer>(
     timestamps: true,
   }
 );
+
+// Create geospatial index on location field for efficient queries
+CustomerSchema.index({ 'location.coordinates': '2dsphere' });
+CustomerSchema.index({ status: 1 });
 
 // Generate refCode and deliveryOtp before saving if not provided
 CustomerSchema.pre('save', async function (next) {

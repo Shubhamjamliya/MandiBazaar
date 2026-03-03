@@ -53,8 +53,12 @@ export default function LocationPermissionRequest({
 
   const handleManualLocationSelect = useCallback((address: string, lat: number, lng: number, _placeName: string) => {
     setManualAddress(address);
-    setManualLat(lat);
-    setManualLng(lng);
+    // Only update coordinates if we received non-zero values (actual selection)
+    // or if we're clearing the input. This prevents overwriting valid coordinates with 0 while typing.
+    if (lat !== 0 || lng !== 0 || address === '') {
+      setManualLat(lat);
+      setManualLng(lng);
+    }
   }, []);
 
   const handleSaveManualLocation = async () => {
@@ -197,10 +201,10 @@ export default function LocationPermissionRequest({
               </button>
               <button
                 onClick={handleSaveManualLocation}
-                disabled={!manualAddress || !manualLat}
+                disabled={!manualAddress || (manualLat === null || manualLat === 0)}
                 className="flex-1 py-2 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save Location
+                Confirm Location
               </button>
             </div>
           </div>

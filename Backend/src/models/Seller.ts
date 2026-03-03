@@ -29,19 +29,22 @@ export interface ISeller extends Document {
     twitter?: string;
   };
 
-  // Store Location Info
-  city: string;
-  serviceableArea?: string;
-  searchLocation?: string;
-  latitude?: string;
-  longitude?: string;
-  // GeoJSON location for geospatial queries
+  // Optimized Store Location Info
   location?: {
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
+    searchLocation?: string;
     type: 'Point';
     coordinates: [number, number]; // [longitude, latitude]
+    updatedAt?: Date;
   };
   // Service radius in kilometers
   serviceRadiusKm?: number;
+  serviceableArea?: string;
 
   // Payment Details
   accountName?: string;
@@ -137,7 +140,6 @@ const SellerSchema = new Schema<ISeller>(
     },
     address: {
       type: String,
-      required: false,
       trim: true,
     },
     taxNumber: {
@@ -167,30 +169,16 @@ const SellerSchema = new Schema<ISeller>(
       twitter: { type: String },
     },
 
-    // Store Location Info
-    city: {
-      type: String,
-      required: false,
-      trim: true,
-    },
-    serviceableArea: {
-      type: String,
-      trim: true,
-    },
-    searchLocation: {
-      type: String,
-      trim: true,
-    },
-    latitude: {
-      type: String,
-      trim: true,
-    },
-    longitude: {
-      type: String,
-      trim: true,
-    },
-    // GeoJSON location for geospatial queries
+    // Optimized Location field
     location: {
+      address: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      pincode: { type: String, trim: true },
+      searchLocation: { type: String, trim: true },
+      latitude: { type: Number },
+      longitude: { type: Number },
+      // GeoJSON location for geospatial queries
       type: {
         type: String,
         enum: ['Point'],
@@ -198,7 +186,13 @@ const SellerSchema = new Schema<ISeller>(
       },
       coordinates: {
         type: [Number], // [longitude, latitude]
+        default: [0, 0],
       },
+      updatedAt: { type: Date }
+    },
+    serviceableArea: {
+      type: String,
+      trim: true,
     },
     // Service radius in kilometers (default: 10km if not specified)
     serviceRadiusKm: {
@@ -327,7 +321,7 @@ SellerSchema.methods.comparePassword = async function (
 };
 
 // Create geospatial index on location field for efficient queries
-SellerSchema.index({ location: '2dsphere' });
+SellerSchema.index({ 'location.coordinates': '2dsphere' });
 SellerSchema.index({ status: 1 }); // Compound index for status + location queries
 
 const Seller = mongoose.models.Seller || mongoose.model<ISeller>('Seller', SellerSchema);

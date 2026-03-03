@@ -45,19 +45,22 @@ export default function GoogleMapsAutocomplete({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const autocompleteRef = useRef<any>(null);
   const [error, setError] = useState<string>('');
-  const [inputValue, setInputValue] = useState(value);
+  const [inputValue, setInputValue] = useState(value || '');
+  const lastPropsValueRef = useRef(value || '');
 
-  // Use the same loader configuration as LocationPickerMap
+  // Update local input value ONLY when prop changes from outside
+  useEffect(() => {
+    if (value !== lastPropsValueRef.current) {
+      setInputValue(value || '');
+      lastPropsValueRef.current = value || '';
+    }
+  }, [value]);
+
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
     libraries: libraries,
   });
-
-  // Update local input value when prop changes
-  useEffect(() => {
-    setInputValue(value);
-  }, [value]);
 
   useEffect(() => {
     if (loadError) {
@@ -67,6 +70,13 @@ export default function GoogleMapsAutocomplete({
 
   const isProgrammaticChange = useRef(false);
 
+  // Use refs to make the callback stable without losing access to latest props
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   const initializeAutocomplete = useCallback(() => {
     if (!inputRef.current || !window.google?.maps?.places) return;
 
@@ -74,9 +84,7 @@ export default function GoogleMapsAutocomplete({
     if (autocompleteRef.current) {
       try {
         window.google?.maps?.event?.clearInstanceListeners?.(autocompleteRef.current);
-      } catch {
-        // Ignore cleanup errors
-      }
+      } catch { /* ignore */ }
       autocompleteRef.current = null;
     }
 
@@ -84,7 +92,7 @@ export default function GoogleMapsAutocomplete({
       const places = window.google.maps.places as any;
 
       if (!places.Autocomplete) {
-        setError('Google Maps Places Autocomplete not available');
+        setError('Autocomplete not available');
         return;
       }
 
@@ -100,13 +108,13 @@ export default function GoogleMapsAutocomplete({
         const place = autocomplete.getPlace();
 
         if (!place.geometry || !place.geometry.location) {
-          setError('No location details found for this place');
+          setError('No location details found');
           return;
         }
 
         const lat = place.geometry.location.lat();
         const lng = place.geometry.location.lng();
-        const rawAddress = place.formatted_address || place.name || value;
+        const rawAddress = place.formatted_address || place.name || lastPropsValueRef.current;
         const address = cleanAddress(rawAddress);
         const placeName = place.name || address;
 
@@ -115,32 +123,28 @@ export default function GoogleMapsAutocomplete({
 
         if (place.address_components) {
           for (const component of place.address_components) {
-            if (component.types.includes('locality')) {
-              city = component.long_name;
-            } else if (component.types.includes('administrative_area_level_3') && !city) {
-              city = component.long_name;
-            } else if (component.types.includes('administrative_area_level_1')) {
-              state = component.long_name;
-            }
+            const types = component.types;
+            if (types.includes('locality')) city = component.long_name;
+            else if (types.includes('administrative_area_level_3') && !city) city = component.long_name;
+            else if (types.includes('administrative_area_level_1')) state = component.long_name;
           }
         }
 
         isProgrammaticChange.current = true;
         setInputValue(address);
-        onChange(address, lat, lng, placeName, { city, state });
+        lastPropsValueRef.current = address; // Mark this as the new expected prop value
+        onChangeRef.current(address, lat, lng, placeName, { city, state });
         setError('');
 
         // Reset the flag after a short delay
         setTimeout(() => {
           isProgrammaticChange.current = false;
-        }, 100);
+        }, 300);
       });
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.error('Autocomplete initialization error:', err);
-      setError(`Failed to initialize autocomplete: ${errorMessage}`);
+      setError('Autocomplete initialization failed');
     }
-  }, [onChange, value]);
+  }, []); // Truly stable callback
 
   useEffect(() => {
     if (isLoaded && inputRef.current && !autocompleteRef.current) {
