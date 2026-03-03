@@ -526,15 +526,69 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     return { formatted_address: `${lat}, ${lng}` };
   };
 
+  // Geocode address to coordinates (Forward Geocoding)
+  const geocodeAddress = async (address: string): Promise<{ latitude: number; longitude: number; city?: string; state?: string; pincode?: string } | null> => {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) return null;
+
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}&language=en`;
+      const response = await fetch(url);
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+        return null;
+      }
+
+      const result = data.results[0];
+      const { lat, lng } = result.geometry.location;
+
+      let city = '';
+      let state = '';
+      let pincode = '';
+
+      result.address_components.forEach((component: any) => {
+        const types = component.types;
+        if (types.includes('locality')) city = component.long_name;
+        else if (types.includes('administrative_area_level_3') && !city) city = component.long_name;
+        else if (types.includes('administrative_area_level_1')) state = component.long_name;
+        else if (types.includes('postal_code')) pincode = component.long_name;
+      });
+
+      return {
+        latitude: lat,
+        longitude: lng,
+        city,
+        state,
+        pincode
+      };
+    } catch (error) {
+      console.error('[LocationContext] Geocoding failed:', error);
+      return null;
+    }
+  };
+
+
   // Update location manually - OPTIMIZED for instant UI update
   const updateLocation = useCallback(async (newLocation: Location): Promise<void> => {
     console.log('[LocationContext] Updating location manually:', newLocation.address);
 
     // Validate location data
-    if (!newLocation.latitude || !newLocation.longitude ||
-      isNaN(newLocation.latitude) || isNaN(newLocation.longitude)) {
+    if ((!newLocation.latitude || !newLocation.longitude) && !newLocation.address) {
+      throw new Error('Invalid location data: Coordinates or Address required');
+    }
 
-      throw new Error('Invalid location coordinates');
+    // 1. Enrich location if coordinates are missing but address exists (Manual entry case)
+    if ((!newLocation.latitude || !newLocation.longitude) && newLocation.address) {
+      console.log('[LocationContext] Coordinates missing, attempting geocoding for:', newLocation.address);
+      const results = await geocodeAddress(newLocation.address);
+      if (results) {
+        newLocation = { ...newLocation, ...results };
+        console.log('[LocationContext] Geocoding successful:', newLocation.latitude, newLocation.longitude);
+      } else {
+        throw new Error('Could not find location for the provided address. Please select from the suggestions.');
+      }
     }
 
     // 1. Mark permission as granted in this session (manual selection counts as consent)

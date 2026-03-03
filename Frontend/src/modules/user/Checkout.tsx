@@ -33,7 +33,7 @@ export default function Checkout() {
   const { addOrder } = useOrders();
   const { location: userLocation } = useLocationContext();
   const { showToast: showGlobalToast } = useToast();
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [tipAmount, setTipAmount] = useState<number | null>(null);
   const [customTipAmount, setCustomTipAmount] = useState<number>(0);
@@ -83,14 +83,21 @@ export default function Checkout() {
   // Check if user has placeholder data (needs profile completion)
   const isPlaceholderUser = user?.name === 'User' || user?.email?.endsWith('@mandibazaar.temp');
 
-  // Redirect if empty
+  // Redirect if empty - only if really empty and not loading and not just placed an order
   useEffect(() => {
     if (!cartLoading && cart.items.length === 0 && !showOrderSuccess) {
-      navigate('/');
+      // Instead of hard redirecting, we can show an empty state on this page
+      // or redirect to cart which has better empty state handling
+      // navigate('/cart'); 
     }
   }, [cart.items.length, cartLoading, navigate, showOrderSuccess]);
 
   // Load addresses and coupons
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('[Checkout] Component mounted, loading addresses and coupons');
+    }
+  }, [isAuthenticated]);
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -126,8 +133,10 @@ export default function Checkout() {
         console.error('Error loading checkout data:', error);
       }
     };
-    fetchInitialData();
-  }, []);
+    if (isAuthenticated) {
+      fetchInitialData();
+    }
+  }, [isAuthenticated]);
 
   // Fetch similar products dynamically
   useEffect(() => {
@@ -187,12 +196,28 @@ export default function Checkout() {
 
   if (cartLoading || ((cart?.items?.length || 0) === 0 && !showOrderSuccess)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="flex flex-col items-center">
-          <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-sm font-medium text-neutral-600">
-            {cartLoading ? 'Loading checkout...' : 'Redirecting...'}
-          </p>
+      <div className="min-h-screen flex items-center justify-center bg-white px-4">
+        <div className="flex flex-col items-center text-center">
+          {cartLoading ? (
+            <>
+              <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-sm font-medium text-neutral-600">Loading checkout...</p>
+            </>
+          ) : (
+            <>
+              <div className="text-6xl mb-6">🛒</div>
+              <h2 className="text-2xl font-bold text-neutral-900 mb-2">Your cart is empty</h2>
+              <p className="text-sm text-neutral-600 mb-8 max-w-xs">
+                Looks like you haven't added anything to your cart yet.
+              </p>
+              <button
+                onClick={() => navigate('/')}
+                className="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-green-700 transition-all active:scale-95"
+              >
+                Start Shopping
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -208,6 +233,8 @@ export default function Checkout() {
       return sum + displayPrice * (item.quantity || 0);
     }, 0)
   };
+
+  console.log('[Checkout] Render state:', { cartLoading, itemCount: displayCart.itemCount, showOrderSuccess, isAuthenticated });
 
   const freeDeliveryThreshold = cart.freeDeliveryThreshold ?? appConfig.freeDeliveryThreshold;
   const amountNeededForFreeDelivery = Math.max(0, freeDeliveryThreshold - (displayCart.total || 0));
@@ -884,79 +911,84 @@ export default function Checkout() {
 
           {/* Cart Items */}
           <div className="space-y-2.5">
-            {displayItems.filter(item => item.product).map((item) => (
-              <div key={item.product?.id || Math.random()} className="flex gap-2">
-                {/* Product Image */}
-                <div className="w-12 h-12 bg-neutral-100 rounded-lg flex-shrink-0 overflow-hidden">
-                  {item.product?.imageUrl ? (
-                    <img
-                      src={item.product?.imageUrl}
-                      alt={item.product?.name}
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-neutral-400">
-                      {(item.product?.name || '').charAt(0)}
-                    </div>
-                  )}
-                </div>
+            {displayItems.filter(item => item.product).map((item) => {
+              const variantId = (item.product as any).variantId || item.variant;
+              const variantTitle = (item.product as any).variantTitle || (item.product as any).pack;
 
-                {/* Product Info */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-xs font-semibold text-neutral-900 mb-0.5 line-clamp-2">
-                    {item.product?.name}
-                  </h3>
-                  <p className="text-[10px] text-neutral-600 mb-0.5">{item.quantity} × {item.product?.pack}</p>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMoveToWishlist(item.product);
-                    }}
-                    className="text-[10px] text-green-600 font-medium mb-1.5 hover:text-green-700 transition-colors"
-                  >
-                    Move to wishlist
-                  </button>
+              return (
+                <div key={item.id || `${item.product?.id}-${variantId || variantTitle}`} className="flex gap-2">
+                  {/* Product Image */}
+                  <div className="w-12 h-12 bg-neutral-100 rounded-lg flex-shrink-0 overflow-hidden">
+                    {item.product?.imageUrl ? (
+                      <img
+                        src={item.product?.imageUrl}
+                        alt={item.product?.name}
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-neutral-400">
+                        {(item.product?.name || '').charAt(0)}
+                      </div>
+                    )}
+                  </div>
 
-                  {/* Quantity Selector */}
-                  <div className="flex items-center justify-between mt-1.5">
-                    <div className="flex items-center gap-1.5 bg-white border-2 border-green-600 rounded-full px-1.5 py-0.5">
-                      <button
-                        onClick={() => updateQuantity(item.product?.id, item.quantity - 1)}
-                        className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
-                      >
-                        −
-                      </button>
-                      <span className="text-xs font-bold text-green-600 min-w-[1.25rem] text-center">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => updateQuantity(item.product?.id, item.quantity + 1)}
-                        className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
-                      >
-                        +
-                      </button>
-                    </div>
+                  {/* Product Info */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xs font-semibold text-neutral-900 mb-0.5 line-clamp-2">
+                      {item.product?.name}
+                    </h3>
+                    <p className="text-[10px] text-neutral-600 mb-0.5">{item.quantity} × {item.product?.pack}</p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMoveToWishlist(item.product);
+                      }}
+                      className="text-[10px] text-green-600 font-medium mb-1.5 hover:text-green-700 transition-colors"
+                    >
+                      Move to wishlist
+                    </button>
 
-                    {/* Price */}
-                    {(() => {
-                      const { displayPrice, mrp, hasDiscount } = calculateProductPrice(item.product, item.variant);
-                      return (
-                        <div className="flex items-center gap-1.5">
-                          {hasDiscount && (
-                            <span className="text-[10px] text-neutral-500 line-through">
-                              ₹{mrp}
+                    {/* Quantity Selector */}
+                    <div className="flex items-center justify-between mt-1.5">
+                      <div className="flex items-center gap-1.5 bg-white border-2 border-green-600 rounded-full px-1.5 py-0.5">
+                        <button
+                          onClick={() => updateQuantity(item.product?.id, item.quantity - 1, variantId, variantTitle)}
+                          className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
+                        >
+                          −
+                        </button>
+                        <span className="text-xs font-bold text-green-600 min-w-[1.25rem] text-center">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() => updateQuantity(item.product?.id, item.quantity + 1, variantId, variantTitle)}
+                          className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {/* Price */}
+                      {(() => {
+                        const { displayPrice, mrp, hasDiscount } = calculateProductPrice(item.product, item.variant);
+                        return (
+                          <div className="flex items-center gap-1.5">
+                            {hasDiscount && (
+                              <span className="text-[10px] text-neutral-500 line-through">
+                                ₹{mrp}
+                              </span>
+                            )}
+                            <span className="text-sm font-bold text-neutral-900">
+                              ₹{displayPrice}
                             </span>
-                          )}
-                          <span className="text-sm font-bold text-neutral-900">
-                            ₹{displayPrice}
-                          </span>
-                        </div>
-                      );
-                    })()}
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

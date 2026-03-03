@@ -501,7 +501,7 @@ export default function CheckoutAddress() {
             {cart.items.map((item) => {
               const { displayPrice } = calculateProductPrice(item.product);
               return (
-                <div key={item.product.id} className="flex items-center justify-between text-xs">
+                <div key={item.id || `${item.product.id}-${(item.product as any).variantId || 'default'}`} className="flex items-center justify-between text-xs">
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-neutral-900 truncate">{item.product.name}</div>
                     <div className="text-[10px] text-neutral-500">

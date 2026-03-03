@@ -333,6 +333,7 @@ export default function Home() {
           <ServiceCategoriesSection
             categories={serviceCategories}
             activeCategoryId={activeInlineCategory ? (activeInlineCategory.categoryId || activeInlineCategory.id) : null}
+            onCategorySelect={handleCategorySelect}
           />
 
 
@@ -419,13 +420,13 @@ export default function Home() {
             <div key={category.id || category._id}>
               <CategoryProductSlider category={category} />
 
-              {/* Banner every 2 categories */}
-              {(catIndex + 1) % 2 === 0 && homeData.extraBanner1?.[Math.floor(catIndex / 2)] && (
+              {/* Banner after each category for the first few categories as requested */}
+              {catIndex < homeData.extraBanner1?.length && (
                 <div className="mb-4">
                   <InlineBanner
                     banners={[{
-                      image: homeData.extraBanner1[Math.floor(catIndex / 2)].image,
-                      link: homeData.extraBanner1[Math.floor(catIndex / 2)].link
+                      image: homeData.extraBanner1[catIndex].image,
+                      link: homeData.extraBanner1[catIndex].link
                     }]}
                   />
                 </div>
@@ -446,8 +447,8 @@ export default function Home() {
             <InlineBanner key={banner._id} banners={[{ image: banner.image, link: banner.link }]} />
           ))}
 
-          {/* Shop by Store Section */}
-          <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
+          {/* Shop by Store Section - Commented out as per request */}
+          {/* <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
             <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 px-4 md:px-6 lg:px-8">
               Shop by Store
             </h2>
@@ -489,7 +490,6 @@ export default function Home() {
                         )}
                       </div>
 
-                      {/* Tile name - outside card */}
                       <div className="mt-2 text-center">
                         <span className="text-xs font-semibold text-gray-800 line-clamp-2 leading-tight">
                           {tile.name}
@@ -500,7 +500,7 @@ export default function Home() {
                 })}
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       )}
     </div>

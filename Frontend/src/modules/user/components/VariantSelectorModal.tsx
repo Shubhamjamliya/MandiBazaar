@@ -28,6 +28,7 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
 
   // Handle selected variant state
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
+  const [isAdding, setIsAdding] = useState(false);
 
   // Helper to extract a stable ID string from a variant
   const getVariantId = (v: any) => {
@@ -57,8 +58,9 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
     e.preventDefault();
     e.stopPropagation();
 
-    if (!selectedVariant) return;
+    if (!selectedVariant || isAdding) return;
 
+    setIsAdding(true);
     try {
       if (isWeightMode) {
         const productWithWeight = {
@@ -87,6 +89,8 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
       onClose();
     } catch (error) {
       console.error("Failed to add variant to cart", error);
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -227,14 +231,18 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={(e) => handleAddToCart(e)}
-                disabled={!selectedVariant}
+                disabled={!selectedVariant || isAdding}
                 className="w-full bg-green-600 hover:bg-green-700 disabled:bg-neutral-100 disabled:text-neutral-400 text-white h-[52px] rounded-2xl font-bold flex items-center justify-between px-6 shadow-xl shadow-green-200/50 transition-all disabled:shadow-none"
               >
-                <span className="uppercase tracking-widest text-[11px]">Add to cart</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-px h-4 bg-white/20" />
-                  <span className="text-base">₹{isWeightMode ? selectedVariant?.price : (selectedVariant?.discPrice || selectedVariant?.price)}</span>
-                </div>
+                <span className="uppercase tracking-widest text-[11px]">
+                  {isAdding ? 'Adding...' : 'Add to cart'}
+                </span>
+                {!isAdding && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-px h-4 bg-white/20" />
+                    <span className="text-base">₹{isWeightMode ? selectedVariant?.price : (selectedVariant?.discPrice || selectedVariant?.price)}</span>
+                  </div>
+                )}
               </motion.button>
             </div>
           </motion.div>

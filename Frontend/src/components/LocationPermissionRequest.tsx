@@ -22,6 +22,8 @@ export default function LocationPermissionRequest({
   const [manualAddress, setManualAddress] = useState('');
   const [manualLat, setManualLat] = useState<number | null>(null);
   const [manualLng, setManualLng] = useState<number | null>(null);
+  const [manualCity, setManualCity] = useState<string>('');
+  const [manualState, setManualState] = useState<string>('');
 
   // Auto-grant if already enabled or session permission exists
   useEffect(() => {
@@ -51,13 +53,17 @@ export default function LocationPermissionRequest({
     }
   };
 
-  const handleManualLocationSelect = useCallback((address: string, lat: number, lng: number, _placeName: string) => {
+  const handleManualLocationSelect = useCallback((address: string, lat: number, lng: number, _placeName: string, components?: { city?: string; state?: string }) => {
     setManualAddress(address);
     // Only update coordinates if we received non-zero values (actual selection)
     // or if we're clearing the input. This prevents overwriting valid coordinates with 0 while typing.
     if (lat !== 0 || lng !== 0 || address === '') {
       setManualLat(lat);
       setManualLng(lng);
+    }
+    if (components) {
+      if (components.city) setManualCity(components.city);
+      if (components.state) setManualState(components.state);
     }
   }, []);
 
@@ -72,6 +78,8 @@ export default function LocationPermissionRequest({
         latitude: manualLat,
         longitude: manualLng,
         address: manualAddress,
+        city: manualCity,
+        state: manualState,
       });
       // Modal will automatically hide when isLocationEnabled becomes true
       onLocationGranted();
@@ -201,7 +209,7 @@ export default function LocationPermissionRequest({
               </button>
               <button
                 onClick={handleSaveManualLocation}
-                disabled={!manualAddress || (manualLat === null || manualLat === 0)}
+                disabled={!manualAddress}
                 className="flex-1 py-2 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Confirm Location

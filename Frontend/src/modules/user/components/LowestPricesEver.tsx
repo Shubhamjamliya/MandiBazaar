@@ -9,6 +9,9 @@ import { Product } from '../../../types/domain';
 import { useWishlist } from '../../../hooks/useWishlist';
 import { calculateProductPrice } from '../../../utils/priceUtils';
 
+import { getVariantStyle } from '../../../utils/variantStyleUtils';
+import VariantSelectorModal from './VariantSelectorModal';
+
 interface LowestPricesEverProps {
   activeTab?: string;
   products?: Product[]; // Admin-selected products from home data
@@ -26,12 +29,14 @@ const ProductCard = memo(({
   product,
   cartQuantity,
   onAddToCart,
-  onUpdateQuantity
+  onUpdateQuantity,
+  onShowVariants
 }: {
   product: Product;
   cartQuantity: number;
   onAddToCart: (product: Product, element?: HTMLElement | null) => void;
-  onUpdateQuantity: (productId: string, quantity: number) => void;
+  onUpdateQuantity: (productId: string, quantity: number, variantId?: string, variantTitle?: string) => void;
+  onShowVariants: (product: Product) => void;
 }) => {
   const navigate = useNavigate();
   const { isWishlisted, toggleWishlist } = useWishlist(product.id);
@@ -45,6 +50,23 @@ const ProductCard = memo(({
   const actingWeightVariant = isWeightMode
     ? [...weightVariants].filter((v: any) => v.isEnabled).sort((a: any, b: any) => a.grams - b.grams)[0]
     : null;
+
+  const actingQuantityVariant = !isWeightMode && product.variations && product.variations.length > 0
+    ? product.variations[0]
+    : null;
+
+  const actingVariantIdString = (id: any) => {
+    if (!id) return undefined;
+    return typeof id === 'string' ? id : (id.$oid || String(id));
+  };
+
+  const actingVariantId = isWeightMode
+    ? (actingWeightVariant ? `wv_${actingWeightVariant.label}` : undefined)
+    : actingVariantIdString(actingQuantityVariant?._id);
+
+  const actingVariantTitle = isWeightMode
+    ? actingWeightVariant?.label
+    : (actingQuantityVariant?.title || actingQuantityVariant?.value || product.pack);
 
   if (isWeightMode && actingWeightVariant) {
     const vPrice = Number(actingWeightVariant.price) || 0;
@@ -65,13 +87,52 @@ const ProductCard = memo(({
   // Use cartQuantity from props
   const inCartQty = cartQuantity;
 
-  // Get product name, clean it (remove description suffixes), and truncate if needed
+  // Get product name, clean it
   let productName = product.name || product.productName || '';
-  // Remove common description patterns like " - Fresh & Quality Assured", " - Premium Quality", etc.
   productName = productName.replace(/\s*-\s*(Fresh|Quality|Assured|Premium|Best|Top|Hygienic|Carefully|Selected).*$/i, '').trim();
   const displayName = truncateText(productName, 60);
 
-  const optionsCount = Math.max(product.variations?.length || 0, weightVariants.filter((v: any) => v.isEnabled).length);
+  const variationsCount = (product.variations?.length || 0);
+  const weightVariantsCount = weightVariants.filter((v: any) => v.isEnabled).length;
+  const optionsCount = Math.max(variationsCount, weightVariantsCount);
+
+  const variantLabel = actingVariantTitle || '1 piece';
+  const variantStyle = getVariantStyle(variantLabel);
+
+  const handleAddClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (product.isAvailable === false) return;
+
+    if (optionsCount > 1) {
+      onShowVariants(product);
+    } else {
+      if (isWeightMode && actingWeightVariant) {
+        onAddToCart({
+          ...product,
+          price: actingWeightVariant.price,
+          mrp: actingWeightVariant.mrp || actingWeightVariant.price,
+          pack: actingWeightVariant.label,
+          variantTitle: actingWeightVariant.label,
+          variantId: `wv_${actingWeightVariant.label}`,
+          selectedWeightVariant: actingWeightVariant,
+        }, e.currentTarget as HTMLElement);
+      } else if (actingQuantityVariant) {
+        onAddToCart({
+          ...product,
+          price: actingQuantityVariant.discPrice || actingQuantityVariant.price,
+          mrp: actingQuantityVariant.price,
+          pack: actingQuantityVariant.title || actingQuantityVariant.value || product.pack,
+          selectedVariant: actingQuantityVariant,
+          variantId: actingVariantId,
+          variantTitle: actingVariantTitle,
+        }, e.currentTarget as HTMLElement);
+      } else {
+        onAddToCart(product, e.currentTarget as HTMLElement);
+      }
+    }
+  };
 
   return (
     <div
@@ -80,8 +141,7 @@ const ProductCard = memo(({
     >
       <div
         onClick={() => navigate(`/product/${product.id}`)}
-        className="bg-white rounded-lg overflow-hidden flex flex-col relative h-full max-h-full cursor-pointer"
-        style={{ boxShadow: '0 1px 1px rgba(0, 0, 0, 0.03)' }}
+        className="bg-white rounded-lg overflow-hidden flex flex-col relative h-full max-h-full cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-neutral-100"
       >
         {/* Product Image Area */}
         <div className="relative block">
@@ -101,15 +161,15 @@ const ProductCard = memo(({
 
             {/* Red Discount Badge - Top Left */}
             {discount > 0 && (
-              <div className="absolute top-1 left-1 z-10 bg-red-600 text-white text-[12px] font-bold px-1.5 py-0.5 rounded">
+              <div className="absolute top-1.5 left-1.5 z-10 bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
                 {discount}% OFF
               </div>
             )}
 
             {/* Options Badge */}
             {optionsCount >= 2 && (
-              <div className="absolute bottom-1 left-1 z-10">
-                <span className="text-[8px] font-bold text-neutral-700 bg-white/95 backdrop-blur-sm px-1 py-0.5 rounded shadow-sm border border-neutral-100">
+              <div className="absolute bottom-1.5 left-1.5 z-10">
+                <span className="text-[9px] font-bold text-neutral-700 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded shadow-sm border border-neutral-100 uppercase tracking-tighter">
                   {optionsCount} OPTIONS
                 </span>
               </div>
@@ -122,195 +182,137 @@ const ProductCard = memo(({
                 e.stopPropagation();
                 toggleWishlist(e);
               }}
-              className="absolute top-1 right-1 z-30 w-7 h-7 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors shadow-sm"
+              className="absolute top-1.5 right-1.5 z-30 w-7 h-7 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors shadow-sm"
               aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
             >
               <svg
-                width="16"
-                height="16"
+                width="14"
+                height="14"
                 viewBox="0 0 24 24"
                 fill={isWishlisted ? "#ef4444" : "none"}
                 xmlns="http://www.w3.org/2000/svg"
-                className={isWishlisted ? "text-red-500" : "text-neutral-700"}
+                className={isWishlisted ? "text-red-500" : "text-neutral-500"}
               >
                 <path
                   d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
             </button>
-
-            {/* ADD Button or Quantity Stepper - Overlaid on bottom right of image */}
-            <div className="absolute bottom-1.5 right-1.5 z-10">
-              <AnimatePresence mode="wait">
-                {inCartQty === 0 ? (
-                  <motion.button
-                    key="add-button"
-                    type="button"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ duration: 0.2 }}
-                    disabled={product.isAvailable === false}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onAddToCart(product, e.currentTarget);
-                    }}
-                    className={`bg-white/95 backdrop-blur-sm text-[10px] font-semibold px-2 py-1 rounded shadow-md transition-colors ${product.isAvailable === false
-                      ? 'text-neutral-400 border-2 border-neutral-300 cursor-not-allowed'
-                      : 'text-green-600 border-2 border-green-600 hover:bg-white'
-                      }`}
-                  >
-                    {product.isAvailable === false ? 'Out of Range' : 'ADD'}
-                  </motion.button>
-                ) : (
-                  <motion.div
-                    key="stepper"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex items-center gap-1 bg-green-600 rounded px-1.5 py-1 shadow-md"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onUpdateQuantity(product.id, inCartQty - 1);
-                      }}
-                      className="w-4 h-4 flex items-center justify-center text-white font-bold hover:bg-green-700 rounded transition-colors p-0 leading-none"
-                      style={{ lineHeight: 1, fontSize: '14px' }}
-                    >
-                      <span className="relative top-[-1px]">−</span>
-                    </motion.button>
-                    <motion.span
-                      key={inCartQty}
-                      initial={{ scale: 1.2, y: -2 }}
-                      animate={{ scale: 1, y: 0 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-                      className="text-white font-bold min-w-[0.75rem] text-center"
-                      style={{ fontSize: '12px' }}
-                    >
-                      {inCartQty}
-                    </motion.span>
-                    <motion.button
-                      whileTap={product.isAvailable === false ? {} : { scale: 0.9 }}
-                      disabled={product.isAvailable === false}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onUpdateQuantity(product.id, inCartQty + 1);
-                      }}
-                      className={`w-4 h-4 flex items-center justify-center font-bold rounded transition-colors p-0 leading-none ${product.isAvailable === false
-                        ? 'text-neutral-300 cursor-not-allowed'
-                        : 'text-white hover:bg-green-700'
-                        }`}
-                      style={{ lineHeight: 1, fontSize: '14px' }}
-                    >
-                      <span className="relative top-[-1px]">+</span>
-                    </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
           </div>
         </div>
 
         {/* Product Details */}
-        <div className="p-1.5 flex-1 flex flex-col min-h-0" style={{ background: '#fef9e7' }}>
-          {/* Light Grey Tags */}
-          <div className="flex gap-0.5 mb-0.5">
-            <div className="bg-neutral-200 text-neutral-700 text-[8px] font-medium px-1 py-0.5 rounded">
-              {product.pack || '1 unit'}
-            </div>
-            {product.pack && (product.pack.includes('g') || product.pack.includes('kg')) && (
-              <div className="bg-neutral-200 text-neutral-700 text-[8px] font-medium px-1 py-0.5 rounded">
-                {product.pack.replace(/[gk]/gi, '').trim()} GSM
-              </div>
-            )}
+        <div className="p-2 flex-1 flex flex-col min-h-0 bg-white">
+          {/* Variant Tag */}
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase tracking-tight ${variantStyle.bg} ${variantStyle.text} ${variantStyle.border}`}>
+              {variantLabel}
+            </span>
           </div>
 
           {/* Product Name */}
-          <div className="mb-0.5">
-            <h3 className="text-[10px] font-bold text-neutral-900 line-clamp-2 leading-tight min-h-[2rem] max-h-[2rem] overflow-hidden" title={productName}>
+          <div className="mb-1.5">
+            <h3 className="text-[11px] font-bold text-neutral-900 line-clamp-2 leading-tight min-h-[2.2rem] max-h-[2.2rem] overflow-hidden" title={productName}>
               {displayName}
             </h3>
           </div>
 
-          {/* Rating and Reviews */}
-          <div className="flex items-center gap-0.5 mb-0.5">
-            <div className="flex items-center">
-              {[...Array(5)].map((_, i) => (
-                <svg
-                  key={i}
-                  width="8"
-                  height="8"
-                  viewBox="0 0 24 24"
-                  fill={i < 4 ? '#fbbf24' : '#e5e7eb'}
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-              ))}
-            </div>
-            <span className="text-[8px] text-neutral-500">(85)</span>
-          </div>
-
-          {/* Delivery Time */}
-          <div className="text-[9px] text-neutral-600 mb-0.5">
-            20 MINS
-          </div>
-
-          {/* Discount - Blue Text */}
-          {discount > 0 && (
-            <div className="text-[9px] text-blue-600 font-semibold mb-0.5">
-              {discount}% OFF
-            </div>
-          )}
-
-          {/* Price */}
-          <div className="mb-1">
-            <div className="flex items-baseline gap-1">
-              <span className="text-[17px] font-bold text-neutral-900">
+          {/* Pricing Area */}
+          <div className="mb-2">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[15px] font-black text-neutral-900 leading-none">
                 ₹{displayPrice.toLocaleString('en-IN')}
               </span>
               {hasDiscount && (
-                <span className="text-[12px] text-neutral-400 line-through">
+                <span className="text-[11px] text-neutral-400 line-through font-medium leading-none">
                   ₹{mrp.toLocaleString('en-IN')}
                 </span>
               )}
             </div>
           </div>
 
-          {/* Bottom Link */}
-          <Link
-            to={`/category/${product.categoryId || 'all'}`}
-            className="w-full bg-green-100 text-green-700 text-[8px] font-medium py-0.5 rounded-lg flex items-center justify-between px-1 hover:bg-green-200 transition-colors mt-auto"
-          >
-            <span>See more like this</span>
-            <div className="flex items-center gap-0.5">
-              <div className="w-px h-2 bg-green-300"></div>
-              <svg width="6" height="6" viewBox="0 0 8 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M0 0L8 4L0 8Z" fill="#16a34a" />
-              </svg>
-            </div>
-          </Link>
+          {/* ADD Button or Quantity Stepper */}
+          <div className="mt-auto pt-1">
+            <AnimatePresence mode="wait">
+              {inCartQty === 0 ? (
+                <motion.button
+                  key="add-button"
+                  type="button"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.2 }}
+                  disabled={product.isAvailable === false}
+                  onClick={handleAddClick}
+                  className={`w-full h-8 text-[11px] font-bold rounded-full uppercase tracking-wider transition-all shadow-sm ${product.isAvailable === false
+                    ? 'bg-neutral-50 text-neutral-400 border border-neutral-200 cursor-not-allowed'
+                    : 'bg-white text-green-600 border border-green-600 hover:bg-green-50'
+                    }`}
+                >
+                  {product.isAvailable === false ? 'Out of Range' : 'ADD'}
+                </motion.button>
+              ) : (
+                <motion.div
+                  key="stepper"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center justify-between bg-green-600 rounded-full h-8 px-1 shadow-md shadow-green-100"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onUpdateQuantity(product.id, inCartQty - 1, actingVariantId, actingVariantTitle);
+                    }}
+                    className="w-6 h-6 flex items-center justify-center text-white font-bold hover:bg-green-700 rounded-full transition-colors leading-none"
+                  >
+                    <span className="text-sm font-bold">−</span>
+                  </motion.button>
+                  <motion.span
+                    key={inCartQty}
+                    initial={{ scale: 1.2, y: -2 }}
+                    animate={{ scale: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                    className="text-white font-black text-[12px] min-w-[0.75rem] text-center"
+                  >
+                    {inCartQty}
+                  </motion.span>
+                  <motion.button
+                    whileTap={product.isAvailable === false ? {} : { scale: 0.9 }}
+                    disabled={product.isAvailable === false}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onUpdateQuantity(product.id, inCartQty + 1, actingVariantId, actingVariantTitle);
+                    }}
+                    className={`w-6 h-6 flex items-center justify-center font-bold rounded-full transition-colors leading-none ${product.isAvailable === false
+                      ? 'text-neutral-300 cursor-not-allowed'
+                      : 'text-white hover:bg-green-700'
+                      }`}
+                  >
+                    <span className="text-sm font-bold">+</span>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison: only re-render if the product ID or cart quantity changes
-  // Functions are stable references, so we don't need to compare them
   return (
     prevProps.product.id === nextProps.product.id &&
-    prevProps.cartQuantity === nextProps.cartQuantity
+    prevProps.cartQuantity === nextProps.cartQuantity &&
+    prevProps.product.isAvailable === nextProps.product.isAvailable
   );
 });
 
@@ -321,40 +323,40 @@ export default function LowestPricesEver({ activeTab = 'all', products: adminPro
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { cart } = useCart();
   const [fontLoaded, setFontLoaded] = useState(false);
+  const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
+  const [selectedProductForVariants, setSelectedProductForVariants] = useState<Product | null>(null);
 
   // Preload and wait for font to load to prevent FOUT
   useEffect(() => {
     if (document.fonts && document.fonts.check) {
-      // Check if font is already loaded
       if (document.fonts.check('1em "Poppins"')) {
         setFontLoaded(true);
         return;
       }
-
-      // Wait for font to load
       const checkFont = async () => {
         try {
           await document.fonts.load('1em "Poppins"');
           setFontLoaded(true);
         } catch (e) {
-          // Fallback: show after timeout
           setTimeout(() => setFontLoaded(true), 300);
         }
       };
-
       checkFont();
     } else {
-      // Fallback for browsers without Font Loading API
       setTimeout(() => setFontLoaded(true), 300);
     }
   }, []);
 
-  // Memoize cart items lookup for performance
+  // Memoize cart items lookup
   const cartItemsMap = useMemo(() => {
     const map = new Map();
     cart.items.forEach(item => {
-      if (item?.product) {
-        map.set(item.product.id, item.quantity);
+      const productId = item.product.id || item.product._id;
+      if (productId) {
+        // For multiple variants, we might need a more complex key, 
+        // but for global count per product in this section:
+        const currentCount = map.get(productId) || 0;
+        map.set(productId, currentCount + item.quantity);
       }
     });
     return map;
@@ -363,14 +365,11 @@ export default function LowestPricesEver({ activeTab = 'all', products: adminPro
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    // Use admin-selected products if provided, otherwise fallback to fetching
     if (adminProducts && adminProducts.length > 0) {
       const mappedProducts = adminProducts.map((p: any) => {
-        // Get product name and remove any description-like suffixes
         let productName = p.productName || p.name || '';
         productName = productName.replace(/\s*-\s*(Fresh|Quality|Assured|Premium|Best|Top|Hygienic|Carefully|Selected).*$/i, '').trim();
 
-        // Get pack without description
         let packValue = p.pack || p.variations?.[0]?.title || p.variations?.[0]?.value || 'Standard';
         if (packValue && packValue.includes(' - ')) {
           packValue = packValue.split(' - ')[0].trim();
@@ -383,7 +382,6 @@ export default function LowestPricesEver({ activeTab = 'all', products: adminPro
           imageUrl: p.mainImage || p.imageUrl || p.mainImageUrl,
           mrp: p.mrp || p.compareAtPrice || p.price,
           pack: packValue,
-          // Preserve these for rich card features
           variations: p.variations || [],
           weightVariants: p.weightVariants || [],
           sellingUnit: p.sellingUnit || 'unit',
@@ -392,7 +390,6 @@ export default function LowestPricesEver({ activeTab = 'all', products: adminPro
       });
       setProducts(mappedProducts);
     } else {
-      // Fallback: fetch products if admin hasn't configured any
       const fetchDiscountedProducts = async () => {
         try {
           const response = await getProducts({ limit: 50 });
@@ -429,18 +426,11 @@ export default function LowestPricesEver({ activeTab = 'all', products: adminPro
     }
   }, [adminProducts]);
 
-  // Get products for this section
-  // If using admin-selected products, use them directly (already filtered and ordered)
-  // Otherwise, filter by activeTab and discount
   const getFilteredProducts = () => {
-    // If admin has selected products, use them directly (already ordered)
     if (adminProducts && adminProducts.length > 0) {
-      return products.slice(0, 20); // Show up to 20 admin-selected products
+      return products.slice(0, 20);
     }
-
-    // Fallback: filter by activeTab and discount
     let filtered = products;
-
     if (activeTab !== 'all') {
       if (activeTab === 'grocery') {
         filtered = products.filter((p) =>
@@ -450,76 +440,46 @@ export default function LowestPricesEver({ activeTab = 'all', products: adminPro
         filtered = products.filter((p) => p.categoryId === activeTab);
       }
     }
-
     return filtered
       .filter((product) => {
         if (!product.mrp) return false;
-        const discount = Math.round(((product.mrp - product.price) / product.mrp) * 100);
-        return discount > 0;
+        const disc = Math.round(((product.mrp - product.price) / product.mrp) * 100);
+        return disc > 0;
       })
-      .slice(0, 10); // Show top 10 discounted products
+      .slice(0, 10);
   };
 
   const discountedProducts = getFilteredProducts();
 
-  // Get cart functions once at parent level
   const { addToCart, updateQuantity } = useCart();
 
-  // Memoize callbacks to prevent ProductCard re-renders
   const handleAddToCart = useCallback((product: Product, element?: HTMLElement | null) => {
     addToCart(product, element);
   }, [addToCart]);
 
-  const handleUpdateQuantity = useCallback((productId: string, quantity: number) => {
-    updateQuantity(productId, quantity);
+  const handleUpdateQuantity = useCallback((productId: string, quantity: number, variantId?: string, variantTitle?: string) => {
+    updateQuantity(productId, quantity, variantId, variantTitle);
   }, [updateQuantity]);
+
+  const handleShowVariants = useCallback((product: Product) => {
+    setSelectedProductForVariants(product);
+    setIsVariantModalOpen(true);
+  }, []);
 
   return (
     <div
       className="relative"
       style={{
         background: `linear-gradient(to bottom, ${theme.primary[3]}, ${theme.primary[3]}, ${theme.secondary[1]}, ${theme.secondary[2]})`,
-        marginTop: '0px', // No gap for seamless blend
+        marginTop: '0px',
         paddingTop: '12px',
         paddingBottom: '16px',
       }}
     >
-      {/* White Zip/Scalloped Divider at Top - Upward-pointing semicircles */}
       <div className="absolute top-0 left-0 right-0" style={{ height: '30px', zIndex: 10, opacity: 0.95 }}>
-        <svg
-          viewBox="0 0 1200 30"
-          preserveAspectRatio="none"
-          className="w-full h-full"
-          style={{ display: 'block' }}
-        >
-          {/* White scalloped pattern with upward semicircles - clearly visible */}
+        <svg viewBox="0 0 1200 30" preserveAspectRatio="none" className="w-full h-full" style={{ display: 'block' }}>
           <path
-            d="M0,30 L0,15
-               Q25,0 50,15
-               T100,15
-               T150,15
-               T200,15
-               T250,15
-               T300,15
-               T350,15
-               T400,15
-               T450,15
-               T500,15
-               T550,15
-               T600,15
-               T650,15
-               T700,15
-               T750,15
-               T800,15
-               T850,15
-               T900,15
-               T950,15
-               T1000,15
-               T1050,15
-               T1100,15
-               T1150,15
-               L1200,15
-               L1200,30 Z"
+            d="M0,30 L0,15 Q25,0 50,15 T100,15 T150,15 T200,15 T250,15 T300,15 T350,15 T400,15 T450,15 T500,15 T550,15 T600,15 T650,15 T700,15 T750,15 T800,15 T850,15 T900,15 T950,15 T1000,15 T1050,15 T1100,15 T1150,15 L1200,15 L1200,30 Z"
             fill="white"
             stroke="white"
             strokeWidth="0"
@@ -527,12 +487,9 @@ export default function LowestPricesEver({ activeTab = 'all', products: adminPro
         </svg>
       </div>
 
-      {/* LOWEST PRICES EVER Banner */}
       <div className="px-4 relative z-10" style={{ marginTop: '30px', marginBottom: '12px' }} data-section="lowest-prices">
         <div className="flex items-center justify-center gap-2 mb-1">
-          {/* Left horizontal line */}
           <div className="flex-1 h-px bg-neutral-300"></div>
-
           <h2
             className="font-black text-center whitespace-nowrap"
             style={{
@@ -543,41 +500,26 @@ export default function LowestPricesEver({ activeTab = 'all', products: adminPro
               transition: 'opacity 0.2s ease-in',
               textShadow:
                 '-1.5px -1.5px 0 white, 1.5px -1.5px 0 white, -1.5px 1.5px 0 white, 1.5px 1.5px 0 white, ' +
-                '-1.5px 0px 0 white, 1.5px 0px 0 white, 0px -1.5px 0 white, 0px 1.5px 0 white, ' +
-                '-1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white, 1px 1px 0 white, ' +
-                '3px 3px 4px rgba(0, 0, 0, 0.5), ' +
-                '2px 2px 3px rgba(0, 0, 0, 0.6), ' +
-                '1px 1px 2px rgba(0, 0, 0, 0.7), ' +
-                '0px 2px 1px rgba(0, 0, 0, 0.4)',
+                '-1.5px 0px 0 white, 1.5px 0px 0 white, 0px -1.5px 0 white, 0px 1.5px 0 white, 3px 3px 4px rgba(0, 0, 0, 0.5)',
               letterSpacing: '0.8px',
               fontWeight: 900,
               lineHeight: '1.1',
               transform: 'perspective(500px) rotateX(2deg) rotateY(-1deg)',
-              transformStyle: 'preserve-3d',
             } as React.CSSProperties}
           >
             LOWEST PRICES EVER
           </h2>
-
-          {/* Right horizontal line */}
           <div className="flex-1 h-px bg-neutral-300"></div>
         </div>
       </div>
 
-      {/* Tagline Image */}
       <div className="px-4 pb-4 flex justify-center relative z-10">
-        <img
-          src="/assets/TAG-line.png"
-          alt="Mandi Bazaar Tagline"
-          className="w-full max-w-[180px] md:max-w-xs object-contain"
-          style={{ opacity: 0.9 }}
-        />
+        <img src="/assets/TAG-line.png" alt="Mandi Bazaar Tagline" className="w-full max-w-[180px] md:max-w-xs object-contain" style={{ opacity: 0.9 }} />
       </div>
 
-      {/* Horizontal Scrollable Product Cards */}
       <div
         ref={scrollContainerRef}
-        className="flex gap-2 overflow-x-auto scrollbar-hide px-4"
+        className="flex gap-2 overflow-x-auto scrollbar-hide px-4 pb-2"
         style={{ scrollSnapType: 'x mandatory' }}
       >
         {discountedProducts.map((product) => {
@@ -589,10 +531,19 @@ export default function LowestPricesEver({ activeTab = 'all', products: adminPro
               cartQuantity={cartQuantity}
               onAddToCart={handleAddToCart}
               onUpdateQuantity={handleUpdateQuantity}
+              onShowVariants={handleShowVariants}
             />
           );
         })}
       </div>
+
+      {selectedProductForVariants && (
+        <VariantSelectorModal
+          isOpen={isVariantModalOpen}
+          onClose={() => setIsVariantModalOpen(false)}
+          product={selectedProductForVariants}
+        />
+      )}
     </div>
   );
 }

@@ -62,20 +62,28 @@ export async function findSellersWithinRange(
       let sellerLat: number | null = null;
       let sellerLng: number | null = null;
 
-      // Try GeoJSON first
-      if (seller.location && seller.location.coordinates && seller.location.coordinates.length === 2 && (seller.location.coordinates[0] !== 0 || seller.location.coordinates[1] !== 0)) {
+      // Try GeoJSON first (longitude, latitude)
+      if (seller.location && seller.location.coordinates && Array.isArray(seller.location.coordinates) && seller.location.coordinates.length === 2 && (seller.location.coordinates[0] !== 0 || seller.location.coordinates[1] !== 0)) {
         sellerLng = seller.location.coordinates[0];
         sellerLat = seller.location.coordinates[1];
       }
-      // Fallback to string fields if GeoJSON missing or default [0,0]
-      else if (seller.latitude && seller.longitude && parseFloat(seller.latitude) !== 0) {
-        sellerLat = parseFloat(seller.latitude);
-        sellerLng = parseFloat(seller.longitude);
+      // Fallback to manual latitude/longitude inside location object
+      else if (seller.location && seller.location.latitude && seller.location.longitude && seller.location.latitude !== 0) {
+        sellerLat = Number(seller.location.latitude);
+        sellerLng = Number(seller.location.longitude);
+      }
+      // Fallback to legacy top-level fields
+      else if ((seller as any).latitude && (seller as any).longitude && parseFloat((seller as any).latitude) !== 0) {
+        sellerLat = parseFloat((seller as any).latitude);
+        sellerLng = parseFloat((seller as any).longitude);
       }
 
-      // Always include Admin store
-      if (seller.category === "Admin" || (seller.storeName && seller.storeName.toLowerCase().includes("admin"))) {
-        console.log(`[LocationHelper] Including Admin store: ${seller.storeName} (${seller._id})`);
+      // Special handling for Admin: If not found in previous query or status, we should ideally still include it.
+      // But we also check if current seller IS an Admin seller.
+      const isAdmin = seller.category === "Admin" || (seller.storeName && seller.storeName.toLowerCase().includes("admin"));
+
+      if (isAdmin) {
+        console.log(`[LocationHelper] Including Admin store: ${seller.storeName} (${seller._id}) - RADIUS EXEMPT`);
         nearbySellerIds.push(seller._id as mongoose.Types.ObjectId);
         continue;
       }

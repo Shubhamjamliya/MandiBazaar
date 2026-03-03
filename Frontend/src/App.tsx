@@ -393,8 +393,22 @@ function App() {
                                     <Route path="/categories" element={<Categories />} />
                                     <Route path="/category/:id" element={<Category />} />
                                     <Route path="/address-book" element={<AddressBook />} />
-                                    <Route path="/checkout" element={<Checkout />} />
-                                    <Route path="/checkout/address" element={<CheckoutAddress />} />
+                                    <Route
+                                      path="/checkout"
+                                      element={
+                                        <ProtectedRoute requiredUserType="Customer" redirectTo="/login">
+                                          <Checkout />
+                                        </ProtectedRoute>
+                                      }
+                                    />
+                                    <Route
+                                      path="/checkout/address"
+                                      element={
+                                        <ProtectedRoute requiredUserType="Customer" redirectTo="/login">
+                                          <CheckoutAddress />
+                                        </ProtectedRoute>
+                                      }
+                                    />
                                     <Route path="/product/:id" element={<ProductDetail />} />
                                     <Route path="/invoice/:id" element={<Invoice />} />
                                     <Route path="/cart" element={<Cart />} />

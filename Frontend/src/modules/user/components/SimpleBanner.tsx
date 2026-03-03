@@ -77,7 +77,8 @@ export default function SimpleBanner({ banners }: BannerProps) {
                 <img
                   src={banner.image}
                   alt={banner.title || "Banner"}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transform transition-transform duration-700 hover:scale-105"
+                  loading="lazy"
                 />
               ) : (
                 <div

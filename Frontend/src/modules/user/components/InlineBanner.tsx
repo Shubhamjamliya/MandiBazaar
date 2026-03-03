@@ -75,11 +75,12 @@ export default function InlineBanner({ banners, images, autoPlayInterval = 8000 
               }
             }}
           >
-            <div className={`relative rounded-2xl overflow-hidden shadow-sm border border-green-100 aspect-[16/7] w-full ${banner.link ? 'cursor-pointer' : ''}`}>
+            <div className={`relative rounded-2xl overflow-hidden shadow-sm border border-green-100 aspect-[21/9] w-full ${banner.link ? 'cursor-pointer' : ''} bg-neutral-100`}>
               <img
                 src={banner.image}
                 alt={`Banner ${index + 1}`}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                loading="lazy"
               />
             </div>
           </div>

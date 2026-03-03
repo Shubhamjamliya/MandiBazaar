@@ -56,6 +56,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [lastAddEvent, setLastAddEvent] = useState<AddToCartEvent | null>(null);
   const [loading, setLoading] = useState(true);
   const pendingOperationsRef = useRef<Set<string>>(new Set());
+  const hasSyncedGuestCartRef = useRef(false);
 
   const { isAuthenticated, user } = useAuth();
   const { location } = useLocation();
@@ -92,6 +93,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // Helper to sync cart from API
   const fetchCart = async (lat?: number, lng?: number) => {
+    setLoading(true);
     if (!isAuthenticated || user?.userType !== 'Customer') {
       // If we cleared it above but had things in localStorage, we keep them for guests?
       // For now, if logged out, we clear if it was an authenticated session.
@@ -105,6 +107,53 @@ export function CartProvider({ children }: { children: ReactNode }) {
       // Use provided coordinates or fallback to current location
       const queryLat = lat !== undefined ? lat : location?.latitude;
       const queryLng = lng !== undefined ? lng : location?.longitude;
+
+      // Sync guest cart to backend if items exist in local state but not yet synced
+      // Only do this on the first fetch after authentication in this session
+      if (items.length > 0 && !hasSyncedGuestCartRef.current) {
+        console.log("Syncing guest cart to backend...");
+        hasSyncedGuestCartRef.current = true; // Mark as started/synced immediately
+        let hasFailures = false;
+
+        // Mark as synced immediately to prevent concurrent syncs/loops
+        (items as any)._isSynced = true;
+
+        try {
+          // Sync items one by one (since no bulk API)
+          for (const item of items) {
+            const p = item.product;
+            const productId = p?.id || p?._id;
+            if (productId) {
+              const variation = (p as any).variantId || item.variant || (p as any).selectedVariant?._id || (p as any).pack;
+              try {
+                // If we don't have location yet, wait or skip syncing these items to avoid 403
+                if (queryLat === undefined || queryLng === undefined) {
+                  console.log(`Skipping sync for ${productId} due to missing location coordinates`);
+                  continue;
+                }
+
+                await apiAddToCart(productId.toString(), item.quantity || 1, variation as string | undefined, queryLat, queryLng);
+              } catch (itemError: any) {
+                const errorMsg = itemError.response?.data?.message || itemError.message;
+
+                // If it's a 403 (out of range), we just skip it but note the failure
+                if (itemError.response?.status === 403) {
+                  console.warn(`[Sync] Item ${productId} out of range for current location. Skipping.`);
+                  hasFailures = true;
+                } else {
+                  console.error(`[Sync] Failed to sync item ${productId}:`, errorMsg);
+                }
+              }
+            }
+          }
+
+          if (hasFailures) {
+            showToast("Some items from your guest cart are not available in your current location and were removed.", "info");
+          }
+        } catch (syncError) {
+          console.error("Critical error during guest cart sync:", syncError);
+        }
+      }
 
       const response = await getCart({
         latitude: queryLat,
@@ -135,10 +184,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (isAuthenticated) {
       fetchCart();
     } else {
+      // Reset sync flag if user logs out
+      hasSyncedGuestCartRef.current = false;
       // Guest cart is already in 'items' from localStorage if it existed
       setLoading(false);
     }
-  }, [isAuthenticated, user?.userType, location?.latitude, location?.longitude]);
+  }, [isAuthenticated, user?.userId, location?.latitude, location?.longitude]);
 
   // State for estimate delivery fee
   const [estimatedFee, setEstimatedFee] = useState<number | undefined>(undefined);
