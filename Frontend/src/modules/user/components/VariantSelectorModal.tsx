@@ -42,7 +42,12 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
   // We use a stable ID comparison to prevent jumps during cart updates
   useEffect(() => {
     if (isOpen && variants.length > 0) {
-      setSelectedVariant(variants[0]);
+      if (isWeightMode) {
+        const defaultVariant = variants.find((v: any) => v.isDefault);
+        setSelectedVariant(defaultVariant || variants[0]);
+      } else {
+        setSelectedVariant(variants[0]);
+      }
     }
   }, [isOpen, product.id, (product as any)._id]);
 

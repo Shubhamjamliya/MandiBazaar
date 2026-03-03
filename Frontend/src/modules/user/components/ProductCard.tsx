@@ -62,7 +62,13 @@ function ProductCard({
   const weightVariants: any[] = (product as any).weightVariants || [];
 
   const actingWeightVariant = isWeightMode
-    ? [...weightVariants].filter((v: any) => v.isEnabled).sort((a: any, b: any) => a.grams - b.grams)[0]
+    ? (() => {
+      const enabledVariants = [...weightVariants].filter((v: any) => v.isEnabled);
+      if (enabledVariants.length === 0) return null;
+      // Find the default variant or fallback to the first enabled one
+      const defaultVariant = enabledVariants.find((v: any) => v.isDefault);
+      return defaultVariant || enabledVariants[0];
+    })()
     : null;
   const actingQuantityVariant = !isWeightMode && product.variations && product.variations.length > 0
     ? product.variations[0]
