@@ -49,6 +49,7 @@ export interface IProduct extends Document {
     mrp: number;
     stock: number;
     isEnabled: boolean;
+    isDefault?: boolean;
   }>;
 
   // Status Flags
@@ -237,6 +238,7 @@ const ProductSchema = new Schema<IProduct>(
           mrp: { type: Number, default: 0 },
           stock: { type: Number, default: 0 },
           isEnabled: { type: Boolean, default: true },
+          isDefault: { type: Boolean, default: false },
         },
       ],
       default: [],
@@ -375,12 +377,15 @@ ProductSchema.pre("save", function (next) {
   if (this.sellingUnit === 'weight' && this.weightVariants && this.weightVariants.length > 0) {
     const enabledVariants = this.weightVariants.filter((v: any) => v.isEnabled);
     if (enabledVariants.length > 0) {
-      // Sort ascending by grams; pick lowest-gram variant that has price > 0 as entry price
+      // Favor the variant marked as isDefault, otherwise fallback to lowest-gram variant with price
+      const defaultVar = enabledVariants.find((v: any) => v.isDefault);
       const sorted = [...enabledVariants].sort((a: any, b: any) => a.grams - b.grams);
       const withPrice = sorted.filter((v: any) => Number(v.price) > 0);
-      const entry = withPrice.length > 0 ? withPrice[0] : sorted[sorted.length - 1];
+      const entry = defaultVar || (withPrice.length > 0 ? withPrice[0] : sorted[sorted.length - 1]);
+
       this.price = Number(entry.price) || 0;
       if (Number(entry.mrp) > 0) this.compareAtPrice = Number(entry.mrp);
+      else this.compareAtPrice = 0;
     }
     // total stock = sum of all enabled variant stocks
     this.stock = this.weightVariants

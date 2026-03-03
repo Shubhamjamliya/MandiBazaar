@@ -72,6 +72,8 @@ router.post("/save", async (req: Request, res: Response): Promise<void> => {
     // Support both "app" and "mobile" for fcmTokenMobile
     const targetPlatform = platform.toLowerCase();
 
+    console.log(`[FCM Save] User: ${userId}, Type: ${userType}, Platform: ${platform}, Target: ${targetPlatform}`);
+
     if (targetPlatform === "web") {
       if (!user.fcmTokens) {
         user.fcmTokens = [];
@@ -95,6 +97,7 @@ router.post("/save", async (req: Request, res: Response): Promise<void> => {
         }
       }
     } else {
+      console.log(`[FCM Save] Invalid platform: ${platform}`);
       res.status(400).json({
         success: false,
         message: 'Platform must be either "web", "app", or "mobile"',
@@ -105,7 +108,7 @@ router.post("/save", async (req: Request, res: Response): Promise<void> => {
     await user.save();
 
     console.log(
-      `✅ FCM token saved for ${userType} user ${userId} (${platform})`,
+      `✅ FCM token saved for ${userType} user ${userId} (${platform}) - Total mobile tokens: ${user.fcmTokenMobile?.length || 0}`,
     );
 
     res.json({

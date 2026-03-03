@@ -185,20 +185,28 @@ export const getProducts = async (req: Request, res: Response) => {
     const productsWithAvailability = products.map((p: any) => {
       const productObj = p.toObject ? p.toObject() : p;
 
-      // If no location provided, we show products but marked unavailable for strictness, 
-      // OR we just show them. For now, let's mark based on nearbySellerIds.
-      const isAvailable = nearbySellerIds.length > 0 && productObj.seller
-        ? nearbySellerIds.some(id => {
-          const sellerId = productObj.seller._id || productObj.seller;
-          return id.toString() === sellerId.toString();
-        })
-        : !locationProvided; // If no location provided, assume available for browsing unless strict
+      // Check if product's seller is in the nearby list
+      const sellerId = productObj.seller?._id || productObj.seller;
+
+      let isAvailable = false;
+      if (locationProvided) {
+        if (nearbySellerIds.length > 0 && sellerId) {
+          isAvailable = nearbySellerIds.some(id => id.toString() === sellerId.toString());
+        } else {
+          isAvailable = false; // No sellers nearby or no seller assigned
+        }
+      } else {
+        // If no location provided, assume available for browsing
+        isAvailable = true;
+      }
 
       return {
         ...productObj,
         isAvailable
       };
     });
+
+    console.log(`[getProducts] Fetched ${products.length} products. LocationProvided: ${locationProvided}, NearbySellers: ${nearbySellerIds.length}.`);
 
     return res.status(200).json({
       success: true,

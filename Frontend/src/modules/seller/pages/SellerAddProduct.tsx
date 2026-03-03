@@ -37,6 +37,7 @@ interface WeightVariant {
   mrp: number;
   stock: number;
   isEnabled: boolean;
+  isDefault: boolean;
 }
 
 function buildDefaultWeightVariants(pricePerKg: number): WeightVariant[] {
@@ -47,6 +48,7 @@ function buildDefaultWeightVariants(pricePerKg: number): WeightVariant[] {
     mrp: 0,
     stock: 0,
     isEnabled: true,
+    isDefault: label === "1 KG", // Default to 1 KG
   }));
 }
 
@@ -60,6 +62,32 @@ export default function SellerAddProduct() {
   const [weightVariants, setWeightVariants] = useState<WeightVariant[]>(
     buildDefaultWeightVariants(0)
   );
+
+  // Custom weight variant state
+  const [customWeightLabel, setCustomWeightLabel] = useState("");
+  const [customWeightGrams, setCustomWeightGrams] = useState("");
+
+  const handleAddCustomWeightVariant = () => {
+    if (!customWeightLabel || !customWeightGrams) return;
+
+    const grams = parseInt(customWeightGrams) || 0;
+    if (grams <= 0) return;
+
+    const pkgNum = parseFloat(pricePerKg) || 0;
+    const newVariant: WeightVariant = {
+      label: customWeightLabel.toUpperCase(),
+      grams,
+      price: pkgNum > 0 ? Math.round((pkgNum * grams) / 1000) : 0,
+      mrp: 0,
+      stock: 0,
+      isEnabled: true,
+      isDefault: false,
+    };
+
+    setWeightVariants(prev => [...prev, newVariant].sort((a, b) => b.grams - a.grams));
+    setCustomWeightLabel("");
+    setCustomWeightGrams("");
+  };
 
   const totalWeightStock = weightVariants
     .filter((v) => v.isEnabled)
@@ -194,7 +222,39 @@ export default function SellerAddProduct() {
             setSellingUnit(su);
             if (su === "weight") {
               setPricePerKg(String((product as any).pricePerKg || ""));
-              if ((product as any).weightVariants?.length) setWeightVariants((product as any).weightVariants);
+
+              // Merge standard presets with DB variants to maintain the 4-row UI
+              const dbWeightVariants = (product as any).weightVariants || [];
+              const merged = WEIGHT_PRESETS.map((preset) => {
+                const found = dbWeightVariants.find((v: any) => v.label === preset.label || v.grams === preset.grams);
+                if (found) {
+                  return { ...found, isEnabled: true, isDefault: !!found.isDefault };
+                }
+                return {
+                  ...preset,
+                  price: product.pricePerKg ? Math.round((product.pricePerKg * preset.grams) / 1000) : 0,
+                  mrp: 0,
+                  stock: 0,
+                  isEnabled: false,
+                  isDefault: false
+                };
+              });
+
+              // Add any custom variants from DB that were not in presets
+              const customFromDb = dbWeightVariants.filter((dbVar: any) =>
+                !WEIGHT_PRESETS.some(preset => preset.label === dbVar.label || preset.grams === dbVar.grams)
+              ).map((v: any) => ({ ...v, isEnabled: true, isDefault: !!v.isDefault }));
+
+              const finalMerged = [...merged, ...customFromDb];
+
+              // Ensure at least one is default if none were marked
+              if (finalMerged.length > 0 && !finalMerged.find(m => m.isDefault)) {
+                const firstEnabled = finalMerged.find(m => m.isEnabled);
+                if (firstEnabled) firstEnabled.isDefault = true;
+                else finalMerged[0].isDefault = true;
+              }
+
+              setWeightVariants(finalMerged);
             } else {
               setVariations(product.variations || []);
             }
@@ -321,8 +381,17 @@ export default function SellerAddProduct() {
         shopId: formData.isShopByStoreOnly === "Yes" && formData.shopId ? formData.shopId : undefined,
         sellingUnit,
         ...(sellingUnit === "weight"
-          ? { pricePerKg: parseFloat(pricePerKg) || 0, weightVariants, variations: [] }
-          : { variations, variationType: formData.variationType || undefined }),
+          ? {
+            pricePerKg: parseFloat(pricePerKg) || 0,
+            weightVariants: weightVariants.filter(v => v.isEnabled),
+            variations: []
+          }
+          : {
+            variations,
+            variationType: formData.variationType || undefined,
+            weightVariants: [],
+            pricePerKg: 0
+          }),
       };
 
       const response = id ? await updateProduct(id, productData) : await createProduct(productData);
@@ -477,8 +546,9 @@ export default function SellerAddProduct() {
                     <div className="rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
                       {/* Header */}
                       <div className="grid gap-2 bg-neutral-50 border-b border-neutral-200 px-4 py-2.5 text-xs font-bold text-neutral-400 uppercase tracking-wider"
-                        style={{ gridTemplateColumns: "40px 80px 1fr 1fr 1fr" }}>
+                        style={{ gridTemplateColumns: "40px 50px 80px 1fr 1fr 1fr" }}>
                         <div>On</div>
+                        <div>Card</div>
                         <div>Size</div>
                         <div>Sale Price (₹)</div>
                         <div>MRP (₹)</div>
@@ -489,17 +559,49 @@ export default function SellerAddProduct() {
                         <div
                           key={v.label}
                           className={`grid gap-2 items-center px-4 py-3 border-b border-neutral-100 last:border-none ${v.isEnabled ? "bg-white" : "bg-neutral-50"}`}
-                          style={{ gridTemplateColumns: "40px 80px 1fr 1fr 1fr" }}
+                          style={{ gridTemplateColumns: "40px 50px 80px 1fr 1fr 1fr" }}
                         >
-                          {/* Toggle */}
+                          {/* Toggle Visibility */}
                           <div>
                             <button
                               type="button"
-                              onClick={() => updateWeightVariant(idx, "isEnabled", !v.isEnabled)}
+                              onClick={() => {
+                                const nextEnabled = !v.isEnabled;
+                                setWeightVariants(prev => {
+                                  const newState = prev.map((item, i) => i === idx ? { ...item, isEnabled: nextEnabled } : item);
+                                  // If we disabled the default one, pick a new default
+                                  if (!nextEnabled && v.isDefault) {
+                                    const nextDefaultIdx = newState.findIndex(item => item.isEnabled);
+                                    if (nextDefaultIdx !== -1) {
+                                      return newState.map((item, i) => ({ ...item, isDefault: i === nextDefaultIdx }));
+                                    }
+                                  }
+                                  return newState;
+                                });
+                              }}
                               className={`w-9 h-5 rounded-full relative transition-colors duration-200 border ${v.isEnabled ? "bg-teal-500 border-teal-500" : "bg-neutral-300 border-neutral-300"}`}
+                              title="Toggle Visibility"
                             >
                               <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${v.isEnabled ? "translate-x-4" : "translate-x-0"}`} />
                             </button>
+                          </div>
+
+                          {/* Default/Card Selection */}
+                          <div className="flex justify-center">
+                            <input
+                              type="radio"
+                              name="defaultWeight"
+                              checked={v.isDefault}
+                              disabled={!v.isEnabled}
+                              onChange={() => {
+                                setWeightVariants(prev => prev.map((item, i) => ({
+                                  ...item,
+                                  isDefault: i === idx
+                                })));
+                              }}
+                              className="w-4 h-4 text-teal-600 focus:ring-teal-500 cursor-pointer disabled:cursor-not-allowed"
+                              title="Show this variant on product card"
+                            />
                           </div>
 
                           {/* Label Badge */}
@@ -544,6 +646,43 @@ export default function SellerAddProduct() {
                       ))}
                     </div>
 
+                    {/* Add Custom Weight Variant */}
+                    <div className="mt-4 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
+                      <p className="text-xs font-semibold text-neutral-600 mb-3">Add Custom Weight (e.g., 5 KG, 20 LBS)</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">Label</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 5 KG"
+                            value={customWeightLabel}
+                            onChange={e => setCustomWeightLabel(e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">Equivalent Grams (for base price)</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 5000"
+                            value={customWeightGrams}
+                            onChange={e => setCustomWeightGrams(e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 outline-none"
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <button
+                            type="button"
+                            onClick={handleAddCustomWeightVariant}
+                            disabled={!customWeightLabel || !customWeightGrams}
+                            className="w-full sm:w-auto px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors"
+                          >
+                            + Add Variant
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Total Stock */}
                     <div className="mt-3 flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
                       <span className="text-sm font-semibold text-emerald-700">Total Available Stock:</span>
@@ -557,8 +696,6 @@ export default function SellerAddProduct() {
               {/* ── QUANTITY MODE ────────────────────────────────────────── */}
               {sellingUnit === "quantity" && (
                 <div className="space-y-4">
-
-
                   {/* Add Variation Row */}
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
                     <div>
@@ -820,7 +957,7 @@ export default function SellerAddProduct() {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }

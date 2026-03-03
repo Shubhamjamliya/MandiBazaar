@@ -51,7 +51,9 @@ export async function findSellersWithinRange(
     // Fetch all approved sellers with location
     const sellers = await Seller.find({
       status: "Approved",
-    }).select("_id location serviceRadiusKm latitude longitude category");
+    }).select("_id location serviceRadiusKm latitude longitude category storeName");
+
+    console.log(`[LocationHelper] Checking ${sellers.length} approved sellers for user at [${userLat}, ${userLng}]`);
 
     // Filter sellers where user is within their service radius
     const nearbySellerIds: mongoose.Types.ObjectId[] = [];
@@ -61,17 +63,19 @@ export async function findSellersWithinRange(
       let sellerLng: number | null = null;
 
       // Try GeoJSON first
-      if (seller.location && seller.location.coordinates && seller.location.coordinates.length === 2) {
+      if (seller.location && seller.location.coordinates && seller.location.coordinates.length === 2 && (seller.location.coordinates[0] !== 0 || seller.location.coordinates[1] !== 0)) {
         sellerLng = seller.location.coordinates[0];
         sellerLat = seller.location.coordinates[1];
       }
-      // Fallback to string fields if GeoJSON missing
-      else if (seller.latitude && seller.longitude) {
+      // Fallback to string fields if GeoJSON missing or default [0,0]
+      else if (seller.latitude && seller.longitude && parseFloat(seller.latitude) !== 0) {
         sellerLat = parseFloat(seller.latitude);
         sellerLng = parseFloat(seller.longitude);
       }
 
-      if (seller.category === "Admin") {
+      // Always include Admin store
+      if (seller.category === "Admin" || (seller.storeName && seller.storeName.toLowerCase().includes("admin"))) {
+        console.log(`[LocationHelper] Including Admin store: ${seller.storeName} (${seller._id})`);
         nearbySellerIds.push(seller._id as mongoose.Types.ObjectId);
         continue;
       }
@@ -85,12 +89,17 @@ export async function findSellersWithinRange(
         );
         const serviceRadius = seller.serviceRadiusKm || 10; // Default to 10km if not set
 
+        console.log(`[LocationHelper] Seller: ${seller.storeName}, Dist: ${distance.toFixed(2)}km, Radius: ${serviceRadius}km`);
+
         if (distance <= serviceRadius) {
           nearbySellerIds.push(seller._id as mongoose.Types.ObjectId);
         }
+      } else {
+        console.log(`[LocationHelper] Skipping seller ${seller.storeName} (${seller._id}) - No valid location [${sellerLat}, ${sellerLng}]`);
       }
     }
 
+    console.log(`[LocationHelper] Found ${nearbySellerIds.length} nearby sellers: ${nearbySellerIds}`);
     return nearbySellerIds;
   } catch (error) {
     console.error("Error finding nearby sellers:", error);
