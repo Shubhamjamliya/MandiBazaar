@@ -69,7 +69,10 @@ router.post("/save", async (req: Request, res: Response): Promise<void> => {
     }
 
     // Add token to appropriate array based on platform
-    if (platform === "web") {
+    // Support both "app" and "mobile" for fcmTokenMobile
+    const targetPlatform = platform.toLowerCase();
+
+    if (targetPlatform === "web") {
       if (!user.fcmTokens) {
         user.fcmTokens = [];
       }
@@ -81,7 +84,7 @@ router.post("/save", async (req: Request, res: Response): Promise<void> => {
           user.fcmTokens = user.fcmTokens.slice(-10);
         }
       }
-    } else if (platform === "app") {
+    } else if (targetPlatform === "app" || targetPlatform === "mobile") {
       if (!user.fcmTokenMobile) {
         user.fcmTokenMobile = [];
       }
@@ -94,7 +97,7 @@ router.post("/save", async (req: Request, res: Response): Promise<void> => {
     } else {
       res.status(400).json({
         success: false,
-        message: 'Platform must be either "web" or "app"',
+        message: 'Platform must be either "web", "app", or "mobile"',
       });
       return;
     }
@@ -182,9 +185,11 @@ router.delete("/remove", async (req: Request, res: Response): Promise<void> => {
     }
 
     // Remove token from appropriate array
-    if (platform === "web" && user.fcmTokens) {
+    const targetPlatform = platform.toLowerCase();
+
+    if (targetPlatform === "web" && user.fcmTokens) {
       user.fcmTokens = user.fcmTokens.filter((t: string) => t !== token);
-    } else if (platform === "app" && user.fcmTokenMobile) {
+    } else if ((targetPlatform === "app" || targetPlatform === "mobile") && user.fcmTokenMobile) {
       user.fcmTokenMobile = user.fcmTokenMobile.filter(
         (t: string) => t !== token,
       );
