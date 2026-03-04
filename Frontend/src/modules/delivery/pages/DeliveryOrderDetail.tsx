@@ -940,7 +940,7 @@ export default function DeliveryOrderDetail() {
                                         Cancel
                                     </button>
                                     <button
-                                        onClick={handleVerifyOtp}
+                                        onClick={() => handleVerifyOtp()}
                                         className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
                                         disabled={otpVerifying || otpValue.length !== 4}
                                     >

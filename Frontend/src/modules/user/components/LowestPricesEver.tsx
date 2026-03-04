@@ -34,7 +34,7 @@ const ProductCard = memo(({
 }: {
   product: Product;
   cartQuantity: number;
-  onAddToCart: (product: Product, element?: HTMLElement | null) => void;
+  onAddToCart: (product: any, element?: HTMLElement | null) => void;
   onUpdateQuantity: (productId: string, quantity: number, variantId?: string, variantTitle?: string) => void;
   onShowVariants: (product: Product) => void;
 }) => {
