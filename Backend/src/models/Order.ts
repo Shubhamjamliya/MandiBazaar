@@ -83,6 +83,11 @@ export interface IOrder extends Document {
     longitude?: number;
   }>;
 
+  // COD Payment Collection
+  collectionMethod?: 'cash' | 'online_scanner';
+  collectedBy?: mongoose.Types.ObjectId;
+  collectedAt?: Date;
+
   // Notes
   adminNotes?: string;
   customerNotes?: string;
@@ -313,6 +318,19 @@ const OrderSchema = new Schema<IOrder>(
         },
       },
     ],
+
+    // COD Payment Collection
+    collectionMethod: {
+      type: String,
+      enum: ['cash', 'online_scanner'],
+    },
+    collectedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "Delivery",
+    },
+    collectedAt: {
+      type: Date,
+    },
 
     // Notes
     adminNotes: {

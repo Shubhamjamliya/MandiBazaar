@@ -8,10 +8,6 @@ export interface IDelivery extends Document {
   email: string;
   dateOfBirth?: Date;
   password: string;
-  address: string;
-  city: string;
-  pincode?: string;
-
   // Documents (URLs pointing to cloud storage)
   drivingLicense?: string;
   nationalIdentityCard?: string;
@@ -32,8 +28,15 @@ export interface IDelivery extends Document {
   status: 'Active' | 'Inactive';
   isOnline: boolean; // Availability status
   location?: {
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
     type: "Point";
     coordinates: [number, number]; // [longitude, latitude]
+    updatedAt?: Date;
   };
   balance: number;
   cashCollected: number;
@@ -93,21 +96,6 @@ const DeliverySchema = new Schema<IDelivery>(
       minlength: [6, 'Password must be at least 6 characters'],
       select: false, // Don't return password by default
     },
-    address: {
-      type: String,
-      required: false,
-      trim: true,
-    },
-    city: {
-      type: String,
-      required: false,
-      trim: true,
-    },
-    pincode: {
-      type: String,
-      trim: true,
-    },
-
     // Documents (URLs)
     drivingLicense: {
       type: String,
@@ -166,6 +154,12 @@ const DeliverySchema = new Schema<IDelivery>(
       default: false,
     },
     location: {
+      address: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      pincode: { type: String, trim: true },
+      latitude: { type: Number },
+      longitude: { type: Number },
       type: {
         type: String,
         enum: ["Point"],
@@ -173,8 +167,9 @@ const DeliverySchema = new Schema<IDelivery>(
       },
       coordinates: {
         type: [Number], // [longitude, latitude]
-        index: "2dsphere",
+        default: [0, 0],
       },
+      updatedAt: { type: Date }
     },
     balance: {
       type: Number,
@@ -227,6 +222,9 @@ DeliverySchema.methods.comparePassword = async function (
 ): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
+
+// Create geospatial index on location field
+DeliverySchema.index({ 'location.coordinates': '2dsphere' });
 
 const Delivery = mongoose.models.Delivery || mongoose.model<IDelivery>('Delivery', DeliverySchema);
 

@@ -57,6 +57,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const pendingOperationsRef = useRef<Set<string>>(new Set());
   const hasSyncedGuestCartRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
 
   const { isAuthenticated, user } = useAuth();
   const { location } = useLocation();
@@ -93,6 +94,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // Helper to sync cart from API
   const fetchCart = async (lat?: number, lng?: number) => {
+    // Debounce: prevent multiple fetches within 2 seconds
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < 2000 && lat === undefined && lng === undefined) {
+      setLoading(false);
+      return;
+    }
+    lastFetchTimeRef.current = now;
+
     setLoading(true);
     if (!isAuthenticated || user?.userType !== 'Customer') {
       // If we cleared it above but had things in localStorage, we keep them for guests?
@@ -104,14 +113,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Use provided coordinates or fallback to current location
-      const queryLat = lat !== undefined ? lat : location?.latitude;
-      const queryLng = lng !== undefined ? lng : location?.longitude;
+      // Use explicitly provided coordinates first, then fall back to user's current location
+      // This ensures the cart is always validated against the user's actual location
+      const queryLat = lat ?? location?.latitude;
+      const queryLng = lng ?? location?.longitude;
+
+      // If no coordinates available at all, skip API call and keep existing items from localStorage
+      if (queryLat === undefined || queryLng === undefined) {
+        setLoading(false);
+        return;
+      }
 
       // Sync guest cart to backend if items exist in local state but not yet synced
       // Only do this on the first fetch after authentication in this session
       if (items.length > 0 && !hasSyncedGuestCartRef.current) {
-        console.log("Syncing guest cart to backend...");
         hasSyncedGuestCartRef.current = true; // Mark as started/synced immediately
         let hasFailures = false;
 
@@ -160,13 +175,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
         longitude: queryLng
       });
       if (response && response.data && response.data.items) {
-        setItems(mapApiItemsToState(response.data.items));
+        // Only update items if we got real data back
+        // If no location was provided, backend returns empty items - don't clear existing cart
+        const hasLocation = queryLat !== undefined && queryLng !== undefined;
+        if (response.data.items.length > 0 || hasLocation) {
+          setItems(mapApiItemsToState(response.data.items));
+        }
         setEstimatedFee(response.data.estimatedDeliveryFee);
         setPlatformFee(response.data.platformFee);
         setFreeDeliveryThreshold(response.data.freeDeliveryThreshold);
-        (items as any).debug_config = response.data.debug_config; // Hack to pass it through
-        (items as any).backendTotal = response.data.backendTotal; // Hack to pass backend total
-      } else {
+        (items as any).debug_config = response.data.debug_config;
+        (items as any).backendTotal = response.data.backendTotal;
+      } else if (queryLat !== undefined && queryLng !== undefined) {
+        // Only clear items if we had valid location but got no response
         setItems([]);
         setEstimatedFee(undefined);
         setPlatformFee(undefined);
@@ -179,7 +200,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Load cart on auth change
+  // Load cart on auth change or when location becomes available
   useEffect(() => {
     if (isAuthenticated) {
       fetchCart();

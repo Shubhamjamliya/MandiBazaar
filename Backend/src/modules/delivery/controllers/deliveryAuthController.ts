@@ -107,7 +107,7 @@ export const verifySmsOtp = asyncHandler(
           name: delivery.name,
           mobile: delivery.mobile,
           email: delivery.email,
-          city: delivery.city,
+          location: delivery.location,
           status: delivery.status,
         },
       },
@@ -171,9 +171,14 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     email,
     dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
     password,
-    address,
-    city,
-    pincode,
+    location: {
+      address,
+      city,
+      pincode,
+      type: 'Point',
+      coordinates: [0, 0], // Will be updated when they go online/update location
+      updatedAt: new Date()
+    },
     drivingLicense,
     nationalIdentityCard,
     accountName,

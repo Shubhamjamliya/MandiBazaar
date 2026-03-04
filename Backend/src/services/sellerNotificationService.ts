@@ -25,13 +25,19 @@ export async function notifySellersOfOrderUpdate(
             orderItems = await OrderItem.find({ order: order._id });
         }
 
-        const sellerIds = [...new Set(orderItems.map((item: any) => item.seller.toString()))];
+        const sellerIds = [...new Set(orderItems.map((item: any) => {
+            const seller = item.seller;
+            return (seller._id || seller).toString();
+        }))];
 
         console.log(`🔔 Notifying ${sellerIds.length} sellers about ${type} for order ${order.orderNumber}`);
 
         for (const sellerId of sellerIds) {
             // Get only items belonging to this seller
-            const sellerSpecificItems = orderItems.filter((item: any) => item.seller.toString() === sellerId);
+            const sellerSpecificItems = orderItems.filter((item: any) => {
+                const itemSellerId = (item.seller._id || item.seller).toString();
+                return itemSellerId === sellerId;
+            });
 
             const notificationData = {
                 type,

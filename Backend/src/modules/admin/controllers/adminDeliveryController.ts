@@ -41,9 +41,17 @@ export const createDeliveryBoy = asyncHandler(
       email,
       password,
       dateOfBirth,
-      address,
-      city,
-      pincode,
+      location: {
+        address,
+        city,
+        state: req.body.state,
+        pincode,
+        type: 'Point',
+        coordinates: [req.body.longitude || 0, req.body.latitude || 0],
+        updatedAt: new Date(),
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
+      },
       drivingLicense,
       nationalIdentityCard,
       accountName,
@@ -152,6 +160,43 @@ export const updateDeliveryBoy = asyncHandler(
 
     // Don't allow password update through this endpoint
     delete updateData.password;
+
+    // Handle nested location update
+    if (updateData.address || updateData.city || updateData.latitude || updateData.longitude) {
+      const currentDelivery = await Delivery.findById(id);
+      const lat = updateData.latitude ? parseFloat(updateData.latitude) : (currentDelivery?.location?.latitude || 0);
+      const lng = updateData.longitude ? parseFloat(updateData.longitude) : (currentDelivery?.location?.longitude || 0);
+
+      updateData.location = {
+        ...currentDelivery?.location?.toObject(),
+        address: updateData.address || currentDelivery?.location?.address,
+        city: updateData.city || currentDelivery?.location?.city,
+        state: updateData.state || currentDelivery?.location?.state,
+        pincode: updateData.pincode || currentDelivery?.location?.pincode,
+        latitude: lat,
+        longitude: lng,
+        type: 'Point',
+        coordinates: [lng, lat],
+        updatedAt: new Date()
+      };
+
+      // Unset legacy fields
+      updateData.$unset = {
+        address: 1,
+        city: 1,
+        pincode: 1,
+        latitude: 1,
+        longitude: 1
+      };
+
+      // Clean up updateData to avoid redundancy
+      delete updateData.address;
+      delete updateData.city;
+      delete updateData.pincode;
+      delete updateData.latitude;
+      delete updateData.longitude;
+      delete updateData.state;
+    }
 
     const deliveryBoy = await Delivery.findByIdAndUpdate(id, updateData, {
       new: true,

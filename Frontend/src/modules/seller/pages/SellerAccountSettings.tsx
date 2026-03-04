@@ -64,13 +64,16 @@ const SellerAccountSettings = () => {
             const response = await getSellerProfile();
             if (response.success) {
                 const data = response.data;
-                // Map location data to state
-                const locationCoords = data.location?.coordinates || [];
+                // Map location data from the location sub-object (where it actually lives in DB)
+                const loc = data.location || {};
+                const locationCoords = loc.coordinates || [];
                 setSellerData({
                     ...data,
-                    latitude: data.latitude || (locationCoords[1]?.toString() || ''),
-                    longitude: data.longitude || (locationCoords[0]?.toString() || ''),
-                    searchLocation: data.searchLocation || data.address || '',
+                    latitude: loc.latitude?.toString() || (locationCoords[1]?.toString() || ''),
+                    longitude: loc.longitude?.toString() || (locationCoords[0]?.toString() || ''),
+                    searchLocation: loc.searchLocation || loc.address || '',
+                    address: loc.address || '',
+                    city: loc.city || '',
                     serviceRadiusKm: (data.serviceRadiusKm || 10).toString(),
                 });
             } else {
@@ -105,6 +108,34 @@ const SellerAccountSettings = () => {
                 longitude: lng.toString()
             };
         });
+
+        // Reverse geocode to update city and address when map pin is moved
+        const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+        if (apiKey) {
+            fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}&language=en`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'OK' && data.results?.length > 0) {
+                        const result = data.results[0];
+                        let city = '';
+                        let state = '';
+                        const components = result.address_components || [];
+                        for (const comp of components) {
+                            if (comp.types.includes('locality')) city = comp.long_name;
+                            else if (comp.types.includes('administrative_area_level_3') && !city) city = comp.long_name;
+                            else if (comp.types.includes('administrative_area_level_1')) state = comp.long_name;
+                        }
+                        const cleanedAddress = result.formatted_address || '';
+                        setSellerData(prev => ({
+                            ...prev,
+                            city: city || prev.city,
+                            address: cleanedAddress || prev.address,
+                            searchLocation: cleanedAddress || prev.searchLocation,
+                        }));
+                    }
+                })
+                .catch(err => console.warn('Reverse geocoding on map drag failed:', err));
+        }
     }, [setSellerData]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -128,22 +159,40 @@ const SellerAccountSettings = () => {
                 return;
             }
 
-            const updateData = {
-                ...sellerData,
+            const updateData: any = {
+                sellerName: sellerData.sellerName,
+                storeName: sellerData.storeName,
+                category: sellerData.category,
+                address: sellerData.address || sellerData.searchLocation,
+                searchLocation: sellerData.searchLocation || sellerData.address,
+                city: sellerData.city,
+                latitude: sellerData.latitude,
+                longitude: sellerData.longitude,
                 serviceRadiusKm: radius,
+                panCard: sellerData.panCard,
+                taxName: sellerData.taxName,
+                taxNumber: sellerData.taxNumber,
+                accountName: sellerData.accountName,
+                bankName: sellerData.bankName,
+                branch: sellerData.branch,
+                accountNumber: sellerData.accountNumber,
+                ifsc: sellerData.ifsc,
+                storeDescription: sellerData.storeDescription,
             };
 
             const response = await updateSellerProfile(updateData);
             if (response.success) {
                 setIsEditing(false);
                 const data = response.data;
-                const locationCoords = data.location?.coordinates || [];
+                const loc = data.location || {};
+                const locationCoords = loc.coordinates || [];
                 setSellerData({
                     ...data,
-                    latitude: data.latitude || (locationCoords[1]?.toString() || ''),
-                    longitude: data.longitude || (locationCoords[0]?.toString() || ''),
-                    searchLocation: data.searchLocation || data.address || '',
-                    address: data.address || data.searchLocation || '',
+                    latitude: data.latitude || loc.latitude?.toString() || (locationCoords[1]?.toString() || ''),
+                    longitude: data.longitude || loc.longitude?.toString() || (locationCoords[0]?.toString() || ''),
+                    searchLocation: loc.searchLocation || loc.address || data.address || '',
+                    address: data.address || loc.address || '',
+                    city: loc.city || data.city || '',
                     serviceRadiusKm: (data.serviceRadiusKm || 10).toString(),
                 });
                 if (updateUser) {
@@ -468,8 +517,32 @@ const SellerAccountSettings = () => {
                                                                         initialLng={parseFloat(sellerData.longitude) || 75.7873}
                                                                         onLocationSelect={handleLocationSelect}
                                                                     />
-                                                                    <p className="mt-1 text-xs text-neutral-500 text-center">
-                                                                        Selected Coordinates: {sellerData.latitude || 'Not selected'}, {sellerData.longitude || 'Not selected'}
+                                                                    <div className="grid grid-cols-2 gap-4 mt-3">
+                                                                        <div className="space-y-1">
+                                                                            <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Latitude</label>
+                                                                            <input
+                                                                                type="text"
+                                                                                name="latitude"
+                                                                                value={sellerData.latitude || ''}
+                                                                                onChange={handleInputChange}
+                                                                                disabled={!isEditing}
+                                                                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-300 focus:ring-1 focus:ring-teal-500/50 outline-none bg-gray-50/30"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="space-y-1">
+                                                                            <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Longitude</label>
+                                                                            <input
+                                                                                type="text"
+                                                                                name="longitude"
+                                                                                value={sellerData.longitude || ''}
+                                                                                onChange={handleInputChange}
+                                                                                disabled={!isEditing}
+                                                                                className="w-full px-3 py-1.5 text-xs rounded-lg border border-gray-300 focus:ring-1 focus:ring-teal-500/50 outline-none bg-gray-50/30"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                    <p className="mt-2 text-[10px] text-neutral-500 text-center italic">
+                                                                        Verified Coordinates: These will be used for your store's visibility to nearby customers.
                                                                     </p>
                                                                 </div>
                                                             </>
@@ -484,7 +557,21 @@ const SellerAccountSettings = () => {
                                                         )}
                                                     </div>
 
-                                                    <InputGroup label="City" name="city" value={sellerData.city} onChange={handleInputChange} disabled={!isEditing} />
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-sm font-semibold text-gray-700 ml-1">City <span className="text-xs text-gray-400 font-normal">(auto-detected from location)</span></label>
+                                                        <input
+                                                            type="text"
+                                                            name="city"
+                                                            value={sellerData.city || ''}
+                                                            onChange={handleInputChange}
+                                                            disabled={!isEditing}
+                                                            placeholder="City (set via location search)"
+                                                            className={`w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all ${!isEditing ? 'bg-gray-50/50 text-gray-500 cursor-default' : 'bg-white'}`}
+                                                        />
+                                                        {isEditing && (
+                                                            <p className="text-xs text-amber-600 ml-1">⚠️ City is auto-set when you search or drag the map pin. Changing it manually may cause location mismatches.</p>
+                                                        )}
+                                                    </div>
 
                                                     <div className="space-y-1.5">
                                                         <label className="text-sm font-semibold text-gray-700 ml-1">

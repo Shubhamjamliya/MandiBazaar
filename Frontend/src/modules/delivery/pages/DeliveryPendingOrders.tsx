@@ -96,11 +96,21 @@ export default function DeliveryPendingOrders() {
                     <p className="text-neutral-600 text-xs mb-1">{order.customerName}</p>
                     <p className="text-neutral-500 text-xs">{order.customerPhone}</p>
                   </div>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}
-                  >
-                    {order.status}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {order.paymentMethod && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${order.paymentMethod === 'COD'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-blue-100 text-blue-700'
+                        }`}>
+                        {order.paymentMethod === 'COD' ? '💵 COD' : '💳 Paid'}
+                      </span>
+                    )}
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}
+                    >
+                      {order.status}
+                    </span>
+                  </div>
                 </div>
                 <div className="border-t border-neutral-200 pt-3 mt-3">
                   <p className="text-neutral-600 text-xs mb-2 line-clamp-2">{order.address}</p>

@@ -92,7 +92,8 @@ export default function GoogleMapsTracking({
 
     const { isLoaded, loadError } = useJsApiLoader({
         id: 'google-map-script',
-        googleMapsApiKey: apiKey || ''
+        googleMapsApiKey: apiKey || '',
+        libraries: ['places'] as any
     })
 
     // Combine storeLocation with sellerLocations
@@ -517,9 +518,9 @@ export default function GoogleMapsTracking({
                     title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
                 >
                     {isFullScreen ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" /></svg>
                     ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
                     )}
                 </button>
                 <button
@@ -527,7 +528,7 @@ export default function GoogleMapsTracking({
                     className="p-2 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
                     title="Recenter"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M3 12h3m12 0h3M12 3v3m0 12v3"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M3 12h3m12 0h3M12 3v3m0 12v3" /></svg>
                 </button>
             </div>
 
@@ -545,8 +546,8 @@ export default function GoogleMapsTracking({
                 <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 w-max max-w-[90%]">
                     <div className="bg-orange-50 border border-orange-200 text-orange-800 px-4 py-3 rounded-lg text-xs font-medium shadow-lg flex flex-col items-center gap-1 text-center">
                         <div className="flex items-center gap-2">
-                             <span>📍</span>
-                             <span className="font-bold">Location Unavailable</span>
+                            <span>📍</span>
+                            <span className="font-bold">Location Unavailable</span>
                         </div>
                         <span>Customer hasn't pinned their location.</span>
                         <span className="text-orange-600/80 text-[10px]">Please rely on the written address.</span>
@@ -577,14 +578,14 @@ export default function GoogleMapsTracking({
                 {/* Customer Marker */}
                 {/* Customer Marker - Only show if valid location */}
                 {customerLocation && (customerLocation.lat !== 0 || customerLocation.lng !== 0) && (
-                <Marker
-                    position={customerLocation}
-                    icon={{
-                        url: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><text x="8" y="32" font-size="32">📍</text></svg>')}`,
-                        scaledSize: window.google?.maps?.Size ? new window.google.maps.Size(40, 40) : undefined
-                    } as any}
-                    title="Delivery Address"
-                />
+                    <Marker
+                        position={customerLocation}
+                        icon={{
+                            url: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><text x="8" y="32" font-size="32">📍</text></svg>')}`,
+                            scaledSize: window.google?.maps?.Size ? new window.google.maps.Size(40, 40) : undefined
+                        } as any}
+                        title="Delivery Address"
+                    />
                 )}
 
                 {/* Seller Markers */}
@@ -619,7 +620,7 @@ export default function GoogleMapsTracking({
                         title="Delivery Partner"
                     />
                 )}
-                {( !showRoute || routeError ) && (
+                {(!showRoute || routeError) && (
                     <Polyline
                         path={path}
                         options={{

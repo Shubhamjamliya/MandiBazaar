@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useJsApiLoader } from '@react-google-maps/api';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation as useRouterLocation } from 'react-router-dom';
+import { useLocation as useLocationContext } from '../../hooks/useLocation';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -15,10 +16,11 @@ export default function CheckoutAddress() {
   const { isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
+  const routerLocation = useRouterLocation();
+  const { location: userLocation } = useLocationContext();
 
   // Get address from navigation state if editing
-  const editAddress = (location.state as any)?.editAddress as OrderAddress | undefined;
+  const editAddress = (routerLocation.state as any)?.editAddress as OrderAddress | undefined;
 
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [address, setAddress] = useState<OrderAddress>({
@@ -38,8 +40,9 @@ export default function CheckoutAddress() {
   const [addressType, setAddressType] = useState<'home' | 'work' | 'hotel' | 'other'>('home');
 
   // Location picker state
-  const [selectedLatitude, setSelectedLatitude] = useState<number>(0);
-  const [selectedLongitude, setSelectedLongitude] = useState<number>(0);
+  // Location picker state initialized from context if available
+  const [selectedLatitude, setSelectedLatitude] = useState<number>(userLocation?.latitude || 0);
+  const [selectedLongitude, setSelectedLongitude] = useState<number>(userLocation?.longitude || 0);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -76,6 +79,17 @@ export default function CheckoutAddress() {
                   id: homeAddr._id,
                 });
               }
+            } else if (!editAddress && userLocation) {
+              // If no saved address and not editing, pre-fill from global location context
+              setAddress(prev => ({
+                ...prev,
+                street: userLocation.address || '',
+                city: userLocation.city || prev.city,
+                state: userLocation.state || prev.state,
+                pincode: userLocation.pincode || prev.pincode,
+              }));
+              setSelectedLatitude(userLocation.latitude);
+              setSelectedLongitude(userLocation.longitude);
             }
           }
         } catch (error) {
@@ -190,7 +204,7 @@ export default function CheckoutAddress() {
   const handleSaveAddress = async () => {
     if (!isAuthenticated) {
       showToast('Please login to save your address', 'info');
-      navigate('/login', { state: { from: location.pathname } });
+      navigate('/login', { state: { from: routerLocation.pathname } });
       return;
     }
 
@@ -201,11 +215,12 @@ export default function CheckoutAddress() {
     setIsSaving(true);
 
     try {
-      let finalLat = selectedLatitude || 0;
-      let finalLng = selectedLongitude || 0;
+      let finalLat = 0;
+      let finalLng = 0;
 
-      // Try to geocode if map wasn't used but we have text address
-      if (isLoaded && (!finalLat || !finalLng)) {
+      // Always geocode from the address text to ensure coordinates match the actual address
+      // This prevents mismatched coordinates (e.g. address says "Indore" but coords point to "Udaipur")
+      if (isLoaded) {
         const fullAddress = `${address.flat}, ${address.street}, ${address.city}, ${address.state}, ${address.pincode}`;
         try {
           const geocoder = new google.maps.Geocoder();
@@ -225,8 +240,15 @@ export default function CheckoutAddress() {
             console.log("Geocoded address to:", finalLat, finalLng);
           }
         } catch (e) {
-          console.warn("Geocoding failed, proceeding with 0,0", e);
+          console.warn("Geocoding failed, falling back to map-selected or existing coordinates", e);
+          // Fallback to map-selected coordinates if geocoding fails
+          finalLat = selectedLatitude || 0;
+          finalLng = selectedLongitude || 0;
         }
+      } else {
+        // Google Maps not loaded, use map-selected coordinates
+        finalLat = selectedLatitude || 0;
+        finalLng = selectedLongitude || 0;
       }
 
       const payload = {

@@ -73,7 +73,7 @@ export async function findDeliveryBoysNearLocation(
         const deliveryBoysWithLocation = await Delivery.find({
             isOnline: true,
             status: 'Active',
-            location: {
+            'location.coordinates': {
                 $near: {
                     $geometry: {
                         type: "Point",
@@ -192,8 +192,12 @@ export async function findDeliveryBoysNearSellerLocations(
         // Get unique seller IDs from order items
         const sellerIds = [...new Set(
             order.items
-                ?.map((item: any) => item.seller?.toString())
-                .filter((id: string) => id) || []
+                ?.map((item: any) => {
+                    const seller = item.seller;
+                    if (!seller) return null;
+                    return (seller._id || seller).toString();
+                })
+                .filter((id: string | null) => id) || []
         )];
 
         if (sellerIds.length === 0) {
@@ -218,18 +222,20 @@ export async function findDeliveryBoysNearSellerLocations(
             let lat: number | null = null;
             let lng: number | null = null;
 
-            // Prioritize GeoJSON location field
-            if (seller.location && seller.location.coordinates) {
+            // Prioritize GeoJSON location field and its coordinates
+            if (seller.location && seller.location.coordinates && seller.location.coordinates.length === 2) {
                 lng = seller.location.coordinates[0];
                 lat = seller.location.coordinates[1];
-            } else {
-                // Fallback to legacy fields
-                lat = seller.latitude ? parseFloat(seller.latitude) : null;
-                lng = seller.longitude ? parseFloat(seller.longitude) : null;
+            }
+
+            // Fallback to location fields (could be in nested location or legacy top-level)
+            if (!lat || !lng) {
+                lat = seller.location?.latitude || (seller.latitude ? parseFloat(seller.latitude) : null);
+                lng = seller.location?.longitude || (seller.longitude ? parseFloat(seller.longitude) : null);
             }
 
             if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-                console.log(`Seller ${seller.storeName} has no valid location, skipping`);
+                console.log(`Seller ${seller.storeName} (${seller._id}) has no valid location, skipping`);
                 continue;
             }
 

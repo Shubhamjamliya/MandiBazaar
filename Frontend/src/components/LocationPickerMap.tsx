@@ -46,8 +46,15 @@ export default function LocationPickerMap({
 
   // Track the last panned coordinates to avoid loops
   const lastPannedRef = useRef({ lat: 0, lng: 0 });
+  const isUserDraggingRef = useRef(false);
 
-  // Update center when props change from outside
+  // Stable ref for onLocationSelect to avoid stale closures
+  const onLocationSelectRef = useRef(onLocationSelect);
+  useEffect(() => {
+    onLocationSelectRef.current = onLocationSelect;
+  }, [onLocationSelect]);
+
+  // Update center when props change from outside (e.g., autocomplete selection)
   useEffect(() => {
     if (typeof initialLat === 'number' && typeof initialLng === 'number' && !isNaN(initialLat) && !isNaN(initialLng)) {
       const newCenter = { lat: initialLat, lng: initialLng };
@@ -86,16 +93,23 @@ export default function LocationPickerMap({
     setMap(null);
   }, []);
 
+  const onDragStart = () => {
+    isUserDraggingRef.current = true;
+  };
+
   const onIdle = useCallback(() => {
-    if (map) {
+    // Only update if the user was actually dragging the map
+    if (map && isUserDraggingRef.current) {
       const newCenter = map.getCenter();
       if (newCenter) {
         const lat = parseFloat(newCenter.lat().toFixed(6));
         const lng = parseFloat(newCenter.lng().toFixed(6));
-        onLocationSelect(lat, lng);
+        onLocationSelectRef.current(lat, lng);
+        lastPannedRef.current = { lat, lng };
       }
+      isUserDraggingRef.current = false;
     }
-  }, [map, onLocationSelect]);
+  }, [map]);
 
   if (!isLoaded) {
     return (
@@ -118,6 +132,7 @@ export default function LocationPickerMap({
         zoom={17}
         onLoad={onLoad}
         onUnmount={onUnmount}
+        onDragStart={onDragStart}
         onIdle={onIdle}
         options={mapOptions}
       >
@@ -139,3 +154,4 @@ export default function LocationPickerMap({
     </div>
   );
 }
+

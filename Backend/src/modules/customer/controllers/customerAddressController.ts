@@ -38,6 +38,9 @@ export const addAddress = async (req: Request, res: Response) => {
             existingAddress.city = city;
             existingAddress.state = state;
             existingAddress.pincode = pincode;
+            existingAddress.landmark = landmark || existingAddress.landmark;
+            existingAddress.latitude = latitude ?? existingAddress.latitude;
+            existingAddress.longitude = longitude ?? existingAddress.longitude;
             existingAddress.isDefault = isDefault || false;
 
             await existingAddress.save();
@@ -107,17 +110,17 @@ export const updateAddress = async (req: Request, res: Response) => {
 
         const finalName = fullName || name;
 
-        let updateData: any = {
-            fullName: finalName,
-            phone,
-            city,
-            state,
-            pincode,
-            landmark,
-            latitude,
-            longitude,
-            type,
-        };
+        // Only include fields that are actually provided in the request to avoid overwriting with undefined
+        let updateData: any = {};
+        if (finalName !== undefined) updateData.fullName = finalName;
+        if (phone !== undefined) updateData.phone = phone;
+        if (city !== undefined) updateData.city = city;
+        if (state !== undefined) updateData.state = state;
+        if (pincode !== undefined) updateData.pincode = pincode;
+        if (landmark !== undefined) updateData.landmark = landmark;
+        if (latitude !== undefined) updateData.latitude = latitude;
+        if (longitude !== undefined) updateData.longitude = longitude;
+        if (type !== undefined) updateData.type = type;
 
         if (flat && street) {
             updateData.address = `${flat}, ${street}`;

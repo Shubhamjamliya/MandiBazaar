@@ -76,11 +76,11 @@ export const getOrderDetails = async (id: string) => {
   }
 };
 
-export const updateOrderStatus = async (id: string, status: string) => {
+export const updateOrderStatus = async (id: string, status: string, collectionMethod?: 'cash' | 'online_scanner') => {
   try {
-    const response = await api.put(`${BASE_URL}/orders/${id}/status`, {
-      status,
-    });
+    const body: any = { status };
+    if (collectionMethod) body.collectionMethod = collectionMethod;
+    const response = await api.put(`${BASE_URL}/orders/${id}/status`, body);
     return response.data;
   } catch (error) {
     throw handleApiError(error);
@@ -107,11 +107,13 @@ export const sendDeliveryOtp = async (id: string) => {
   }
 };
 
-export const verifyDeliveryOtp = async (id: string, otp: string) => {
+export const verifyDeliveryOtp = async (id: string, otp: string, collectionMethod?: 'cash' | 'online_scanner') => {
   try {
+    const body: any = { otp };
+    if (collectionMethod) body.collectionMethod = collectionMethod;
     const response = await api.post(
       `${BASE_URL}/orders/${id}/verify-delivery-otp`,
-      { otp },
+      body,
     );
     return response.data;
   } catch (error) {

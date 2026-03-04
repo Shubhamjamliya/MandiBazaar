@@ -39,13 +39,7 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
       walletAmount: customer.walletAmount,
       totalOrders: customer.totalOrders,
       totalSpent: customer.totalSpent,
-      latitude: customer.location?.latitude,
-      longitude: customer.location?.longitude,
-      address: customer.location?.address,
-      city: customer.location?.city,
-      state: customer.location?.state,
-      pincode: customer.location?.pincode,
-      locationUpdatedAt: customer.location?.updatedAt,
+      location: customer.location,
     },
   });
 });
@@ -115,12 +109,7 @@ export const updateProfile = asyncHandler(
         walletAmount: customer.walletAmount,
         totalOrders: customer.totalOrders,
         totalSpent: customer.totalSpent,
-        latitude: customer.location?.latitude,
-        longitude: customer.location?.longitude,
-        address: customer.location?.address,
-        city: customer.location?.city,
-        state: customer.location?.state,
-        pincode: customer.location?.pincode,
+        location: customer.location,
         notificationPreferences: customer.notificationPreferences,
         accountPrivacy: customer.accountPrivacy,
         donationStats: customer.donationStats,
@@ -161,32 +150,48 @@ export const updateLocation = asyncHandler(
       });
     }
 
-    // Update location field nested object
-    customer.location = {
-      latitude,
-      longitude,
-      address,
-      city,
-      state,
-      pincode,
-      type: 'Point',
-      coordinates: [longitude, latitude], // MongoDB expects [lng, lat] for 2dsphere
-      updatedAt: new Date(),
-    };
+    // Update location field nested object and unset legacy top-level fields
+    const updatedCustomer = await Customer.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          location: {
+            latitude,
+            longitude,
+            address,
+            city,
+            state,
+            pincode,
+            type: 'Point',
+            coordinates: [longitude, latitude], // MongoDB expects [lng, lat] for 2dsphere
+            updatedAt: new Date(),
+          }
+        },
+        $unset: {
+          address: 1,
+          city: 1,
+          state: 1,
+          pincode: 1,
+          latitude: 1,
+          longitude: 1,
+          locationUpdatedAt: 1
+        }
+      },
+      { new: true, runValidators: true }
+    );
 
-    await customer.save();
+    if (!updatedCustomer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found after update",
+      });
+    }
 
     return res.status(200).json({
       success: true,
       message: "Location updated successfully",
       data: {
-        latitude: customer.location.latitude,
-        longitude: customer.location.longitude,
-        address: customer.location.address,
-        city: customer.location.city,
-        state: customer.location.state,
-        pincode: customer.location.pincode,
-        locationUpdatedAt: customer.location.updatedAt,
+        location: updatedCustomer.location
       },
     });
   }
@@ -218,13 +223,7 @@ export const getLocation = asyncHandler(async (req: Request, res: Response) => {
     success: true,
     message: "Location retrieved successfully",
     data: {
-      latitude: customer.location.latitude,
-      longitude: customer.location.longitude,
-      address: customer.location.address,
-      city: customer.location.city,
-      state: customer.location.state,
-      pincode: customer.location.pincode,
-      locationUpdatedAt: customer.location.updatedAt,
+      location: customer.location,
     },
   });
 });

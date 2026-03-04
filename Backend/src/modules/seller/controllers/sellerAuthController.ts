@@ -92,8 +92,7 @@ export const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
         storeName: seller.storeName,
         status: seller.status,
         logo: seller.logo,
-        address: seller.address,
-        city: seller.city,
+        location: seller.location,
       },
     },
   });
@@ -204,8 +203,6 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     email,
     storeName,
     category,
-    address: address || req.body.searchLocation, // Keep sync for now
-    city,
     ...(serviceableArea && { serviceableArea }),
     location: locationObj, // Optimized location
     serviceRadiusKm,
@@ -240,8 +237,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
         email: seller.email,
         storeName: seller.storeName,
         status: seller.status,
-        address: seller.address,
-        city: seller.city,
+        location: seller.location,
       },
     },
   });
@@ -285,61 +281,77 @@ export const updateProfile = asyncHandler(
     ];
     restrictedFields.forEach((field) => delete updates[field]);
 
-    // Optimized Location update
-    if (updates.latitude || updates.longitude || updates.address || updates.city || updates.searchLocation) {
-      const currentSeller = await Seller.findById(sellerId);
-      const lat = updates.latitude ? parseFloat(updates.latitude) : (currentSeller?.location?.latitude || 0);
-      const lng = updates.longitude ? parseFloat(updates.longitude) : (currentSeller?.location?.longitude || 0);
+    // Build the atomic update object
+    const finalUpdate: any = {
+      $set: {},
+      $unset: {}
+    };
 
-      updates.location = {
-        address: updates.address || currentSeller?.location?.address || updates.searchLocation,
-        city: updates.city || currentSeller?.location?.city,
-        state: updates.state || currentSeller?.location?.state,
-        pincode: updates.pincode || currentSeller?.location?.pincode,
-        latitude: lat,
-        longitude: lng,
-        searchLocation: updates.searchLocation || updates.address || currentSeller?.location?.searchLocation,
+    // Filter out restricted fields and separate normal updates from location updates
+    const normalUpdates: any = {};
+    Object.keys(updates).forEach(key => {
+      if (!restrictedFields.includes(key) && key !== 'location' && key !== 'address' && key !== 'city' && key !== 'state' && key !== 'pincode' && key !== 'latitude' && key !== 'longitude' && key !== 'searchLocation') {
+        normalUpdates[key] = updates[key];
+      }
+    });
+
+    if (Object.keys(normalUpdates).length > 0) {
+      finalUpdate.$set = { ...normalUpdates };
+    }
+
+    // Handle Location Update (handle both flat and nested input)
+    const hasLocationInput = updates.location || updates.address || updates.city || updates.state || updates.pincode || updates.latitude || updates.longitude || updates.searchLocation;
+
+    if (hasLocationInput) {
+      const currentSeller = await Seller.findById(sellerId);
+      const locInput = updates.location || {};
+
+      const lat = updates.latitude || locInput.latitude || currentSeller?.location?.latitude || 0;
+      const lng = updates.longitude || locInput.longitude || currentSeller?.location?.longitude || 0;
+
+      finalUpdate.$set.location = {
+        address: updates.address || locInput.address || currentSeller?.location?.address || updates.searchLocation || locInput.searchLocation,
+        city: updates.city || locInput.city || currentSeller?.location?.city,
+        state: updates.state || locInput.state || currentSeller?.location?.state,
+        pincode: updates.pincode || locInput.pincode || currentSeller?.location?.pincode,
+        latitude: parseFloat(lat),
+        longitude: parseFloat(lng),
+        searchLocation: updates.searchLocation || locInput.searchLocation || updates.address || locInput.address || currentSeller?.location?.searchLocation,
         type: "Point" as const,
-        coordinates: [lng, lat],
+        coordinates: [parseFloat(lng), parseFloat(lat)],
         updatedAt: new Date()
       };
 
-      // Sync legacy top-level fields for backward compatibility if needed, 
-      // but consolidate real data in 'location'
-      updates.address = updates.location.address;
-      updates.city = updates.location.city;
-      updates.latitude = lat.toString();
-      updates.longitude = lng.toString();
+      // Always unset legacy top-level fields
+      finalUpdate.$unset = {
+        address: 1,
+        city: 1,
+        state: 1,
+        pincode: 1,
+        latitude: 1,
+        longitude: 1,
+        searchLocation: 1
+      };
     }
 
     // Handle serviceRadiusKm update
-    if (
-      updates.serviceRadiusKm !== undefined &&
-      updates.serviceRadiusKm !== null &&
-      updates.serviceRadiusKm !== ""
-    ) {
-      const radius =
-        typeof updates.serviceRadiusKm === "string"
-          ? parseFloat(updates.serviceRadiusKm)
-          : Number(updates.serviceRadiusKm);
-
+    if (updates.serviceRadiusKm !== undefined) {
+      const radius = parseFloat(updates.serviceRadiusKm);
       if (!isNaN(radius) && radius >= 0.1 && radius <= 100) {
-        updates.serviceRadiusKm = radius; // Ensure it's saved as a number
-      } else {
+        finalUpdate.$set.serviceRadiusKm = radius;
+      } else if (updates.serviceRadiusKm !== "" && updates.serviceRadiusKm !== null) {
         return res.status(400).json({
           success: false,
           message: "Service radius must be between 0.1 and 100 kilometers",
         });
       }
-    } else if (
-      updates.serviceRadiusKm === "" ||
-      updates.serviceRadiusKm === null
-    ) {
-      // If empty string or null is sent, remove it from updates to keep existing value
-      delete updates.serviceRadiusKm;
     }
 
-    const seller = await Seller.findByIdAndUpdate(sellerId, updates, {
+    // Remove empty operators to avoid Mongoose errors
+    if (Object.keys(finalUpdate.$set).length === 0) delete finalUpdate.$set;
+    if (Object.keys(finalUpdate.$unset).length === 0) delete finalUpdate.$unset;
+
+    const seller = await Seller.findByIdAndUpdate(sellerId, finalUpdate, {
       new: true,
       runValidators: true,
     }).select("-password");

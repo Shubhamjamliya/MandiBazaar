@@ -31,7 +31,7 @@ import RazorpayCheckout from '../../components/RazorpayCheckout';
 export default function Checkout() {
   const { cart, updateQuantity, clearCart, addToCart, removeFromCart, refreshCart, loading: cartLoading } = useCart();
   const { addOrder } = useOrders();
-  const { location: userLocation } = useLocationContext();
+  const { location: userLocation, isLocationLoading } = useLocationContext();
   const { showToast: showGlobalToast } = useToast();
   const { user, updateUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -79,6 +79,9 @@ export default function Checkout() {
   const [showRazorpayCheckout, setShowRazorpayCheckout] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
+  // Payment Method State
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'online' | 'cod'>('online');
+
 
   // Check if user has placeholder data (needs profile completion)
   const isPlaceholderUser = user?.name === 'User' || user?.email?.endsWith('@mandibazaar.temp');
@@ -95,9 +98,14 @@ export default function Checkout() {
   // Load addresses and coupons
   useEffect(() => {
     if (isAuthenticated) {
-      console.log('[Checkout] Component mounted, loading addresses and coupons');
+      // Data fetching logic moved to its own effect
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userLocation]);
+
+  // Track selected address for delivery fee updates
+  useEffect(() => {
+    // No logging needed
+  }, [selectedAddress]);
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -106,9 +114,66 @@ export default function Checkout() {
           getCoupons()
         ]);
 
-        if (addressResponse.success && Array.isArray(addressResponse.data) && addressResponse.data.length > 0) {
-          const defaultAddr = addressResponse.data.find((a: any) => a.isDefault) || addressResponse.data[0];
-          const mappedAddress: OrderAddress = {
+        const addresses = addressResponse.success && Array.isArray(addressResponse.data) ? addressResponse.data : [];
+
+        // Priority Selection Strategy:
+        // 1. If we have a current app location context, find if ANY saved address is near it (within 1km)
+        // 2. If a nearby saved address exists, use it (best of both worlds)
+        // 3. If NO nearby saved address exists, but we have a context location, use the CONTEXT location (User's current choice)
+        // 4. Only if no context location exists, fallback to the default/first saved address
+
+        let initialSelected: OrderAddress | null = null;
+        let nearbyAddress: any = null;
+
+        if (userLocation?.latitude && userLocation?.longitude) {
+          // Check for nearby saved addresses
+          let minDistance = Infinity;
+          addresses.forEach((addr: any) => {
+            if (addr.latitude && addr.longitude) {
+              const dist = Math.sqrt(
+                Math.pow(addr.latitude - userLocation.latitude, 2) +
+                Math.pow(addr.longitude - userLocation.longitude, 2)
+              );
+              if (dist < minDistance) {
+                minDistance = dist;
+                nearbyAddress = addr;
+              }
+            }
+          });
+
+          if (minDistance < 0.01) {
+            initialSelected = {
+              name: nearbyAddress.fullName,
+              phone: nearbyAddress.phone,
+              flat: '',
+              street: nearbyAddress.address,
+              city: nearbyAddress.city,
+              state: nearbyAddress.state,
+              pincode: nearbyAddress.pincode,
+              landmark: nearbyAddress.landmark || '',
+              latitude: nearbyAddress.latitude,
+              longitude: nearbyAddress.longitude,
+              id: nearbyAddress._id,
+              _id: nearbyAddress._id
+            };
+          } else {
+            initialSelected = {
+              name: user?.name || 'Current Location',
+              phone: user?.phone || '',
+              flat: '',
+              street: userLocation.address || 'Selected Location',
+              city: userLocation.city || 'Current City', // Use placeholder to pass legacy validation if needed
+              state: userLocation.state || '',
+              pincode: userLocation.pincode || '000000', // Use placeholder to pass legacy validation if needed
+              landmark: '',
+              latitude: userLocation.latitude,
+              longitude: userLocation.longitude
+            };
+          }
+        } else if (addresses.length > 0) {
+          // Fallback if no userLocation context: use default/first saved address
+          const defaultAddr = addresses.find((a: any) => a.isDefault) || addresses[0];
+          initialSelected = {
             name: defaultAddr.fullName,
             phone: defaultAddr.phone,
             flat: '',
@@ -122,8 +187,14 @@ export default function Checkout() {
             id: defaultAddr._id,
             _id: defaultAddr._id
           };
-          setSavedAddress(mappedAddress);
-          setSelectedAddress(mappedAddress);
+        }
+
+        if (initialSelected) {
+          setSelectedAddress(initialSelected);
+          // Also set savedAddress if it's a real DB entry (for 'Selected' indicator in UI)
+          if (initialSelected.id) {
+            setSavedAddress(initialSelected);
+          }
         }
 
         if (couponResponse.success) {
@@ -133,10 +204,10 @@ export default function Checkout() {
         console.error('Error loading checkout data:', error);
       }
     };
-    if (isAuthenticated) {
+    if (isAuthenticated && !isLocationLoading) {
       fetchInitialData();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isLocationLoading, userLocation?.latitude, userLocation?.longitude]);
 
   // Fetch similar products dynamically
   useEffect(() => {
@@ -234,7 +305,7 @@ export default function Checkout() {
     }, 0)
   };
 
-  console.log('[Checkout] Render state:', { cartLoading, itemCount: displayCart.itemCount, showOrderSuccess, isAuthenticated });
+  // Debug removed - was causing console spam
 
   const freeDeliveryThreshold = cart.freeDeliveryThreshold ?? appConfig.freeDeliveryThreshold;
   const amountNeededForFreeDelivery = Math.max(0, freeDeliveryThreshold - (displayCart.total || 0));
@@ -355,11 +426,9 @@ export default function Checkout() {
       return;
     }
 
-    // Validate required address fields
+    // Validate required address fields - now soft-validated to avoid blocking orders with coordinates
     if (!selectedAddress.city || !selectedAddress.pincode) {
-      console.error("Address is missing required fields (city or pincode)");
-      alert("Please ensure your address has city and pincode.");
-      return;
+      // Proceeding with coordinates
     }
 
     // Use user's current location as fallback if address doesn't have coordinates
@@ -372,6 +441,8 @@ export default function Checkout() {
       alert("Location is required for delivery. Please ensure your address has location data or enable location access.");
       return;
     }
+
+    // Final address setup
 
     // Create address object with location data (use fallback if needed)
     const addressWithLocation: OrderAddress = {
@@ -393,23 +464,30 @@ export default function Checkout() {
       },
       totalAmount: grandTotal,
       address: addressWithLocation,
-      status: 'Pending', // Changed from 'Placed' to 'Pending' until payment is complete
+      status: 'Pending',
       createdAt: new Date().toISOString(),
       tipAmount: finalTipAmount,
       gstin: gstin || undefined,
       couponCode: selectedCoupon?.code || undefined,
       giftPackaging: giftPackaging,
+      paymentMethod: selectedPaymentMethod === 'cod' ? 'COD' : 'Online',
     };
 
     try {
       // Create the order first (with Pending status)
       const placedId = await addOrder(order);
       if (placedId) {
-        // Set the pending order ID and trigger Razorpay payment
-        setPendingOrderId(placedId);
-        setShowRazorpayCheckout(true);
-        // Note: Cart will be cleared and success shown only after successful payment
-        // See the RazorpayCheckout onSuccess handler (lines 1840-1846)
+        if (selectedPaymentMethod === 'cod') {
+          // COD: skip payment gateway, go directly to success
+          setPlacedOrderId(placedId);
+          clearCart();
+          setShowOrderSuccess(true);
+          showGlobalToast('Order placed successfully! Pay on delivery.', 'success');
+        } else {
+          // Online: trigger Razorpay payment
+          setPendingOrderId(placedId);
+          setShowRazorpayCheckout(true);
+        }
       }
     } catch (error: any) {
       console.error("Order placement failed", error);
@@ -794,104 +872,126 @@ export default function Checkout() {
         </div>
       </div>
 
-      {/* Ordering for someone else */}
-      <div className="px-4 md:px-6 lg:px-8 py-2 md:py-3 bg-neutral-50 border-b border-neutral-200">
+      {/* Ordering mode toggle */}
+      <div className="px-4 md:px-6 lg:px-8 py-2.5 md:py-3 bg-neutral-50 border-b border-neutral-200">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-neutral-700">Ordering for someone else?</span>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-neutral-200 flex items-center justify-center">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            </div>
+            <span className="text-xs text-neutral-700">Ordering for <span className="font-bold text-neutral-900">{selectedAddress?.name || 'Myself'}</span></span>
+          </div>
           <button
             onClick={() => navigate('/checkout/address', {
               state: {
-                editAddress: savedAddress
+                editAddress: selectedAddress
               }
             })}
-            className="text-xs text-green-600 font-medium hover:text-green-700 transition-colors"
+            className="text-xs text-green-600 font-bold px-2 py-1 rounded hover:bg-green-100 transition-colors"
           >
-            Add details
+            {selectedAddress?.id ? 'Change' : 'Add Details'}
           </button>
         </div>
       </div>
 
-      {/* Saved Address Section */}
-      {savedAddress && (
-        <div className="px-4 md:px-6 lg:px-8 py-2 md:py-3 border-b border-neutral-200">
-          <div className="mb-2">
-            <h3 className="text-xs font-semibold text-neutral-900 mb-0.5">Delivery Address</h3>
-            <p className="text-[10px] text-neutral-600">Select or edit your saved address</p>
+      {/* Delivery Address Section */}
+      <div className="px-4 md:px-6 lg:px-8 py-4 border-b border-neutral-200 bg-white">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-bold text-neutral-900">Delivery Address</h3>
+            <p className="text-[11px] text-neutral-500">Your order will be delivered here</p>
           </div>
-
-          <div
-            className={`border rounded-lg p-2.5 cursor-pointer transition-all ${selectedAddress && !isMapSelected ? 'border-green-600 bg-green-50' : 'border-neutral-300 bg-white'
-              }`}
-            onClick={() => {
-              setSelectedAddress(savedAddress);
-              setIsMapSelected(false);
-            }}
+          <button
+            onClick={() => navigate('/checkout/address', {
+              state: {
+                editAddress: selectedAddress
+              }
+            })}
+            className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg border border-green-200 hover:bg-green-100 transition-colors"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${selectedAddress && !isMapSelected ? 'border-green-600 bg-green-600' : 'border-neutral-400'
-                    }`}>
-                    {selectedAddress && !isMapSelected && (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M20 6L9 17l-5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="text-xs font-semibold text-neutral-900">{savedAddress.name}</span>
+            {selectedAddress?.id ? 'Edit Address' : 'Complete Address'}
+          </button>
+        </div>
+
+        {selectedAddress ? (
+          <div
+            className="relative overflow-hidden rounded-xl border-2 border-green-500 bg-green-50/30 p-4 shadow-sm"
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-1 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="12" cy="10" r="3" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1 gap-2">
+                  <span className="text-sm font-bold text-neutral-900 truncate">
+                    {selectedAddress.name || 'Current Location'}
+                  </span>
+                  <button
+                    onClick={() => navigate('/checkout/address', {
+                      state: {
+                        editAddress: selectedAddress
+                      }
+                    })}
+                    className="text-[10px] font-bold text-blue-600 hover:underline uppercase tracking-tight flex-shrink-0"
+                  >
+                    Edit
+                  </button>
                 </div>
-                <p className="text-[10px] text-neutral-600 mb-0.5">{savedAddress.phone}</p>
-                <p className="text-[10px] text-neutral-600">
-                  {savedAddress.flat ? `${savedAddress.flat}, ` : ''}{savedAddress.street}
-                  {savedAddress.landmark ? <>, <span className="font-medium text-green-700">Near {savedAddress.landmark}</span></> : ''}
-                  , {savedAddress.city} - {savedAddress.pincode}
+                <div className="flex items-center gap-1.5 mb-2">
+                  {selectedAddress.id && (
+                    <span className="text-[9px] bg-green-600 text-white px-1 py-0.5 rounded font-bold uppercase tracking-wider">Saved</span>
+                  )}
+                </div>
+                <p className="text-[11px] text-neutral-600 mb-2 font-medium">
+                  {selectedAddress.phone || user?.phone || 'No phone added'}
+                </p>
+                <p className="text-xs text-neutral-700 leading-relaxed font-medium">
+                  {selectedAddress.flat ? <span className="text-neutral-900 font-bold">{selectedAddress.flat}, </span> : ''}
+                  {selectedAddress.street}
+                  {selectedAddress.landmark ? <span className="block mt-0.5"><span className="text-green-700 font-bold">Near:</span> {selectedAddress.landmark}</span> : ''}
+                </p>
+                <p className="text-xs text-neutral-500 mt-1">
+                  {selectedAddress.city} {selectedAddress.pincode ? `- ${selectedAddress.pincode}` : ''}
                 </p>
               </div>
+            </div>
+
+            {/* Set Location on Map Button - Integrated into card */}
+            <div className="mt-4 pt-3 border-t border-green-200/50">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate('/checkout/address', {
-                    state: {
-                      editAddress: savedAddress
-                    }
+                onClick={() => {
+                  setMapLocation({
+                    lat: userLocation?.latitude || selectedAddress?.latitude || 0,
+                    lng: userLocation?.longitude || selectedAddress?.longitude || 0
                   });
+                  setShowMapPicker(true);
                 }}
-                className="text-xs text-green-600 font-medium ml-2"
+                className="w-full py-2.5 bg-white border border-green-300 text-green-700 rounded-lg text-xs font-bold hover:bg-green-50 transition-colors flex items-center justify-center gap-2"
               >
-                Edit
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M3 12h3m12 0h3M12 3v3m0 12v3" />
+                </svg>
+                {isMapSelected ? 'Precision Pin Set' : 'Refine Exact Location on Map'}
               </button>
             </div>
           </div>
-          {/* Set Location on Map Button */}
-          <div className="mt-2.5">
-            <button
-              onClick={() => {
-                // Prioritize current GPS location (matches homepage header), then saved address
-                setMapLocation({
-                  lat: userLocation?.latitude || selectedAddress?.latitude || 0,
-                  lng: userLocation?.longitude || selectedAddress?.longitude || 0
-                });
-                setShowMapPicker(true);
-              }}
-
-              className={`flex items-center gap-3 text-base font-bold px-5 py-4 rounded-xl w-full justify-center transition-colors ${isMapSelected
-                ? 'text-green-700 bg-green-100 border-2 border-green-500 ring-2 ring-green-600'
-                : 'text-green-600 hover:text-green-700 bg-green-50 border-2 border-green-300 hover:bg-green-100 hover:border-green-400'
-                }`}
-            >
-              {isMapSelected ? (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              ) : (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
-              {isMapSelected ? 'Precise Location Selected' : (selectedAddress?.latitude ? 'Update Precise Location on Map' : 'Set Exact Location on Map')}
-            </button>
+        ) : (
+          <div
+            onClick={() => navigate('/checkout/address')}
+            className="border-2 border-dashed border-neutral-300 rounded-xl p-8 flex flex-col items-center justify-center gap-2 bg-neutral-50 hover:bg-white hover:border-green-400 transition-all cursor-pointer"
+          >
+            <div className="w-12 h-12 rounded-full bg-neutral-200 flex items-center justify-center text-neutral-500">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            </div>
+            <p className="text-sm font-bold text-neutral-600">No delivery address selected</p>
+            <p className="text-xs text-neutral-400">Click to add or select an address</p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Main Product Card */}
       <div className="px-4 md:px-6 lg:px-8 py-2 md:py-3 bg-white border-b border-neutral-200">
@@ -1541,6 +1641,57 @@ export default function Checkout() {
             <span className="text-xs font-semibold text-green-600">₹30</span>
           )}
         </button>
+      </div>
+
+      {/* Payment Method Selector */}
+      <div className="px-4 py-3 border-b border-neutral-200">
+        <h3 className="text-sm font-bold text-neutral-900 mb-2">Payment Method</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSelectedPaymentMethod('online')}
+            className={`flex-1 flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${selectedPaymentMethod === 'online'
+              ? 'border-green-600 bg-green-50 shadow-sm'
+              : 'border-neutral-200 bg-white hover:border-neutral-300'
+              }`}
+          >
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedPaymentMethod === 'online'
+              ? 'border-green-600'
+              : 'border-neutral-300'
+              }`}>
+              {selectedPaymentMethod === 'online' && (
+                <div className="w-3 h-3 rounded-full bg-green-600" />
+              )}
+            </div>
+            <div className="text-left">
+              <p className={`text-xs font-semibold ${selectedPaymentMethod === 'online' ? 'text-green-700' : 'text-neutral-900'}`}>
+                💳 Pay Online
+              </p>
+              <p className="text-[10px] text-neutral-500">UPI, Cards, Net Banking</p>
+            </div>
+          </button>
+          <button
+            onClick={() => setSelectedPaymentMethod('cod')}
+            className={`flex-1 flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${selectedPaymentMethod === 'cod'
+              ? 'border-green-600 bg-green-50 shadow-sm'
+              : 'border-neutral-200 bg-white hover:border-neutral-300'
+              }`}
+          >
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedPaymentMethod === 'cod'
+              ? 'border-green-600'
+              : 'border-neutral-300'
+              }`}>
+              {selectedPaymentMethod === 'cod' && (
+                <div className="w-3 h-3 rounded-full bg-green-600" />
+              )}
+            </div>
+            <div className="text-left">
+              <p className={`text-xs font-semibold ${selectedPaymentMethod === 'cod' ? 'text-green-700' : 'text-neutral-900'}`}>
+                💵 Cash on Delivery
+              </p>
+              <p className="text-[10px] text-neutral-500">Pay when delivered</p>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Cancellation Policy */}

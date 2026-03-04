@@ -112,6 +112,10 @@ export default function DeliveryOrderDetail() {
     const [customerProximity, setCustomerProximity] = useState<{ withinRange: boolean; distance: number } | null>(null);
     const [getOtpEnabled, setGetOtpEnabled] = useState(false);
 
+    // COD Payment Collection Modal
+    const [showPaymentCollectionModal, setShowPaymentCollectionModal] = useState(false);
+    const [paymentCollectionLoading, setPaymentCollectionLoading] = useState(false);
+
     const fetchOrder = async () => {
         if (!id) return;
         try {
@@ -170,22 +174,60 @@ export default function DeliveryOrderDetail() {
         }
     };
 
-    const handleVerifyOtp = async () => {
+    const handleVerifyOtp = async (collectionMethod?: 'cash' | 'online_scanner') => {
         if (!id || !otpValue) {
             alert('Please enter OTP');
             return;
         }
+
+        // If this is a COD order and no collection method provided, show the modal
+        if (order?.paymentMethod === 'COD' && !collectionMethod) {
+            // First verify OTP silently, then show collection modal
+            try {
+                setOtpVerifying(true);
+                // Verify OTP without collectionMethod first
+                const result = await verifyDeliveryOtp(id, otpValue);
+                // OTP verified, now show payment collection modal
+                setShowPaymentCollectionModal(true);
+                setOtpVerifying(false);
+            } catch (err: any) {
+                alert(err.message || 'Failed to verify OTP');
+                setOtpVerifying(false);
+            }
+            return;
+        }
+
         try {
             setOtpVerifying(true);
-            const result = await verifyDeliveryOtp(id, otpValue);
+            const result = await verifyDeliveryOtp(id, otpValue, collectionMethod);
             alert(result.message || 'OTP verified successfully. Order marked as delivered.');
-            await fetchOrder(); // Refresh order data
+            await fetchOrder();
             setShowOtpInput(false);
             setOtpValue('');
+            setShowPaymentCollectionModal(false);
         } catch (err: any) {
             alert(err.message || 'Failed to verify OTP');
         } finally {
             setOtpVerifying(false);
+        }
+    };
+
+    // Handle COD payment collection after OTP verification
+    const handlePaymentCollection = async (method: 'cash' | 'online_scanner') => {
+        if (!id) return;
+        setPaymentCollectionLoading(true);
+        try {
+            // Update order with the collection method
+            await updateOrderStatus(id, 'Delivered', method);
+            alert(method === 'cash' ? 'Cash collected successfully!' : 'Online payment confirmed!');
+            setShowPaymentCollectionModal(false);
+            setShowOtpInput(false);
+            setOtpValue('');
+            await fetchOrder();
+        } catch (err: any) {
+            alert(err.message || 'Failed to update payment status');
+        } finally {
+            setPaymentCollectionLoading(false);
         }
     };
 
@@ -554,7 +596,15 @@ export default function DeliveryOrderDetail() {
                 </button>
                 <span className="ml-2 font-semibold text-lg text-neutral-800">Order Details</span>
 
-                <div className="ml-auto">
+                <div className="ml-auto flex items-center gap-2">
+                    {order.paymentMethod && (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${order.paymentMethod === 'COD'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-blue-100 text-blue-700'
+                            }`}>
+                            {order.paymentMethod === 'COD' ? '💵 COD' : '💳 Online'}
+                        </span>
+                    )}
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' :
                         order.status === 'Picked up' ? 'bg-indigo-100 text-indigo-700' :
                             order.status === 'Ready for pickup' ? 'bg-yellow-100 text-yellow-700' :
@@ -662,7 +712,7 @@ export default function DeliveryOrderDetail() {
                                                 <p className="text-sm text-neutral-600">{seller.address}, {seller.city}</p>
                                                 {distance !== undefined && (
                                                     <p className={`text-xs mt-1 font-medium ${withinRange ? 'text-green-600' :
-                                                            distance < 1000 ? 'text-yellow-600' : 'text-red-600'
+                                                        distance < 1000 ? 'text-yellow-600' : 'text-red-600'
                                                         }`}>
                                                         {distance < 1000 ? `${distance}m away` : `${(distance / 1000).toFixed(1)}km away`}
                                                     </p>
@@ -675,8 +725,8 @@ export default function DeliveryOrderDetail() {
                                                 onClick={() => handleSellerPickup(seller.sellerId)}
                                                 disabled={!withinRange || isLoading}
                                                 className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all ${withinRange && !isLoading
-                                                        ? 'bg-green-600 text-white hover:bg-green-700 active:scale-[0.98]'
-                                                        : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                                                    ? 'bg-green-600 text-white hover:bg-green-700 active:scale-[0.98]'
+                                                    : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
                                                     }`}
                                             >
                                                 {isLoading ? 'Confirming...' : withinRange ? 'Confirm Pickup' : 'Move within 500m to pickup'}
@@ -846,7 +896,7 @@ export default function DeliveryOrderDetail() {
                         {/* Distance indicator */}
                         {customerProximity && (
                             <p className={`text-xs mb-2 font-medium ${customerProximity.withinRange ? 'text-green-600' :
-                                    customerProximity.distance < 1000 ? 'text-yellow-600' : 'text-red-600'
+                                customerProximity.distance < 1000 ? 'text-yellow-600' : 'text-red-600'
                                 }`}>
                                 {customerProximity.distance < 1000
                                     ? `${customerProximity.distance}m from customer`
@@ -872,8 +922,8 @@ export default function DeliveryOrderDetail() {
                                     onClick={handleSendOtp}
                                     disabled={!getOtpEnabled || otpSending}
                                     className={`flex-1 py-3 rounded-xl font-semibold transition-all ${getOtpEnabled && !otpSending
-                                            ? 'bg-green-600 text-white hover:bg-green-700 active:scale-[0.98]'
-                                            : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                                        ? 'bg-green-600 text-white hover:bg-green-700 active:scale-[0.98]'
+                                        : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
                                         }`}
                                 >
                                     {otpSending ? 'Sending...' : getOtpEnabled ? 'Get OTP' : 'Move within 500m to get OTP'}
@@ -920,6 +970,46 @@ export default function DeliveryOrderDetail() {
                         </div>}
                         <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent pointer-events-none"></div>
                     </button>
+                </div>
+            )}
+
+            {/* COD Payment Collection Modal */}
+            {showPaymentCollectionModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center">
+                    <div className="bg-white rounded-t-3xl w-full max-w-lg p-6 pb-10 animate-slide-up">
+                        <div className="w-12 h-1 bg-neutral-300 rounded-full mx-auto mb-5" />
+                        <h3 className="text-lg font-bold text-neutral-900 text-center mb-1">Collect Payment</h3>
+                        <p className="text-sm text-neutral-500 text-center mb-2">Order Total: <span className="font-bold text-neutral-900">₹{order?.totalAmount?.toFixed(2)}</span></p>
+                        <p className="text-xs text-neutral-400 text-center mb-6">How did the customer pay?</p>
+
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => handlePaymentCollection('cash')}
+                                disabled={paymentCollectionLoading}
+                                className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-500 to-green-600 text-white font-bold text-base shadow-lg hover:from-green-600 hover:to-green-700 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                            >
+                                <span className="text-xl">💵</span>
+                                {paymentCollectionLoading ? 'Processing...' : 'Cash Collected'}
+                            </button>
+
+                            <button
+                                onClick={() => handlePaymentCollection('online_scanner')}
+                                disabled={paymentCollectionLoading}
+                                className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-base shadow-lg hover:from-blue-600 hover:to-blue-700 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                            >
+                                <span className="text-xl">📱</span>
+                                {paymentCollectionLoading ? 'Processing...' : 'Online / Scanner'}
+                            </button>
+
+                            <button
+                                onClick={() => setShowPaymentCollectionModal(false)}
+                                disabled={paymentCollectionLoading}
+                                className="w-full py-3 rounded-xl bg-neutral-100 text-neutral-600 font-medium text-sm hover:bg-neutral-200 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

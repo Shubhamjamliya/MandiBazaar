@@ -21,35 +21,56 @@ export const updateProfile = asyncHandler(async (req: Request, res: Response) =>
         accountName
     } = req.body;
 
-    const delivery = await Delivery.findById(deliveryId);
+    // Build update object
+    const updateData: any = {
+        name: name || undefined,
+        email: email || undefined,
+        vehicleNumber: vehicleNumber || undefined,
+        vehicleType: vehicleType || undefined,
+        bankName: bankName || undefined,
+        accountNumber: accountNumber || undefined,
+        ifscCode: ifscCode || undefined,
+        accountName: accountName || undefined,
+    };
 
-    if (!delivery) {
+    // Remove undefined fields
+    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+
+    // Handle nested location update
+    if (address || city) {
+        const currentDelivery = await Delivery.findById(deliveryId);
+        updateData.location = {
+            ...currentDelivery?.location,
+            address: address || currentDelivery?.location?.address,
+            city: city || currentDelivery?.location?.city,
+            updatedAt: new Date()
+        };
+
+        // Unset legacy fields
+        updateData.$unset = {
+            address: 1,
+            city: 1,
+            pincode: 1
+        };
+    }
+
+    const updatedDelivery = await Delivery.findByIdAndUpdate(
+        deliveryId,
+        updateData,
+        { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!updatedDelivery) {
         return res.status(404).json({
             success: false,
             message: "Delivery partner not found"
         });
     }
 
-    // Update fields if provided
-    if (name) delivery.name = name;
-    if (email) delivery.email = email;
-    if (address) delivery.address = address;
-    if (city) delivery.city = city;
-    if (vehicleNumber) delivery.vehicleNumber = vehicleNumber;
-    if (vehicleType) delivery.vehicleType = vehicleType;
-
-    // Bank details updates
-    if (bankName) delivery.bankName = bankName;
-    if (accountNumber) delivery.accountNumber = accountNumber;
-    if (ifscCode) delivery.ifscCode = ifscCode;
-    if (accountName) delivery.accountName = accountName;
-
-    await delivery.save();
-
     return res.status(200).json({
         success: true,
         message: "Profile updated successfully",
-        data: delivery
+        data: updatedDelivery
     });
 });
 

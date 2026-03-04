@@ -106,60 +106,77 @@ export const updateSeller = asyncHandler(
     // Remove password from update data if present
     delete updateData.password;
 
-    // Optimized Location update
-    if (updateData.latitude || updateData.longitude || updateData.address || updateData.city || updateData.searchLocation) {
-      const currentSeller = await Seller.findById(id);
-      const lat = updateData.latitude ? parseFloat(updateData.latitude) : (currentSeller?.location?.latitude || 0);
-      const lng = updateData.longitude ? parseFloat(updateData.longitude) : (currentSeller?.location?.longitude || 0);
+    // Build the atomic update object
+    const finalUpdate: any = {
+      $set: {},
+      $unset: {}
+    };
 
-      updateData.location = {
-        address: updateData.address || currentSeller?.location?.address || updateData.searchLocation,
-        city: updateData.city || currentSeller?.location?.city,
-        state: updateData.state || currentSeller?.location?.state,
-        pincode: updateData.pincode || currentSeller?.location?.pincode,
-        latitude: lat,
-        longitude: lng,
-        searchLocation: updateData.searchLocation || updateData.address || currentSeller?.location?.searchLocation,
+    // Filter normal updates from location updates
+    const normalUpdates: any = {};
+    Object.keys(updateData).forEach(key => {
+      if (key !== 'location' && key !== 'address' && key !== 'city' && key !== 'state' && key !== 'pincode' && key !== 'latitude' && key !== 'longitude' && key !== 'searchLocation') {
+        normalUpdates[key] = updateData[key];
+      }
+    });
+
+    if (Object.keys(normalUpdates).length > 0) {
+      finalUpdate.$set = { ...normalUpdates };
+    }
+
+    // Handle Location Update (handle both flat and nested input)
+    const hasLocationInput = updateData.location || updateData.address || updateData.city || updateData.state || updateData.pincode || updateData.latitude || updateData.longitude || updateData.searchLocation;
+
+    if (hasLocationInput) {
+      const currentSeller = await Seller.findById(id);
+      const locInput = updateData.location || {};
+
+      const lat = updateData.latitude || locInput.latitude || currentSeller?.location?.latitude || 0;
+      const lng = updateData.longitude || locInput.longitude || currentSeller?.location?.longitude || 0;
+
+      finalUpdate.$set.location = {
+        address: updateData.address || locInput.address || currentSeller?.location?.address || updateData.searchLocation || locInput.searchLocation,
+        city: updateData.city || locInput.city || currentSeller?.location?.city,
+        state: updateData.state || locInput.state || currentSeller?.location?.state,
+        pincode: updateData.pincode || locInput.pincode || currentSeller?.location?.pincode,
+        latitude: parseFloat(lat),
+        longitude: parseFloat(lng),
+        searchLocation: updateData.searchLocation || locInput.searchLocation || updateData.address || locInput.address || currentSeller?.location?.searchLocation,
         type: "Point" as const,
-        coordinates: [lng, lat],
+        coordinates: [parseFloat(lng), parseFloat(lat)],
         updatedAt: new Date()
       };
 
-      // Sync legacy top-level fields for backward compatibility if needed
-      updateData.address = updateData.location.address;
-      updateData.city = updateData.location.city;
-      updateData.latitude = lat.toString();
-      updateData.longitude = lng.toString();
+      // Always unset legacy top-level fields
+      finalUpdate.$unset = {
+        address: 1,
+        city: 1,
+        state: 1,
+        pincode: 1,
+        latitude: 1,
+        longitude: 1,
+        searchLocation: 1
+      };
     }
 
     // Handle serviceRadiusKm update
-    if (
-      updateData.serviceRadiusKm !== undefined &&
-      updateData.serviceRadiusKm !== null &&
-      updateData.serviceRadiusKm !== ""
-    ) {
-      const radius =
-        typeof updateData.serviceRadiusKm === "string"
-          ? parseFloat(updateData.serviceRadiusKm)
-          : Number(updateData.serviceRadiusKm);
-
+    if (updateData.serviceRadiusKm !== undefined) {
+      const radius = parseFloat(updateData.serviceRadiusKm);
       if (!isNaN(radius) && radius >= 0.1 && radius <= 100) {
-        updateData.serviceRadiusKm = radius; // Ensure it's saved as a number
-      } else {
+        finalUpdate.$set.serviceRadiusKm = radius;
+      } else if (updateData.serviceRadiusKm !== "" && updateData.serviceRadiusKm !== null) {
         return res.status(400).json({
           success: false,
           message: "Service radius must be between 0.1 and 100 kilometers",
         });
       }
-    } else if (
-      updateData.serviceRadiusKm === "" ||
-      updateData.serviceRadiusKm === null
-    ) {
-      // If empty string or null is sent, remove it from updates to keep existing value
-      delete updateData.serviceRadiusKm;
     }
 
-    const seller = await Seller.findByIdAndUpdate(id, updateData, {
+    // Remove empty operators to avoid Mongoose errors
+    if (Object.keys(finalUpdate.$set).length === 0) delete finalUpdate.$set;
+    if (Object.keys(finalUpdate.$unset).length === 0) delete finalUpdate.$unset;
+
+    const seller = await Seller.findByIdAndUpdate(id, finalUpdate, {
       new: true,
       runValidators: true,
     }).select("-password");

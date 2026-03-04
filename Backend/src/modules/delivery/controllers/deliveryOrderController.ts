@@ -59,11 +59,12 @@ export const getAllOrdersHistory = asyncHandler(async (req: Request, res: Respon
         customerName: order.customerName,
         customerPhone: order.customerPhone,
         status: order.status,
-
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
         address: `${order.deliveryAddress.address}, ${order.deliveryAddress.city}`,
         deliveryAddress: order.deliveryAddress,
         totalAmount: order.total,
-        deliveryEarning: commissionMap.get(order._id.toString()) || 0, // Add Earning
+        deliveryEarning: commissionMap.get(order._id.toString()) || 0,
         items: mapOrderItems(order.items),
         createdAt: order.createdAt,
         estimatedDeliveryTime: order.estimatedDeliveryDate ? new Date(order.estimatedDeliveryDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'
@@ -108,14 +109,14 @@ export const getTodayOrders = asyncHandler(async (req: Request, res: Response) =
         customerName: order.customerName,
         customerPhone: order.customerPhone,
         status: order.status,
-
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
         address: `${order.deliveryAddress?.address || ''}, ${order.deliveryAddress?.city || ''}`,
         deliveryAddress: order.deliveryAddress,
-        items: mapOrderItems(order.items), // Real items
+        items: mapOrderItems(order.items),
         totalAmount: order.total,
         estimatedDeliveryTime: order.estimatedDeliveryDate ? new Date(order.estimatedDeliveryDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
         createdAt: order.createdAt,
-        // Distance calculation to be implemented. sending null/undefined for now to avoid fake data
         distance: null
     }));
 
@@ -145,8 +146,10 @@ export const getPendingOrders = asyncHandler(async (req: Request, res: Response)
         customerName: order.customerName,
         customerPhone: order.customerPhone,
         status: order.status,
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
         address: `${order.deliveryAddress?.address || ''}, ${order.deliveryAddress?.city || ''}`,
-        items: mapOrderItems(order.items), // Real items
+        items: mapOrderItems(order.items),
         totalAmount: order.total,
         estimatedDeliveryTime: order.estimatedDeliveryDate ? new Date(order.estimatedDeliveryDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
         createdAt: order.createdAt,
@@ -186,7 +189,9 @@ export const getOrderDetails = asyncHandler(async (req: Request, res: Response) 
         address: `${order.deliveryAddress?.address || ''}, ${order.deliveryAddress?.city || ''}`,
         deliveryAddress: order.deliveryAddress,
         status: order.status,
-        items: mapOrderItems(order.items), // Real populated items
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        items: mapOrderItems(order.items),
         totalAmount: order.total,
         createdAt: order.createdAt,
         distance: null,
@@ -227,13 +232,21 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
     } else if (status === 'Delivered') {
         order.deliveryBoyStatus = 'Delivered';
         order.deliveredAt = new Date();
-        order.paymentStatus = 'Paid'; // Assume paid on delivery (or already paid)
+        order.paymentStatus = 'Paid';
 
         // CASH COLLECTION LOGIC
         if (order.paymentMethod === 'COD') {
-            await Delivery.findByIdAndUpdate(deliveryId, {
-                $inc: { cashCollected: order.total }
-            });
+            const { collectionMethod } = req.body;
+            order.collectionMethod = collectionMethod || 'cash';
+            order.collectedBy = deliveryId;
+            order.collectedAt = new Date();
+
+            // Only increment cashCollected if payment was in cash
+            if (!collectionMethod || collectionMethod === 'cash') {
+                await Delivery.findByIdAndUpdate(deliveryId, {
+                    $inc: { cashCollected: order.total }
+                });
+            }
         }
 
         // COMMISSION DISTRIBUTION
@@ -308,6 +321,8 @@ export const getReturnOrders = asyncHandler(async (req: Request, res: Response) 
         customerName: order.customerName,
         customerPhone: order.customerPhone,
         status: order.status,
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
         address: `${order.deliveryAddress?.address || ''}, ${order.deliveryAddress?.city || ''}`,
         items: mapOrderItems(order.items),
         totalAmount: order.total,
@@ -345,18 +360,18 @@ export const getSellerLocationsForOrder = asyncHandler(async (req: Request, res:
 
     // Get seller details including locations
     const sellers = await Seller.find({ _id: { $in: sellerIds } })
-        .select('storeName address city latitude longitude');
+        .select('storeName location');
 
     // Format seller locations
     const sellerLocations = sellers
-        .filter(seller => seller.latitude && seller.longitude) // Only include sellers with location data
+        .filter(seller => seller.location?.latitude && seller.location?.longitude) // Only include sellers with location data
         .map(seller => ({
             sellerId: seller._id.toString(),
             storeName: seller.storeName,
-            address: seller.address,
-            city: seller.city,
-            latitude: parseFloat(seller.latitude || '0'),
-            longitude: parseFloat(seller.longitude || '0'),
+            address: seller.location?.address || '',
+            city: seller.location?.city || '',
+            latitude: seller.location?.latitude || 0,
+            longitude: seller.location?.longitude || 0,
         }));
 
     return res.status(200).json({
@@ -457,9 +472,19 @@ export const verifyDeliveryOtpController = asyncHandler(async (req: Request, res
         // Update delivery boy balance and cash collected (if COD)
         if (updatedOrder && updatedOrder.status === 'Delivered') {
             if (updatedOrder.paymentMethod === 'COD') {
-                await Delivery.findByIdAndUpdate(deliveryId, {
-                    $inc: { cashCollected: updatedOrder.total }
-                });
+                const { collectionMethod } = req.body;
+                // Save collection method on the order
+                updatedOrder.collectionMethod = collectionMethod || 'cash';
+                updatedOrder.collectedBy = deliveryId;
+                updatedOrder.collectedAt = new Date();
+                await updatedOrder.save();
+
+                // Only increment cashCollected if payment was in cash
+                if (!collectionMethod || collectionMethod === 'cash') {
+                    await Delivery.findByIdAndUpdate(deliveryId, {
+                        $inc: { cashCollected: updatedOrder.total }
+                    });
+                }
             }
 
             // COMMISSION DISTRIBUTION
@@ -529,8 +554,8 @@ export const checkSellerProximity = asyncHandler(async (req: Request, res: Respo
     }
 
     // Get seller location
-    const seller = await Seller.findById(sellerId).select('latitude longitude storeName');
-    if (!seller || !seller.latitude || !seller.longitude) {
+    const seller = await Seller.findById(sellerId).select('location storeName');
+    if (!seller || !seller.location?.latitude || !seller.location?.longitude) {
         return res.status(404).json({ success: false, message: "Seller location not found" });
     }
 
@@ -539,8 +564,8 @@ export const checkSellerProximity = asyncHandler(async (req: Request, res: Respo
     const distance = calculateDistance(
         latitude,
         longitude,
-        parseFloat(seller.latitude),
-        parseFloat(seller.longitude)
+        seller.location.latitude,
+        seller.location.longitude
     );
 
     const withinRange = distance <= 0.5; // 500m = 0.5km
@@ -579,8 +604,8 @@ export const confirmSellerPickup = asyncHandler(async (req: Request, res: Respon
     }
 
     // Verify proximity to seller
-    const seller = await Seller.findById(sellerId).select('latitude longitude storeName');
-    if (!seller || !seller.latitude || !seller.longitude) {
+    const seller = await Seller.findById(sellerId).select('location storeName');
+    if (!seller || !seller.location?.latitude || !seller.location?.longitude) {
         return res.status(404).json({ success: false, message: "Seller location not found" });
     }
 
@@ -588,8 +613,8 @@ export const confirmSellerPickup = asyncHandler(async (req: Request, res: Respon
     const distance = calculateDistance(
         latitude,
         longitude,
-        parseFloat(seller.latitude),
-        parseFloat(seller.longitude)
+        seller.location.latitude,
+        seller.location.longitude
     );
 
     if (distance > 0.5) { // 500m = 0.5km
