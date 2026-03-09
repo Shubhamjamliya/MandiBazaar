@@ -568,7 +568,8 @@ export const checkSellerProximity = asyncHandler(async (req: Request, res: Respo
         seller.location.longitude
     );
 
-    const withinRange = distance <= 0.5; // 500m = 0.5km
+    const isDevelopment = process.env.MODE === 'development' || process.env.NODE_ENV === 'development';
+    const withinRange = isDevelopment ? true : (distance <= 0.5); // 500m = 0.5km
 
     return res.status(200).json({
         success: true,
@@ -617,7 +618,8 @@ export const confirmSellerPickup = asyncHandler(async (req: Request, res: Respon
         seller.location.longitude
     );
 
-    if (distance > 0.5) { // 500m = 0.5km
+    const isDevelopment = process.env.MODE === 'development' || process.env.NODE_ENV === 'development';
+    if (!isDevelopment && distance > 0.5) { // 500m = 0.5km
         return res.status(400).json({
             success: false,
             message: `You must be within 500 meters of the seller to confirm pickup. Current distance: ${Math.round(distance * 1000)}m`
@@ -756,7 +758,8 @@ export const checkCustomerProximity = asyncHandler(async (req: Request, res: Res
         customerLng
     );
 
-    const withinRange = distance <= 0.5; // 500m = 0.5km
+    const isDevelopment = process.env.MODE === 'development' || process.env.NODE_ENV === 'development';
+    const withinRange = isDevelopment ? true : (distance <= 0.5); // 500m = 0.5km
 
     return res.status(200).json({
         success: true,

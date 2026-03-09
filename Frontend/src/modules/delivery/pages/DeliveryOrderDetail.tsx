@@ -93,6 +93,7 @@ export default function DeliveryOrderDetail() {
     const [order, setOrder] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const isDevelopment = import.meta.env.MODE === 'development';
     const [sellerLocations, setSellerLocations] = useState<any[]>([]);
     const [showOtpInput, setShowOtpInput] = useState(false);
     const [otpValue, setOtpValue] = useState('');
@@ -723,13 +724,13 @@ export default function DeliveryOrderDetail() {
                                         {!isPickedUp && (
                                             <button
                                                 onClick={() => handleSellerPickup(seller.sellerId)}
-                                                disabled={!withinRange || isLoading}
-                                                className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all ${withinRange && !isLoading
+                                                disabled={isLoading || (!withinRange && !isDevelopment)}
+                                                className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all ${((withinRange || isDevelopment) && !isLoading)
                                                     ? 'bg-green-600 text-white hover:bg-green-700 active:scale-[0.98]'
                                                     : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
                                                     }`}
                                             >
-                                                {isLoading ? 'Confirming...' : withinRange ? 'Confirm Pickup' : 'Move within 500m to pickup'}
+                                                {isLoading ? 'Confirming...' : (withinRange || isDevelopment) ? 'Confirm Pickup' : 'Move within 500m to pickup'}
                                             </button>
                                         )}
                                     </div>
@@ -920,13 +921,13 @@ export default function DeliveryOrderDetail() {
                             {!showOtpInput ? (
                                 <button
                                     onClick={handleSendOtp}
-                                    disabled={!getOtpEnabled || otpSending}
-                                    className={`flex-1 py-3 rounded-xl font-semibold transition-all ${getOtpEnabled && !otpSending
+                                    disabled={otpSending || (!getOtpEnabled && !isDevelopment)}
+                                    className={`flex-1 py-3 rounded-xl font-semibold transition-all ${((getOtpEnabled || isDevelopment) && !otpSending)
                                         ? 'bg-green-600 text-white hover:bg-green-700 active:scale-[0.98]'
                                         : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
                                         }`}
                                 >
-                                    {otpSending ? 'Sending...' : getOtpEnabled ? 'Get OTP' : 'Move within 500m to get OTP'}
+                                    {otpSending ? 'Sending...' : (getOtpEnabled || isDevelopment) ? 'Get OTP' : 'Move within 500m to get OTP'}
                                 </button>
                             ) : (
                                 <>
