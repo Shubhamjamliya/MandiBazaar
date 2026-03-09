@@ -43,6 +43,7 @@ export interface IOrder extends Document {
   // Order Status
   status:
   | "Received"
+  | "Accepted"
   | "Pending"
   | "Processed"
   | "Shipped"

@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 import { OrderNotificationData } from '../services/api/delivery/deliveryOrderNotificationService';
 import { acceptOrder, rejectOrder } from '../services/api/delivery/deliveryOrderNotificationService';
-import { getSocketBaseURL } from '../services/api/config';
+import { getSocketBaseURL, getAuthToken } from '../services/api/config';
 
 interface NotificationState {
     currentNotification: OrderNotificationData | null;
@@ -39,7 +39,7 @@ export const useDeliveryOrderNotifications = () => {
             reconnectTimeoutRef.current = null;
         }
 
-        const token = localStorage.getItem('authToken');
+        const token = getAuthToken();
         const socket = io(getSocketBaseURL(), {
             auth: {
                 token,

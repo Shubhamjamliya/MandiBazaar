@@ -197,15 +197,13 @@ export const initializeSocket = (httpServer: HttpServer) => {
         });
 
         // Delivery boy joins notification room
-        socket.on('join-delivery-notifications', (deliveryBoyId: string) => {
+        socket.on('join-delivery-notifications', async (deliveryBoyId: string) => {
             // Normalize deliveryBoyId to string to ensure consistent room naming
             const normalizedDeliveryBoyId = String(deliveryBoyId).trim();
-            console.log(`🔔 Delivery boy ${normalizedDeliveryBoyId} joined notifications room`);
-
+            console.log(`🔌 Delivery boy ${normalizedDeliveryBoyId} joining notification rooms. Socket: ${socket.id}`);
             socket.join('delivery-notifications');
             socket.join(`delivery-${normalizedDeliveryBoyId}`);
-
-            console.log(`✅ Delivery boy ${normalizedDeliveryBoyId} joined rooms: delivery-notifications, delivery-${normalizedDeliveryBoyId}`);
+            console.log(`✅ Socket ${socket.id} joined rooms: delivery-notifications, delivery-${normalizedDeliveryBoyId}`);
 
             // Send confirmation that they joined successfully
             socket.emit('joined-notifications-room', {
@@ -213,6 +211,10 @@ export const initializeSocket = (httpServer: HttpServer) => {
                 message: 'Successfully joined delivery notifications room',
                 deliveryBoyId: normalizedDeliveryBoyId
             });
+
+            // --- ADDED: Send any pending notifications they missed while offline ---
+            const { sendPendingNotificationsToDeliveryBoy } = await import('../services/orderNotificationService');
+            await sendPendingNotificationsToDeliveryBoy(io, normalizedDeliveryBoyId);
         });
 
         // Handle order acceptance
