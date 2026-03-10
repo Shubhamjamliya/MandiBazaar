@@ -236,6 +236,8 @@ export default function AdminWallet() {
                                     <option value="">All Types</option>
                                     <option value="Credit">Credit</option>
                                     <option value="Debit">Debit</option>
+                                    <option value="Cash_Collected">Cash Collected</option>
+                                    <option value="Cash_Settlement">Cash Settlement</option>
                                 </select>
                             </div>
 
@@ -255,32 +257,67 @@ export default function AdminWallet() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {transactions.map((trx) => (
-                                                <tr key={trx._id} className="border-b border-gray-50 hover:bg-gray-50">
-                                                    <td className="py-3 px-4 text-sm text-gray-600">
-                                                        {new Date(trx.createdAt).toLocaleString()}
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-medium text-gray-900">{(trx as any).userName}</span>
-                                                            <span className="text-xs text-gray-500 capitalize">{trx.userType?.toLowerCase().replace('_', ' ')}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        <span className={`px-2 py-1 rounded text-xs font-medium ${trx.type === 'Credit' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                            {transactions.map((trx) => {
+                                                const getTypeStyles = (type: string) => {
+                                                    switch (type) {
+                                                        case 'Credit':
+                                                        case 'Cash_Settlement':
+                                                            return 'bg-green-100 text-green-700 border-green-200';
+                                                        case 'Debit':
+                                                            return 'bg-red-100 text-red-700 border-red-200';
+                                                        case 'Cash_Collected':
+                                                            return 'bg-orange-100 text-orange-700 border-orange-200';
+                                                        default:
+                                                            return 'bg-gray-100 text-gray-700 border-gray-200';
+                                                    }
+                                                };
+
+                                                const getLabel = (type: string) => {
+                                                    switch (type) {
+                                                        case 'Cash_Collected': return 'COD Collection';
+                                                        case 'Cash_Settlement': return 'Platform Settled';
+                                                        default: return type;
+                                                    }
+                                                };
+
+                                                const isNegative = ['Debit'].includes(trx.type);
+                                                const isPositive = ['Credit', 'Cash_Settlement'].includes(trx.type);
+                                                const isLiability = trx.type === 'Cash_Collected';
+
+                                                return (
+                                                    <tr key={trx._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                                                        <td className="py-4 px-4 text-sm text-gray-600">
+                                                            <div className="flex flex-col">
+                                                                <span>{new Date(trx.createdAt).toLocaleDateString()}</span>
+                                                                <span className="text-[10px] text-gray-400">{new Date(trx.createdAt).toLocaleTimeString()}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-4 px-4">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-semibold text-gray-900">{(trx as any).userName || 'Unknown User'}</span>
+                                                                <span className={`text-[10px] w-fit px-1.5 py-0.5 rounded uppercase font-bold ${trx.userType === 'SELLER' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
+                                                                    }`}>
+                                                                    {trx.userType?.replace('_', ' ')}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-4 px-4">
+                                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold border ${getTypeStyles(trx.type)}`}>
+                                                                {getLabel(trx.type)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-4 px-4 text-sm text-gray-600 max-w-xs truncate">
+                                                            {trx.description}
+                                                        </td>
+                                                        <td className={`py-4 px-4 text-right font-bold ${isPositive ? 'text-green-600' :
+                                                            isNegative ? 'text-red-600' :
+                                                                isLiability ? 'text-orange-600' : 'text-gray-900'
                                                             }`}>
-                                                            {trx.type}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-sm text-gray-600">
-                                                        {trx.description}
-                                                    </td>
-                                                    <td className={`py-3 px-4 text-right font-medium ${trx.type === 'Credit' ? 'text-green-600' : 'text-red-600'
-                                                        }`}>
-                                                        {trx.type === 'Credit' ? '+' : '-'}₹{trx.amount.toFixed(2)}
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                            {isPositive ? '+' : isNegative ? '-' : ''}₹{trx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>

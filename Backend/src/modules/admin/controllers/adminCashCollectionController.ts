@@ -62,8 +62,9 @@ export const getCashCollections = asyncHandler(
             total: collection.order?.total || 0,
             amount: collection.amount,
             remark: collection.remark,
+            paymentMethod: collection.paymentMethod || 'cash',
             collectedAt: collection.collectedAt,
-            collectedBy: collection.collectedBy?.name || "Unknown",
+            collectedBy: collection.collectedBy?.name || (collection.paymentMethod === 'razorpay' ? "App Payment" : "Unknown"),
         }));
 
         return res.status(200).json({
@@ -153,6 +154,13 @@ export const createCashCollection = asyncHandler(
         deliveryBoy.cashCollected = (deliveryBoy.cashCollected || 0) - amount;
         await deliveryBoy.save();
 
+        const { logCashSettlement } = await import("../../../services/walletManagementService");
+        await logCashSettlement(
+            deliveryBoyId,
+            amount,
+            `Cash settled by Admin. Remark: ${remark || 'N/A'}`
+        );
+
         const populatedCollection = await CashCollection.findById(collection._id)
             .populate("deliveryBoy", "name mobile")
             .populate("order", "orderNumber total")
@@ -191,6 +199,9 @@ export const updateCashCollection = asyncHandler(
                 deliveryBoy.cashCollected =
                     (deliveryBoy.cashCollected || 0) + difference;
                 await deliveryBoy.save();
+
+                // Note: We're not logging difference updates in WalletTransaction 
+                // for simplicity right now unless we want to do a reversal/additional entry.
             }
             collection.amount = amount;
         }
@@ -236,6 +247,14 @@ export const deleteCashCollection = asyncHandler(
             deliveryBoy.cashCollected =
                 (deliveryBoy.cashCollected || 0) + collection.amount;
             await deliveryBoy.save();
+
+            // Reversal of settlement could be logged here as Cash_Collected to bump the liability up again.
+            const { logCashCollection } = await import("../../../services/walletManagementService");
+            await logCashCollection(
+                deliveryBoy._id.toString(),
+                collection.amount,
+                `Reversal of cash settlement (Record deleted)`
+            );
         }
 
         await CashCollection.findByIdAndDelete(id);

@@ -32,6 +32,7 @@ export default function OrderNotificationCard({
 
     // Initialize audio with better error handling
     useEffect(() => {
+        let isMounted = true;
         const audio = new Audio('/assets/sound/delivery-alert.mp3');
         audio.loop = true;
         audio.volume = 0.8;
@@ -39,7 +40,7 @@ export default function OrderNotificationCard({
         // Set up error handlers
         const handleAudioError = (error: Event) => {
             console.error('Audio error:', error);
-            setAudioError('Audio file could not be loaded');
+            if (isMounted) setAudioError('Audio file could not be loaded');
         };
 
         const handleAudioAbort = () => {
@@ -64,12 +65,15 @@ export default function OrderNotificationCard({
             try {
                 // Check if audio is ready
                 if (audio.readyState >= 2) {
-                    await audio.play();
-                    setHasUserInteracted(true);
-                    setAudioError(null);
+                    if (isMounted) {
+                        await audio.play();
+                        setHasUserInteracted(true);
+                        setAudioError(null);
+                    }
                 } else {
                     // Wait for audio to load
-                    audio.addEventListener('canplaythrough', async () => {
+                    const onCanPlayThrough = async () => {
+                        if (!isMounted) return;
                         try {
                             await audio.play();
                             setHasUserInteracted(true);
@@ -82,12 +86,16 @@ export default function OrderNotificationCard({
                                 setAudioError('Audio not supported');
                             }
                         }
-                    }, { once: true });
+                    };
+
+                    audio.addEventListener('canplaythrough', onCanPlayThrough, { once: true });
+                    // Store listener for potential removal if needed, though {once: true} helps
 
                     // Load the audio
                     audio.load();
                 }
             } catch (error: any) {
+                if (!isMounted) return;
                 console.log('Audio autoplay blocked:', error);
                 if (error.name === 'NotAllowedError') {
                     setAudioError('Tap to enable sound');
@@ -102,51 +110,56 @@ export default function OrderNotificationCard({
         playAudio();
 
         return () => {
+            isMounted = false;
             audio.removeEventListener('error', handleAudioError);
             audio.removeEventListener('abort', handleAudioAbort);
             audio.removeEventListener('stalled', handleAudioStalled);
-            if (audioRef.current) {
-                audioRef.current.pause();
+
+            audio.pause();
+            audio.currentTime = 0;
+            audio.src = ""; // Clear source to stop any pending load/play
+            audio.load();
+
+            if (audioRef.current === audio) {
                 audioRef.current = null;
             }
         };
     }, [vibrate]);
 
     // Play audio on user interaction with better error handling
-    const handleUserInteraction = async () => {
-        if (!hasUserInteracted && audioRef.current) {
-            try {
-                // Ensure audio is loaded
-                if (audioRef.current.readyState < 2) {
-                    audioRef.current.load();
-                }
-                await audioRef.current.play();
-                setHasUserInteracted(true);
-                setAudioError(null);
-            } catch (error: any) {
-                console.error('Failed to play audio:', error);
-                if (error.name === 'NotAllowedError') {
-                    setAudioError('Audio permission denied');
-                } else if (error.name === 'NotSupportedError') {
-                    setAudioError('Audio not supported on this device');
-                } else {
-                    setAudioError('Failed to play audio');
-                }
+    const handleUserInteraction = async (e?: React.MouseEvent | React.TouchEvent) => {
+        // If already processing or already interacted, don't do anything
+        if (isProcessing || hasUserInteracted || !audioRef.current) return;
+
+        // Prevent bubbling to avoid multiple play calls
+        if (e && 'stopPropagation' in e) {
+            e.stopPropagation();
+        }
+
+        try {
+            // Ensure audio is loaded
+            if (audioRef.current.readyState < 2) {
+                audioRef.current.load();
+            }
+            await audioRef.current.play();
+            setHasUserInteracted(true);
+            setAudioError(null);
+        } catch (error: any) {
+            console.error('Failed to play audio:', error);
+            if (error.name === 'NotAllowedError') {
+                setAudioError('Audio permission denied');
+            } else if (error.name === 'NotSupportedError') {
+                setAudioError('Audio not supported on this device');
+            } else {
+                setAudioError('Failed to play audio');
             }
         }
     };
 
-    // Stop audio when component unmounts or notification is dismissed
-    useEffect(() => {
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.currentTime = 0;
-            }
-        };
-    }, []);
+    // Removed redundant cleanup effect as it's handled in the main effect
 
-    const handleAccept = async () => {
+    const handleAccept = async (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent triggering handleUserInteraction
         if (isProcessing) return;
 
         setIsProcessing(true);
@@ -186,7 +199,8 @@ export default function OrderNotificationCard({
         }
     };
 
-    const handleReject = async () => {
+    const handleReject = async (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent triggering handleUserInteraction
         if (isProcessing) return;
 
         setIsProcessing(true);

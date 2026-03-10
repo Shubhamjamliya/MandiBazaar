@@ -95,6 +95,19 @@ const CommissionSchema = new Schema<ICommission>(
 CommissionSchema.index({ seller: 1, status: 1 });
 CommissionSchema.index({ order: 1 });
 
+// Unique Index to prevent duplicate commissions
+// For Sellers: One commission per order item
+CommissionSchema.index({ order: 1, orderItem: 1, type: 1 }, {
+  unique: true,
+  partialFilterExpression: { orderItem: { $exists: true }, type: "SELLER" }
+});
+
+// For Delivery Boys: One commission per order
+CommissionSchema.index({ order: 1, type: 1 }, {
+  unique: true,
+  partialFilterExpression: { type: "DELIVERY_BOY" }
+});
+
 const Commission = mongoose.models.Commission || mongoose.model<ICommission>("Commission", CommissionSchema);
 
 export default Commission;

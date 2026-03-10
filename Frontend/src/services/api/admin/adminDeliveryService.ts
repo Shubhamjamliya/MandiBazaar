@@ -25,6 +25,7 @@ export interface DeliveryBoy {
   maxAmount?: number;
   balance: number;
   cashCollected: number;
+  cashLimit: number;
   status: "Active" | "Inactive";
   available: "Available" | "Not Available";
   currentLocation?: {
@@ -78,6 +79,7 @@ export interface UpdateDeliveryBoyData {
   maxAmount?: number;
   status?: "Active" | "Inactive";
   available?: "Available" | "Not Available";
+  cashLimit?: number;
 }
 
 export interface CashCollection {

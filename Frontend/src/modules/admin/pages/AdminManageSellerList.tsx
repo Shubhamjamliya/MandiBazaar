@@ -39,6 +39,7 @@ interface Seller {
     addressProof?: string;
     requireProductApproval?: boolean;
     viewCustomerDetails?: boolean;
+    commissionRate?: number;
 }
 
 // Helper function to convert backend seller to frontend format
@@ -79,6 +80,7 @@ const mapSellerToFrontend = (seller: SellerType): Seller => {
         addressProof: seller.addressProof,
         requireProductApproval: seller.requireProductApproval,
         viewCustomerDetails: seller.viewCustomerDetails,
+        commissionRate: seller.commissionRate,
     };
 };
 
@@ -107,7 +109,9 @@ export default function AdminManageSellerList() {
     const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isUpdatingRadius, setIsUpdatingRadius] = useState(false);
+    const [isUpdatingCommission, setIsUpdatingCommission] = useState(false);
     const [newRadius, setNewRadius] = useState<number>(10);
+    const [newCommissionRate, setNewCommissionRate] = useState<number>(0);
 
     // Fetch sellers from backend
     useEffect(() => {
@@ -241,6 +245,7 @@ export default function AdminManageSellerList() {
         if (seller) {
             setEditingSeller(seller);
             setNewRadius(seller.serviceRadiusKm || 10);
+            setNewCommissionRate(seller.commissionRate || seller.commission || 0);
             setIsEditModalOpen(true);
         }
     };
@@ -264,6 +269,30 @@ export default function AdminManageSellerList() {
             setTimeout(() => setError(''), 3000);
         } finally {
             setIsUpdatingRadius(false);
+        }
+    };
+
+    const handleUpdateCommission = async () => {
+        if (!editingSeller) return;
+
+        try {
+            setIsUpdatingCommission(true);
+            const response = await updateSeller(editingSeller._id, {
+                commissionRate: newCommissionRate,
+                commission: newCommissionRate // Keep both in sync for legacy compatibility
+            });
+            if (response.success) {
+                setEditingSeller({ ...editingSeller, commissionRate: newCommissionRate, commission: newCommissionRate });
+                setSellers(sellers.map(s => s._id === editingSeller._id ? { ...s, commissionRate: newCommissionRate, commission: newCommissionRate } : s));
+                setSuccessMessage('Commission rate updated successfully');
+                setTimeout(() => setSuccessMessage(''), 3000);
+            }
+        } catch (error) {
+            console.error('Error updating commission:', error);
+            setError('Failed to update commission rate');
+            setTimeout(() => setError(''), 3000);
+        } finally {
+            setIsUpdatingCommission(false);
         }
     };
 
@@ -843,7 +872,30 @@ export default function AdminManageSellerList() {
                                         </div>
                                         <div>
                                             <label className="text-xs text-neutral-500">Commission</label>
-                                            <p className="text-sm font-medium text-neutral-900">{editingSeller.commission.toFixed(2)}%</p>
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="100"
+                                                        step="0.01"
+                                                        value={newCommissionRate}
+                                                        onChange={(e) => setNewCommissionRate(parseFloat(e.target.value))}
+                                                        className="w-full pl-3 pr-8 py-2 border border-neutral-300 rounded text-sm focus:ring-teal-500 focus:border-teal-500"
+                                                    />
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs">%</span>
+                                                </div>
+                                                <button
+                                                    onClick={handleUpdateCommission}
+                                                    disabled={isUpdatingCommission || newCommissionRate === (editingSeller.commissionRate || editingSeller.commission)}
+                                                    className="px-4 py-2 bg-teal-600 text-white rounded text-sm font-medium hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                                                >
+                                                    {isUpdatingCommission ? 'Updating...' : 'Update'}
+                                                </button>
+                                            </div>
+                                            <p className="text-[10px] text-neutral-500 mt-1 italic leading-tight">
+                                                * This rate overrides the global default for this seller.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>

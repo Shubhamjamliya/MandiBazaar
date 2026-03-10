@@ -6,6 +6,8 @@ import {
     requestWithdrawal,
     getWithdrawals,
     getCommissions,
+    createSettleCashOrder,
+    verifySettleCash,
 } from '../modules/delivery/controllers/deliveryWalletController';
 
 const router = Router();
@@ -26,4 +28,7 @@ router.get('/withdrawals', getWithdrawals);
 // Commission earnings
 router.get('/commissions', getCommissions);
 
+// Settle Cash
+router.post('/settle-cash/create', createSettleCashOrder);
+router.post('/settle-cash/verify', verifySettleCash);
 export default router;

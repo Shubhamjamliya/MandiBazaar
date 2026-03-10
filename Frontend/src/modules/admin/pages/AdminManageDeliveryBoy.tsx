@@ -4,6 +4,7 @@ import {
     updateDeliveryBoyStatus,
     updateDeliveryBoyAvailability,
     deleteDeliveryBoy,
+    updateDeliveryBoy,
     type DeliveryBoy,
 } from '../../../services/api/admin/adminDeliveryService';
 import { useAuth } from '../../../context/AuthContext';
@@ -92,6 +93,7 @@ export default function AdminManageDeliveryBoy() {
             'city': 'city',
             'balance': 'balance',
             'cashCollected': 'cashCollected',
+            'cashLimit': 'cashLimit',
             'status': 'status',
             'available': 'available',
         };
@@ -235,8 +237,32 @@ export default function AdminManageDeliveryBoy() {
         }
     };
 
+    const handleUpdateCashLimit = async (deliveryBoy: DeliveryBoy) => {
+        const newLimit = window.prompt(`Enter new cash limit for ${deliveryBoy.name}:`, (deliveryBoy.cashLimit || 0).toString());
+        if (newLimit === null || newLimit === '' || isNaN(Number(newLimit))) return;
+
+        try {
+            setProcessing(deliveryBoy._id);
+            const response = await updateDeliveryBoy(deliveryBoy._id, { cashLimit: Number(newLimit) });
+
+            if (response.success) {
+                setDeliveryBoys(deliveryBoys.map(db =>
+                    db._id === deliveryBoy._id ? { ...db, cashLimit: Number(newLimit) } : db
+                ));
+                setSuccessMessage(`Cash limit updated for ${deliveryBoy.name}!`);
+            } else {
+                setError('Failed to update cash limit: ' + (response.message || 'Unknown error'));
+            }
+        } catch (err: any) {
+            console.error('Error updating cash limit:', err);
+            setError('Failed to update cash limit: ' + (err.response?.data?.message || 'Please try again.'));
+        } finally {
+            setProcessing(null);
+        }
+    };
+
     const handleExport = () => {
-        const headers = ['Id', 'Name', 'Mobile', 'Address', 'City', 'Commission', 'Balance', 'Cash Collected', 'Status', 'Available'];
+        const headers = ['Id', 'Name', 'Mobile', 'Address', 'City', 'Commission', 'Balance', 'Cash Collected', 'Cash Limit', 'Status', 'Available'];
         const csvContent = [
             headers.join(','),
             ...deliveryBoys.map(deliveryBoy => [
@@ -250,6 +276,7 @@ export default function AdminManageDeliveryBoy() {
                     : 'Fixed',
                 deliveryBoy.balance,
                 deliveryBoy.cashCollected,
+                deliveryBoy.cashLimit || 0,
                 deliveryBoy.status,
                 deliveryBoy.available
             ].join(','))
@@ -477,6 +504,14 @@ export default function AdminManageDeliveryBoy() {
                                     </th>
                                     <th
                                         className="p-4 cursor-pointer hover:bg-neutral-100 transition-colors"
+                                        onClick={() => handleSort('cashLimit')}
+                                    >
+                                        <div className="flex items-center">
+                                            Cash Limit <SortIcon column="cashLimit" />
+                                        </div>
+                                    </th>
+                                    <th
+                                        className="p-4 cursor-pointer hover:bg-neutral-100 transition-colors"
                                         onClick={() => handleSort('status')}
                                     >
                                         <div className="flex items-center">
@@ -542,7 +577,8 @@ export default function AdminManageDeliveryBoy() {
                                                 )}
                                             </td>
                                             <td className="p-4 align-middle">₹{deliveryBoy.balance.toFixed(2)}</td>
-                                            <td className="p-4 align-middle">₹{deliveryBoy.cashCollected.toFixed(2)}</td>
+                                            <td className="p-4 align-middle text-red-600 font-medium">₹{deliveryBoy.cashCollected.toFixed(2)}</td>
+                                            <td className="p-4 align-middle text-teal-600 font-medium">₹{deliveryBoy.cashLimit || 0}</td>
                                             <td className="p-4 align-middle">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${deliveryBoy.status === 'Active'
                                                     ? 'bg-green-100 text-green-800'
@@ -604,6 +640,17 @@ export default function AdminManageDeliveryBoy() {
                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                             <polyline points="3 6 5 6 21 6"></polyline>
                                                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleUpdateCashLimit(deliveryBoy)}
+                                                        disabled={processing === deliveryBoy._id}
+                                                        className="p-1.5 text-blue-600 hover:bg-blue-50 disabled:text-neutral-400 disabled:cursor-not-allowed rounded transition-colors"
+                                                        title="Edit Cash Limit"
+                                                    >
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="M12 2v10m0 0l-3-3m3 3l3-3M2 17h20M7 21h10" />
+                                                            <path d="M11 15h2v2h-2z" />
                                                         </svg>
                                                     </button>
                                                 </div>

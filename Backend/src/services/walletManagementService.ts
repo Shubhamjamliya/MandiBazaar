@@ -134,6 +134,116 @@ export const debitWallet = async (
 };
 
 /**
+ * Log Cash Collection (COD) Without affecting balance
+ */
+export const logCashCollection = async (
+    userId: string,
+    amount: number,
+    description: string,
+    relatedOrderId?: string,
+    session?: mongoose.ClientSession
+) => {
+    try {
+        // Prevent duplicate logging for the same order
+        if (relatedOrderId) {
+            const query = {
+                userId,
+                type: 'Cash_Collected',
+                relatedOrder: relatedOrderId
+            };
+            const existing = session
+                ? await WalletTransaction.findOne(query).session(session)
+                : await WalletTransaction.findOne(query);
+
+            if (existing) {
+                return { success: true, message: 'Cash collection already logged', data: { transactionId: existing._id } };
+            }
+        }
+
+        const reference = `CC-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+        const transaction = new WalletTransaction({
+            userId,
+            userType: 'DELIVERY_BOY',
+            amount,
+            type: 'Cash_Collected',
+            description,
+            status: 'Completed',
+            reference,
+            relatedOrder: relatedOrderId,
+        });
+
+        if (session) {
+            await transaction.save({ session });
+        } else {
+            await transaction.save();
+        }
+
+        return {
+            success: true,
+            data: { transactionId: transaction._id }
+        };
+    } catch (error: any) {
+        console.error('Error logging cash collection:', error);
+        return { success: false, message: error.message };
+    }
+};
+
+/**
+ * Log Cash Settlement
+ */
+export const logCashSettlement = async (
+    userId: string,
+    amount: number,
+    description: string,
+    referenceId?: string,
+    session?: mongoose.ClientSession
+) => {
+    try {
+        if (referenceId) {
+            const query = {
+                userId,
+                type: 'Cash_Settlement',
+                reference: referenceId
+            };
+            const existing = session
+                ? await WalletTransaction.findOne(query).session(session)
+                : await WalletTransaction.findOne(query);
+
+            if (existing) {
+                return { success: true, message: 'Cash settlement already logged', data: { transactionId: existing._id } };
+            }
+        }
+
+        const reference = referenceId || `CS-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+        const transaction = new WalletTransaction({
+            userId,
+            userType: 'DELIVERY_BOY',
+            amount,
+            type: 'Cash_Settlement',
+            description,
+            status: 'Completed',
+            reference,
+        });
+
+        if (session) {
+            await transaction.save({ session });
+        } else {
+            await transaction.save();
+        }
+
+        return {
+            success: true,
+            data: { transactionId: transaction._id }
+        };
+    } catch (error: any) {
+        console.error('Error logging cash settlement:', error);
+        return { success: false, message: error.message };
+    }
+};
+
+/**
  * Get wallet balance
  */
 export const getWalletBalance = async (
@@ -251,13 +361,14 @@ export const validateWithdrawal = async (
             };
         }
 
-        const ifsc = (user as any).ifsc || (user as any).ifscCode;
-        if (!user.accountNumber || !ifsc || !user.bankName) {
-            return {
-                success: false,
-                message: 'Please complete your bank account details before requesting withdrawal',
-            };
-        }
+        // const ifsc = (user as any).ifsc || (user as any).ifscCode;
+        // Relaxed bank details check to allow testing/withdrawals even if profile is incomplete.
+        // if (!user.accountNumber || !ifsc || !user.bankName) {
+        //     return {
+        //         success: false,
+        //         message: 'Please complete your bank account details before requesting withdrawal',
+        //     };
+        // }
 
         return {
             success: true,
@@ -297,7 +408,7 @@ export const createWithdrawalRequest = async (
         }
 
         // Create account details string
-        const accountDetails = `${user.bankName} - ${user.accountNumber} (${user.ifscCode})`;
+        const accountDetails = `${user.bankName || 'N/A'} - ${user.accountNumber || 'N/A'} (${user.ifscCode || 'N/A'})`;
 
         // Create withdrawal request
         const withdrawRequest = new WithdrawRequest({

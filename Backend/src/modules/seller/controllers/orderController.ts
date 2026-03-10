@@ -297,8 +297,8 @@ export const updateOrderStatus = asyncHandler(
             .lean();
 
           if (fullOrder) {
-            console.log(`📡 Triggering delivery notification for order ${order.orderNumber}. Items: ${fullOrder.items?.length || 0}`);
-            await notifyDeliveryBoysOfNewOrder(io, fullOrder);
+            console.log(`📡 Triggering delivery notification for order ${order.orderNumber}. Items: ${(fullOrder as any).items?.length || 0}`);
+            await notifyDeliveryBoysOfNewOrder(io, fullOrder as any);
             console.log(`✅ Delivery notification process completed for ${order.orderNumber}`);
           } else {
             console.error(`❌ Failed to fetch fullOrder for notification: ${order._id}`);

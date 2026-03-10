@@ -13,6 +13,8 @@ export default function AdminBillingSettings() {
     const [platformFee, setPlatformFee] = useState<number>(0);
     const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number>(0);
     const [deliveryCharges, setDeliveryCharges] = useState<number>(0);
+    const [defaultCashLimit, setDefaultCashLimit] = useState<number>(2000);
+    const [globalCommissionRate, setGlobalCommissionRate] = useState<number>(10);
 
     // Distance Based Config
     const [isDistanceBased, setIsDistanceBased] = useState(false);
@@ -38,6 +40,8 @@ export default function AdminBillingSettings() {
                 setPlatformFee(data.platformFee || 0);
                 setFreeDeliveryThreshold(data.freeDeliveryThreshold || 0);
                 setDeliveryCharges(data.deliveryCharges || 0);
+                setDefaultCashLimit(data.defaultCashLimit || 2000);
+                setGlobalCommissionRate(data.globalCommissionRate || 10);
 
                 if (data.deliveryConfig) {
                     setIsDistanceBased(data.deliveryConfig.isDistanceBased || false);
@@ -67,6 +71,8 @@ export default function AdminBillingSettings() {
                 platformFee,
                 freeDeliveryThreshold,
                 deliveryCharges,
+                defaultCashLimit,
+                globalCommissionRate,
                 deliveryConfig: {
                     isDistanceBased,
                     baseCharge,
@@ -166,6 +172,43 @@ export default function AdminBillingSettings() {
                                 />
                             </div>
                             <p className="mt-1 text-xs text-gray-500">Orders above this amount will have free delivery.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Default Delivery Boy Cash Limit (₹)
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={defaultCashLimit}
+                                    onChange={(e) => setDefaultCashLimit(Number(e.target.value))}
+                                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                                    placeholder="e.g. 2000"
+                                />
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">Global limit for cash collected liability per delivery boy.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Default Seller Commission Rate (%)
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={globalCommissionRate}
+                                    onChange={(e) => setGlobalCommissionRate(Number(e.target.value))}
+                                    className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                                    placeholder="e.g. 10"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">Default commission taken from seller orders (if not set individually).</p>
                         </div>
                     </div>
                 </div>

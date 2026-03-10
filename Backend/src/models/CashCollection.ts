@@ -2,10 +2,11 @@ import { Schema, model, Document, Types } from "mongoose";
 
 export interface ICashCollection extends Document {
     deliveryBoy: Types.ObjectId;
-    order: Types.ObjectId;
+    order?: Types.ObjectId;
     amount: number;
     remark?: string;
-    collectedBy: Types.ObjectId;
+    paymentMethod: 'cash' | 'razorpay';
+    collectedBy?: Types.ObjectId;
     collectedAt: Date;
     createdAt: Date;
     updatedAt: Date;
@@ -21,7 +22,6 @@ const cashCollectionSchema = new Schema<ICashCollection>(
         order: {
             type: Schema.Types.ObjectId,
             ref: "Order",
-            required: [true, "Order is required"],
         },
         amount: {
             type: Number,
@@ -32,10 +32,14 @@ const cashCollectionSchema = new Schema<ICashCollection>(
             type: String,
             trim: true,
         },
+        paymentMethod: {
+            type: String,
+            enum: ['cash', 'razorpay'],
+            default: 'cash',
+        },
         collectedBy: {
             type: Schema.Types.ObjectId,
             ref: "Admin",
-            required: [true, "Collected by admin is required"],
         },
         collectedAt: {
             type: Date,

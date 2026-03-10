@@ -235,28 +235,42 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
         order.paymentStatus = 'Paid';
 
         // CASH COLLECTION LOGIC
-        if (order.paymentMethod === 'COD') {
+        if (order.paymentMethod === 'COD' && previousStatus !== 'Delivered') {
             const { collectionMethod } = req.body;
-            order.collectionMethod = collectionMethod || 'cash';
-            order.collectedBy = deliveryId;
-            order.collectedAt = new Date();
 
-            // Only increment cashCollected if payment was in cash
-            if (!collectionMethod || collectionMethod === 'cash') {
+            // Atomically mark order as collected to prevent race conditions
+            const updatedOrderForCollection = await Order.findOneAndUpdate(
+                { _id: id, collectedAt: { $exists: false } },
+                {
+                    $set: {
+                        collectedAt: new Date(),
+                        collectedBy: deliveryId,
+                        collectionMethod: collectionMethod || 'cash'
+                    }
+                },
+                { new: true }
+            );
+
+            if (updatedOrderForCollection && (!collectionMethod || collectionMethod === 'cash')) {
                 await Delivery.findByIdAndUpdate(deliveryId, {
                     $inc: { cashCollected: order.total }
                 });
+
+                const { logCashCollection } = await import('../../../services/walletManagementService');
+                await logCashCollection(
+                    deliveryId!,
+                    order.total,
+                    `Cash collected for Order #${order.orderNumber || id}`,
+                    id
+                );
             }
         }
 
-        // COMMISSION DISTRIBUTION
-        // Import commission service dynamically
-        const { distributeCommissions } = await import('../../../services/commissionService');
+        // Financial transactions and side-effects (commissions, inventory, etc.)
         try {
-            await distributeCommissions(id);
-        } catch (commError: any) {
-            console.error('Error distributing commissions:', commError);
-            // Continue even if commission distribution fails
+            await processOrderStatusTransition(id, 'Delivered', previousStatus);
+        } catch (error) {
+            console.error('Error processing order transition side-effects:', error);
         }
     }
 
@@ -471,51 +485,59 @@ export const verifyDeliveryOtpController = asyncHandler(async (req: Request, res
 
         // Update delivery boy balance and cash collected (if COD)
         if (updatedOrder && updatedOrder.status === 'Delivered') {
-            if (updatedOrder.paymentMethod === 'COD') {
+            if (updatedOrder.paymentMethod === 'COD' && previousStatus !== 'Delivered') {
                 const { collectionMethod } = req.body;
-                // Save collection method on the order
-                updatedOrder.collectionMethod = collectionMethod || 'cash';
-                updatedOrder.collectedBy = deliveryId;
-                updatedOrder.collectedAt = new Date();
-                await updatedOrder.save();
 
-                // Only increment cashCollected if payment was in cash
-                if (!collectionMethod || collectionMethod === 'cash') {
+                // Atomically mark order as collected to prevent race conditions
+                const updatedOrderForCollection = await Order.findOneAndUpdate(
+                    { _id: id, collectedAt: { $exists: false } },
+                    {
+                        $set: {
+                            collectedAt: new Date(),
+                            collectedBy: deliveryId,
+                            collectionMethod: collectionMethod || 'cash'
+                        }
+                    },
+                    { new: true }
+                );
+
+                if (updatedOrderForCollection && (!collectionMethod || collectionMethod === 'cash')) {
                     await Delivery.findByIdAndUpdate(deliveryId, {
-                        $inc: { cashCollected: updatedOrder.total }
+                        $inc: { cashCollected: updatedOrderForCollection.total }
                     });
+
+                    const { logCashCollection } = await import('../../../services/walletManagementService');
+                    await logCashCollection(
+                        deliveryId!,
+                        updatedOrderForCollection.total,
+                        `Cash collected for Order #${updatedOrderForCollection.orderNumber || id}`,
+                        id
+                    );
                 }
             }
 
-            // COMMISSION DISTRIBUTION
-            const { distributeCommissions } = await import('../../../services/commissionService');
-            try {
-                await distributeCommissions(id);
-            } catch (commError: any) {
-                console.error('Error distributing commissions:', commError);
-                // Continue even if commission distribution fails
-            }
+            // COMMISSION DISTRIBUTION - Handled inside processOrderStatusTransition
+        }
 
-            // Emit socket events for real-time status update
-            const io = (req.app as any).get("io");
-            if (io && previousStatus !== 'Delivered') {
-                // Emit order-delivered event to customer
-                io.to(`order-${id}`).emit('order-delivered', {
-                    orderId: id,
-                    orderNumber: updatedOrder.orderNumber,
-                    message: 'Order has been delivered successfully',
-                });
+        // Emit socket events for real-time status update
+        const io = (req.app as any).get("io");
+        if (io && updatedOrder && updatedOrder.status === 'Delivered' && previousStatus !== 'Delivered') {
+            // Emit order-delivered event to customer
+            io.to(`order-${id}`).emit('order-delivered', {
+                orderId: id,
+                orderNumber: updatedOrder.orderNumber,
+                message: 'Order has been delivered successfully',
+            });
 
-                // Also emit to delivery boy room
-                io.to(`delivery-${deliveryId}`).emit('order-delivered', {
-                    orderId: id,
-                    orderNumber: updatedOrder.orderNumber,
-                    message: 'Order delivered successfully',
-                });
+            // Also emit to delivery boy room
+            io.to(`delivery-${deliveryId}`).emit('order-delivered', {
+                orderId: id,
+                orderNumber: updatedOrder.orderNumber,
+                message: 'Order delivered successfully',
+            });
 
-                // Notify sellers of status update
-                notifySellersOfOrderUpdate(io, updatedOrder, 'STATUS_UPDATE');
-            }
+            // Notify sellers of status update
+            notifySellersOfOrderUpdate(io, updatedOrder, 'STATUS_UPDATE');
         }
 
         return res.status(200).json({

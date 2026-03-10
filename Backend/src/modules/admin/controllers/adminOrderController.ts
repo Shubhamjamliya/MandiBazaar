@@ -241,6 +241,19 @@ export const assignDeliveryBoy = asyncHandler(
       });
     }
 
+    // Check cash collection limit
+    const { default: AppSettings } = await import("../../../models/AppSettings");
+    const settings = await AppSettings.findOne({});
+    const globalDefaultLimit = settings?.defaultCashLimit || 5000;
+    const effectiveLimit = deliveryBoy.cashLimit || globalDefaultLimit;
+
+    if (deliveryBoy.cashCollected >= effectiveLimit) {
+      return res.status(400).json({
+        success: false,
+        message: `Delivery boy has reached the cash collection limit (₹${effectiveLimit}). Current cash collected: ₹${deliveryBoy.cashCollected}. Please settle his cash collection before assigning new orders.`,
+      });
+    }
+
     const order = await Order.findById(id);
     if (!order) {
       return res.status(404).json({

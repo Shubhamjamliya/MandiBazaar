@@ -4,7 +4,7 @@ export interface IWalletTransaction extends Document {
     userId: mongoose.Types.ObjectId; // Generic user reference (seller or delivery boy)
     userType: 'SELLER' | 'DELIVERY_BOY'; // Type of user
     amount: number;
-    type: 'Credit' | 'Debit';
+    type: 'Credit' | 'Debit' | 'Cash_Collected' | 'Cash_Settlement';
     description: string;
     status: 'Completed' | 'Pending' | 'Failed';
     reference: string;
@@ -33,7 +33,7 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>(
         },
         type: {
             type: String,
-            enum: ['Credit', 'Debit'],
+            enum: ['Credit', 'Debit', 'Cash_Collected', 'Cash_Settlement'],
             required: [true, 'Transaction type is required'],
         },
         description: {
@@ -67,7 +67,16 @@ const WalletTransactionSchema = new Schema<IWalletTransaction>(
 
 WalletTransactionSchema.index({ userId: 1, userType: 1 });
 WalletTransactionSchema.index({ createdAt: -1 });
-WalletTransactionSchema.index({ relatedOrder: 1 });
+WalletTransactionSchema.index({ relatedOrder: 1, userId: 1, type: 1 }, {
+    unique: true,
+    partialFilterExpression: { relatedOrder: { $exists: true }, type: 'Cash_Collected' }
+});
+
+// Unique index to prevent duplicate credits for the same commission record
+WalletTransactionSchema.index({ relatedCommission: 1 }, {
+    unique: true,
+    partialFilterExpression: { relatedCommission: { $exists: true } }
+});
 
 const WalletTransaction = mongoose.model<IWalletTransaction>('WalletTransaction', WalletTransactionSchema);
 

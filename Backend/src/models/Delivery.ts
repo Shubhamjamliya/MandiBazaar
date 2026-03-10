@@ -39,7 +39,8 @@ export interface IDelivery extends Document {
     updatedAt?: Date;
   };
   balance: number;
-  cashCollected: number;
+  cashCollected: number; // Represents current cash in hand (liability)
+  cashLimit?: number; // Overrides global limit if set
   settings: {
     notifications: boolean;
     location: boolean;
@@ -180,6 +181,10 @@ const DeliverySchema = new Schema<IDelivery>(
       type: Number,
       default: 0,
       min: [0, 'Cash collected cannot be negative'],
+    },
+    cashLimit: {
+      type: Number,
+      min: [0, 'Cash limit cannot be negative'],
     },
     settings: {
       notifications: { type: Boolean, default: true },

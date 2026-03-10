@@ -71,3 +71,34 @@ export const getDeliveryCommissions = async () => {
         throw error;
     }
 };
+
+/**
+ * Create Settle Cash Order (Razorpay)
+ */
+export const createSettleCashOrder = async (amount: number) => {
+    try {
+        const response = await api.post('/delivery/wallet/settle-cash/create', { amount });
+        return response.data;
+    } catch (error: any) {
+        console.error('Error creating settlement order:', error);
+        throw error;
+    }
+};
+
+/**
+ * Verify Settle Cash Payment
+ */
+export const verifySettleCash = async (data: {
+    amount: number;
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+}) => {
+    try {
+        const response = await api.post('/delivery/wallet/settle-cash/verify', data);
+        return response.data;
+    } catch (error: any) {
+        console.error('Error verifying settlement:', error);
+        throw error;
+    }
+};

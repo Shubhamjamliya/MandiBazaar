@@ -56,6 +56,7 @@ export interface IAppSettings extends Document {
   platformFee?: number;
   deliveryCharges: number;
   freeDeliveryThreshold?: number;
+  defaultCashLimit?: number;
   deliveryConfig?: {
     isDistanceBased: boolean;
     googleMapsKey?: string;
@@ -266,6 +267,11 @@ const AppSettingsSchema = new Schema<IAppSettings>(
     freeDeliveryThreshold: {
       type: Number,
       min: [0, "Free delivery threshold cannot be negative"],
+    },
+    defaultCashLimit: {
+      type: Number,
+      default: 2000,
+      min: [0, "Cash limit cannot be negative"],
     },
     deliveryConfig: {
       isDistanceBased: { type: Boolean, default: false },

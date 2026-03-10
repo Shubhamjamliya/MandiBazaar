@@ -5,6 +5,7 @@ import Seller from '../models/Seller';
 import DeliveryTracking from '../models/DeliveryTracking';
 import OrderItem from '../models/OrderItem';
 import mongoose from 'mongoose';
+import AppSettings from '../models/AppSettings';
 import { notifySellersOfOrderUpdate } from './sellerNotificationService';
 import { sendDeliveryTaskNotification } from './notificationService';
 
@@ -61,9 +62,18 @@ function calculateDistance(
  */
 export async function findAvailableDeliveryBoys(): Promise<mongoose.Types.ObjectId[]> {
     try {
+        const settings = await AppSettings.findOne();
+        const defaultCashLimit = settings?.defaultCashLimit ?? 2000;
+
         const deliveryBoys = await Delivery.find({
             isOnline: true,
-            // Relaxed check: include any online delivery boy for testing/broader reach
+            // Check cash limit
+            $expr: {
+                $lt: [
+                    { $ifNull: ["$cashCollected", 0] },
+                    { $ifNull: ["$cashLimit", defaultCashLimit] }
+                ]
+            }
         }).select('_id');
 
         return deliveryBoys.map(db => db._id);
@@ -84,12 +94,25 @@ export async function findDeliveryBoysNearLocation(
     radiusKm: number = 10
 ): Promise<{ deliveryBoyId: mongoose.Types.ObjectId; distance: number }[]> {
     try {
+        const settings = await AppSettings.findOne();
+        const defaultCashLimit = settings?.defaultCashLimit ?? 2000;
+
+        const cashLimitQuery = {
+            $expr: {
+                $lt: [
+                    { $ifNull: ["$cashCollected", 0] },
+                    { $ifNull: ["$cashLimit", defaultCashLimit] }
+                ]
+            }
+        };
+
         // 1. Try to find delivery boys using the new GeoJSON location field in Delivery model
         const nearbyDeliveryBoys: { deliveryBoyId: mongoose.Types.ObjectId; distance: number }[] = [];
 
         const deliveryBoysWithLocation = await Delivery.find({
             isOnline: true,
             status: 'Active',
+            ...cashLimitQuery,
             'location.coordinates': {
                 $near: {
                     $geometry: {
@@ -121,6 +144,7 @@ export async function findDeliveryBoysNearLocation(
         const allDeliveryBoys = await Delivery.find({
             isOnline: true,
             status: 'Active',
+            ...cashLimitQuery
         }).select('_id');
 
         if (allDeliveryBoys.length === 0) {
