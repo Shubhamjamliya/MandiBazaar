@@ -1,32 +1,15 @@
 import api from './config';
 
 /**
- * Create Razorpay order for payment
+ * Create HDFC order for payment.
+ * Gets the encrypted request payload from backend.
  */
-export const createRazorpayOrder = async (orderId: string) => {
+export const createHdfcOrder = async (orderId: string) => {
     try {
         const response = await api.post('/payment/create-order', { orderId });
         return response.data;
     } catch (error: any) {
-        console.error('Error creating Razorpay order:', error);
-        throw error;
-    }
-};
-
-/**
- * Verify payment after Razorpay checkout
- */
-export const verifyPayment = async (paymentData: {
-    orderId: string;
-    razorpayOrderId: string;
-    razorpayPaymentId: string;
-    razorpaySignature: string;
-}) => {
-    try {
-        const response = await api.post('/payment/verify', paymentData);
-        return response.data;
-    } catch (error: any) {
-        console.error('Error verifying payment:', error);
+        console.error('Error creating HDFC order:', error);
         throw error;
     }
 };

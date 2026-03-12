@@ -1,13 +1,13 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { authenticate, requireUserType } from '../middleware/auth';
-import { Request, Response } from 'express';
-import { createRazorpayOrder, capturePayment, handleWebhook } from '../services/paymentService';
+import { createHdfcOrder, handleHdfcReturn, handleHdfcCancel } from '../services/paymentService';
 import Order from '../models/Order';
 
 const router = Router();
 
 /**
- * Create Razorpay order for payment
+ * Create HDFC order for payment.
+ * Generates the encrypted string and HDFC credentials needed for the frontend auto-submit form.
  */
 router.post('/create-order', authenticate, requireUserType('Customer'), async (req: Request, res: Response) => {
     try {
@@ -36,7 +36,11 @@ router.post('/create-order', authenticate, requireUserType('Customer'), async (r
             });
         }
 
-        const result = await createRazorpayOrder(orderId, order.total);
+        const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
+        const redirectUrl = `${backendUrl}/api/v1/payment/hdfc-return`;
+        const cancelUrl = `${backendUrl}/api/v1/payment/hdfc-cancel`;
+
+        const result = await createHdfcOrder(orderId, order.total, redirectUrl, cancelUrl);
 
         if (!result.success) {
             return res.status(400).json(result);
@@ -44,7 +48,7 @@ router.post('/create-order', authenticate, requireUserType('Customer'), async (r
 
         return res.status(200).json(result);
     } catch (error: any) {
-        console.error('Error creating Razorpay order:', error);
+        console.error('Error creating HDFC order:', error);
         return res.status(500).json({
             success: false,
             message: error.message || 'Failed to create payment order',
@@ -53,83 +57,53 @@ router.post('/create-order', authenticate, requireUserType('Customer'), async (r
 });
 
 /**
- * Verify payment after Razorpay checkout
+ * HDFC Return Webhook / Redirect Endpoint
+ * HDFC securely POSTs the transaction result here.
+ * This endpoint processes the payload, performs Security Validations (Dual Enquiry), 
+ * and redirects the user's browser back to the frontend application.
  */
-router.post('/verify', authenticate, requireUserType('Customer'), async (req: Request, res: Response) => {
+router.post('/hdfc-return', async (req: Request, res: Response) => {
     try {
-        const { orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+        const encResp = req.body.encResp || req.body.enc_resp || req.body.encResponse;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-        if (!orderId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
-            return res.status(400).json({
-                success: false,
-                message: 'Missing required payment verification parameters',
-            });
+        if (!encResp) {
+            console.error('Missing encResp in HDFC Return');
+            return res.redirect(`${frontendUrl}/orders?error=missing_payment_response`);
         }
 
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found',
-            });
+        const result = await handleHdfcReturn(encResp);
+
+        if (result.success) {
+            return res.redirect(`${frontendUrl}/orders/${result.orderId}?payment=success`);
+        } else {
+            return res.redirect(`${frontendUrl}/orders/${result.orderId || ''}?error=${encodeURIComponent(result.message || 'Payment failed')}`);
         }
-
-        // Verify order belongs to customer
-        if (order.customer.toString() !== req.user!.userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Unauthorized access to order',
-            });
-        }
-
-        const result = await capturePayment(
-            orderId,
-            razorpayOrderId,
-            razorpayPaymentId,
-            razorpaySignature
-        );
-
-        if (!result.success) {
-            return res.status(400).json(result);
-        }
-
-        return res.status(200).json(result);
     } catch (error: any) {
-        console.error('Error verifying payment:', error);
-        return res.status(500).json({
-            success: false,
-            message: error.message || 'Failed to verify payment',
-        });
+        console.error('Error handling HDFC return route:', error);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendUrl}/orders?error=system_error`);
     }
 });
 
 /**
- * Razorpay webhook endpoint
+ * HDFC Cancel Webhook / Redirect Endpoint
+ * User cancelled the transaction from HDFC billing page.
  */
-router.post('/webhook', async (req: Request, res: Response) => {
+router.post('/hdfc-cancel', async (req: Request, res: Response) => {
     try {
-        const signature = req.headers['x-razorpay-signature'] as string;
+        const encResp = req.body.encResp || req.body.enc_resp || req.body.encResponse;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-        if (!signature) {
-            return res.status(400).json({
-                success: false,
-                message: 'Missing webhook signature',
-            });
+        if (encResp) {
+            await handleHdfcCancel(encResp);
         }
-
-        const result = await handleWebhook(req.body, signature);
-
-        if (!result.success) {
-            return res.status(400).json(result);
-        }
-
-        return res.status(200).json(result);
+        
+        return res.redirect(`${frontendUrl}/cart?error=payment_cancelled`);
     } catch (error: any) {
-        console.error('Error handling webhook:', error);
-        return res.status(500).json({
-            success: false,
-            message: error.message || 'Failed to handle webhook',
-        });
+        console.error('Error handling HDFC cancel route:', error);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendUrl}/cart?error=cancel_error`);
     }
 });
 

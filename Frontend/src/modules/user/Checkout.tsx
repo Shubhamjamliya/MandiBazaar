@@ -21,7 +21,7 @@ import { getProducts } from '../../services/api/customerProductService';
 import { addToWishlist } from '../../services/api/customerWishlistService';
 import { updateProfile } from '../../services/api/customerService';
 import { calculateProductPrice } from '../../utils/priceUtils';
-import RazorpayCheckout from '../../components/RazorpayCheckout';
+import HdfcCheckout from '../../components/HdfcCheckout';
 
 // const STORAGE_KEY = 'saved_address'; // Removed
 
@@ -75,8 +75,8 @@ export default function Checkout() {
   const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
   const [isMapSelected, setIsMapSelected] = useState(false);
 
-  // Razorpay Payment State
-  const [showRazorpayCheckout, setShowRazorpayCheckout] = useState(false);
+  // HDFC Payment State
+  const [showHdfcCheckout, setShowHdfcCheckout] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   // Payment Method State
@@ -484,9 +484,9 @@ export default function Checkout() {
           setShowOrderSuccess(true);
           showGlobalToast('Order placed successfully! Pay on delivery.', 'success');
         } else {
-          // Online: trigger Razorpay payment
+          // Online: trigger HDFC payment
           setPendingOrderId(placedId);
-          setShowRazorpayCheckout(true);
+          setShowHdfcCheckout(true);
         }
       }
     } catch (error: any) {
@@ -2027,28 +2027,14 @@ export default function Checkout() {
         }
       `}</style>
 
-      {/* Razorpay Checkout Modal */}
-      {showRazorpayCheckout && pendingOrderId && user && (
-        <RazorpayCheckout
+      {/* HDFC Checkout Component */}
+      {showHdfcCheckout && pendingOrderId && user && (
+        <HdfcCheckout
           orderId={pendingOrderId}
-          amount={grandTotal}
-          customerDetails={{
-            name: user.name || 'Customer',
-            email: user.email || '',
-            phone: user.phone || '',
-          }}
-          onSuccess={(paymentId) => {
-            setShowRazorpayCheckout(false);
-            setPlacedOrderId(pendingOrderId);
-            setPendingOrderId(null);
-            clearCart();
-            setShowOrderSuccess(true);
-            showGlobalToast('Payment successful!', 'success');
-          }}
           onFailure={(error) => {
-            setShowRazorpayCheckout(false);
+            setShowHdfcCheckout(false);
             setPendingOrderId(null);
-            showGlobalToast(error || 'Payment failed. Please try again.', 'error');
+            showGlobalToast(error || 'Payment initialization failed. Please try again.', 'error');
           }}
         />
       )}

@@ -1,178 +1,227 @@
-import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import Payment from '../models/Payment';
 import Order from '../models/Order';
 import mongoose from 'mongoose';
-
-// Initialize Razorpay instance
-const getRazorpayInstance = () => {
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-    if (!keyId || !keySecret) {
-        throw new Error('Razorpay credentials not configured');
-    }
-
-    return new Razorpay({
-        key_id: keyId,
-        key_secret: keySecret,
-    });
-};
+import { encrypt, decrypt } from '../utils/hdfcCrypto';
+import { fetchHdfcTransactionStatus } from './hdfcStatusApi';
+import url from 'url';
 
 /**
- * Create a Razorpay order
+ * Create an HDFC order / generate encrypted payload
  */
-export const createRazorpayOrder = async (
+export const createHdfcOrder = async (
     orderId: string,
     amount: number,
+    redirectUrl: string,
+    cancelUrl: string,
     currency: string = 'INR'
 ) => {
     try {
-        const razorpay = getRazorpayInstance();
+        const merchantId = process.env.HDFC_MERCHANT_ID;
+        const accessCode = process.env.HDFC_ACCESS_CODE;
+        const workingKey = process.env.HDFC_WORKING_KEY;
+        const gatewayUrl = process.env.HDFC_GATEWAY_URL;
 
-        const options = {
-            amount: Math.round(amount * 100), // Amount in paise
-            currency,
-            receipt: orderId,
-            notes: {
-                orderId,
-            },
-        };
+        console.log('DEBUG HDFC ENV:', { 
+            merchantId: merchantId ? 'Present' : 'Missing',
+            accessCode: accessCode ? 'Present' : 'Missing',
+            workingKey: workingKey ? 'Present' : 'Missing',
+            gatewayUrl: gatewayUrl ? 'Present' : 'Missing'
+        });
 
-        const razorpayOrder = await razorpay.orders.create(options);
+        if (!merchantId || !accessCode || !workingKey || !gatewayUrl) {
+            throw new Error('HDFC credentials not configured (HDFC_MERCHANT_ID, HDFC_ACCESS_CODE, HDFC_WORKING_KEY, HDFC_GATEWAY_URL)');
+        }
+
+        const requestParams = new url.URLSearchParams({
+            merchant_id: merchantId,
+            order_id: orderId,
+            currency: currency,
+            amount: amount.toString(),
+            redirect_url: redirectUrl,
+            cancel_url: cancelUrl,
+            language: 'EN'
+        });
+
+        // Generate encrypted request
+        const encRequest = encrypt(requestParams.toString(), workingKey);
 
         return {
             success: true,
             data: {
-                razorpayOrderId: razorpayOrder.id,
-                razorpayKey: process.env.RAZORPAY_KEY_ID, // Send key to frontend
-                amount: razorpayOrder.amount,
-                currency: razorpayOrder.currency,
-                receipt: razorpayOrder.receipt,
-            },
+                encRequest,
+                accessCode,
+                gatewayUrl: `${gatewayUrl}/transaction/transaction.do?command=initiateTransaction`
+            }
         };
     } catch (error: any) {
-        console.error('Error creating Razorpay order:', error);
+        console.error('Error creating HDFC order:', error);
         return {
             success: false,
-            message: error.message || 'Failed to create Razorpay order',
+            message: error.message || 'Failed to create HDFC payload'
         };
     }
 };
 
 /**
- * Verify Razorpay payment signature
+ * Handle HDFC Return (Decrypt response, validate security audit rules, capture payment)
  */
-export const verifyPaymentSignature = (
-    razorpayOrderId: string,
-    razorpayPaymentId: string,
-    razorpaySignature: string
-): boolean => {
-    try {
-        const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-        if (!keySecret) {
-            throw new Error('Razorpay key secret not configured');
-        }
-
-        const body = razorpayOrderId + '|' + razorpayPaymentId;
-        const expectedSignature = crypto
-            .createHmac('sha256', keySecret)
-            .update(body)
-            .digest('hex');
-
-        return expectedSignature === razorpaySignature;
-    } catch (error) {
-        console.error('Error verifying payment signature:', error);
-        return false;
-    }
-};
-
-/**
- * Capture payment and update order
- */
-export const capturePayment = async (
-    orderId: string,
-    razorpayOrderId: string,
-    razorpayPaymentId: string,
-    razorpaySignature: string
+export const handleHdfcReturn = async (
+    encResp: string
 ) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-        // Verify signature
-        const isValid = verifyPaymentSignature(
-            razorpayOrderId,
-            razorpayPaymentId,
-            razorpaySignature
-        );
-
-        if (!isValid) {
-            throw new Error('Invalid payment signature');
+        const workingKey = process.env.HDFC_WORKING_KEY;
+        if (!workingKey) {
+            throw new Error('HDFC_WORKING_KEY not configured');
         }
 
-        // Find order
+        // Decrypt response
+        const decryptedResponse = decrypt(encResp, workingKey);
+        
+        // Response string is format like: order_id=123&tracking_id=456&bank_ref_no=789...
+        const responseParams = new url.URLSearchParams(decryptedResponse);
+        
+        const orderId = responseParams.get('order_id');
+        const trackingId = responseParams.get('tracking_id'); // HDFC payment/tracking ID
+        const bankRefNo = responseParams.get('bank_ref_no');
+        const orderStatus = responseParams.get('order_status');
+        const amountStr = responseParams.get('amount');
+        const paymentMode = responseParams.get('payment_mode');
+        
+        const failureMessage = responseParams.get('failure_message');
+        const statusCode = responseParams.get('status_code');
+        const statusMessage = responseParams.get('status_message');
+
+        if (!orderId || !trackingId || !orderStatus) {
+            throw new Error('Missing required parameters in decrypted response');
+        }
+
+        // SECURITY AUDIT CHECK 1: Ensure order exists
         const order = await Order.findById(orderId).session(session);
         if (!order) {
-            throw new Error('Order not found');
+            throw new Error('Order not found for the returned order_id');
         }
 
-        // Create payment record
-        const payment = new Payment({
+        // SECURITY AUDIT CHECK 2: Duplicate Entry Validation
+        // If order payment status is already Paid or Refunded, return success with existing info
+        if (order.paymentStatus === 'Paid' || order.paymentStatus === 'Refunded') {
+             // Order is already processed (e.g. Status API webhook beat this return step)
+             await session.abortTransaction();
+             session.endSession();
+             return {
+                 success: orderStatus === 'Success', // if it was already processed, just rely on what DB says (which is successful)
+                 message: 'Order was already processed successfully',
+                 orderId: order._id,
+                 status: 'Duplicate'
+             };
+        }
+
+        // SECURITY AUDIT CHECK 3: Dual Enquiry Data Validation via Status API
+        // Always fetch truth from server instead of trusting the return payload amounts
+        console.log(`Triggering Dual Enquiry for Order: ${orderId}`);
+        const dualEnquiry = await fetchHdfcTransactionStatus(orderId);
+        
+        if (!dualEnquiry.success || !dualEnquiry.data) {
+             throw new Error(`Dual enquiry failed: ${dualEnquiry.message}`);
+        }
+
+        const verifiedStatus = dualEnquiry.data.order_status;
+        const verifiedAmount = dualEnquiry.data.order_amt;
+
+        // Compare amounts (tampering check)
+        if (verifiedStatus === 'Successful') {
+            const dbTotalAmount = order.total; // Stored expected amount
+            
+            // Allow small rounding differences if any, but exact match is preferred
+            if (verifiedAmount !== dbTotalAmount) {
+                // Potential Tampering Detected!
+                console.error(`Amount tampering detected! DB has ${dbTotalAmount}, HDFC reported ${verifiedAmount}`);
+                // Proceed to mark payment as failed/fraud
+                order.paymentStatus = 'Failed'; // or 'Fraud' if your model supports it
+                await order.save({ session });
+                await session.commitTransaction();
+                return {
+                    success: false,
+                    message: `Amount Validation Failed. Order tampered.`,
+                    orderId: order._id,
+                    status: 'Fraud'
+                };
+            }
+        }
+
+        // Create/Update Payment record based on definitively verified data
+        const paymentRecord = new Payment({
             order: orderId,
             customer: order.customer,
-            paymentMethod: 'Online',
-            paymentGateway: 'Razorpay',
-            razorpayOrderId,
-            razorpayPaymentId,
-            razorpaySignature,
-            amount: order.total,
+            paymentMethod: paymentMode || 'Online',
+            paymentGateway: 'HDFC',
+            razorpayOrderId: trackingId, // Using razorpayOrderId field for HDFC trackingId to minimize schema changes
+            razorpayPaymentId: bankRefNo || 'N/A', // Using razorpayPaymentId field for HDFC bank_ref_no
+            razorpaySignature: 'HDFC_ENCRYPTED_SIGNATURE', // Placeholder since HDFC uses encryption instead of signature
+            amount: verifiedAmount || parseFloat(amountStr || '0'),
             currency: 'INR',
-            status: 'Completed',
-            paidAt: new Date(),
+            status: verifiedStatus === 'Successful' ? 'Completed' : 'Failed',
+            paidAt: verifiedStatus === 'Successful' ? new Date() : undefined,
             gatewayResponse: {
-                success: true,
-                message: 'Payment captured successfully',
+                success: verifiedStatus === 'Successful',
+                message: statusMessage || failureMessage || verifiedStatus,
+                rawResponse: {
+                    decryptedParams: decryptedResponse,
+                    dualEnquiryStatus: dualEnquiry.data
+                }
             },
         });
 
-        await payment.save({ session });
+        await paymentRecord.save({ session });
 
-        // Update order
-        order.paymentStatus = 'Paid';
-        order.paymentId = razorpayPaymentId;
-        // Change order status from 'Pending' to 'Received' after successful payment
-        if (order.status === 'Pending') {
-            order.status = 'Received';
-        }
-        await order.save({ session });
+        if (verifiedStatus === 'Successful') {
+            order.paymentStatus = 'Paid';
+            order.paymentId = paymentRecord._id.toString();
+            // Change order status from 'Pending' to 'Received' after successful payment
+            if (order.status === 'Pending') {
+                order.status = 'Received';
+            }
+            await order.save({ session });
+            await session.commitTransaction();
 
-        await session.commitTransaction();
+            // Create Pending Commissions 
+            try {
+                const { createPendingCommissions } = await import('./commissionService');
+                await createPendingCommissions(orderId);
+            } catch (commError) {
+                console.error("Failed to create pending commissions after payment:", commError);
+            }
 
-        // Create Pending Commissions (Outside transaction as it has its own logic/logging and failure shouldn't rollback payment)
-        try {
-            const { createPendingCommissions } = await import('./commissionService');
-            await createPendingCommissions(orderId);
-        } catch (commError) {
-            console.error("Failed to create pending commissions after payment:", commError);
-            // Don't fail the request, just log it.
-        }
-
-        return {
-            success: true,
-            message: 'Payment captured successfully',
-            data: {
-                paymentId: payment._id,
+            return {
+                success: true,
+                message: 'Payment captured successfully',
                 orderId: order._id,
-            },
-        };
+                status: 'Success'
+            };
+        } else {
+            // Failed, Aborted, or Cancelled transaction
+            order.paymentStatus = 'Failed';
+            await order.save({ session });
+            await session.commitTransaction();
+
+            return {
+                success: false,
+                message: `Payment not successful: ${verifiedStatus} - ${statusMessage || ''}`,
+                orderId: order._id,
+                status: verifiedStatus // e.g., 'Aborted', 'Failure'
+            };
+        }
+
     } catch (error: any) {
         await session.abortTransaction();
-        console.error('Error capturing payment:', error);
+        console.error('Error handling HDFC return:', error);
         return {
             success: false,
-            message: error.message || 'Failed to capture payment',
+            message: error.message || 'Failed to process HDFC payment return',
+            status: 'Error'
         };
     } finally {
         session.endSession();
@@ -180,7 +229,43 @@ export const capturePayment = async (
 };
 
 /**
- * Process refund
+ * Handle HDFC Cancel
+ */
+export const handleHdfcCancel = async (encResp: string) => {
+    // Similar to return but expecting cancelled/aborted status
+    try {
+        const workingKey = process.env.HDFC_WORKING_KEY;
+        if (!workingKey) {
+            throw new Error('HDFC_WORKING_KEY not configured');
+        }
+        const decryptedResponse = decrypt(encResp, workingKey);
+        const responseParams = new url.URLSearchParams(decryptedResponse);
+        const orderId = responseParams.get('order_id');
+        const orderStatus = responseParams.get('order_status'); // likely 'Aborted'
+        
+        if (orderId) {
+            const order = await Order.findById(orderId);
+            if (order && order.paymentStatus === 'Pending') {
+                order.paymentStatus = 'Failed';
+                // Can track abort reason here if desired
+                await order.save();
+            }
+        }
+
+        return {
+            success: false,
+            message: 'Payment cancelled by user',
+            orderId: orderId,
+            status: orderStatus
+        };
+    } catch (error) {
+        console.error("Failed handling cancel request", error);
+        return { success: false, message: "Error parsing cancellation", status: 'Error' };
+    }
+};
+
+/**
+ * Process refund (Placeholder for HDFC API refund logic, HDFC refunds usually done via dashboard unless refund API is integrated)
  */
 export const processRefund = async (
     paymentId: string,
@@ -193,33 +278,22 @@ export const processRefund = async (
             throw new Error('Payment not found');
         }
 
-        if (!payment.razorpayPaymentId) {
-            throw new Error('Razorpay payment ID not found');
-        }
-
-        const razorpay = getRazorpayInstance();
-
+        // Wait for HDFC Refund API Details. Currently we must manually refund from CCavenue Dashboard
+        // Update DB assuming manual refund triggered:
+        
         const refundAmount = amount || payment.amount;
 
-        const refund = await razorpay.payments.refund(payment.razorpayPaymentId, {
-            amount: Math.round(refundAmount * 100), // Amount in paise
-            notes: {
-                reason: reason || 'Order cancelled',
-            },
-        });
-
-        // Update payment record
         payment.status = 'Refunded';
         payment.refundAmount = refundAmount;
         payment.refundedAt = new Date();
-        payment.refundReason = reason;
+        payment.refundReason = reason || 'Manual refund via dashboard';
         await payment.save();
 
         return {
             success: true,
-            message: 'Refund processed successfully',
+            message: 'Refund recorded in system (Manual action needed in HDFC dashboard)',
             data: {
-                refundId: refund.id,
+                refundId: 'N/A',
                 amount: refundAmount,
             },
         };
@@ -229,141 +303,5 @@ export const processRefund = async (
             success: false,
             message: error.message || 'Failed to process refund',
         };
-    }
-};
-
-/**
- * Handle Razorpay webhook
- */
-export const handleWebhook = async (
-    body: any,
-    signature: string
-): Promise<{ success: boolean; message: string }> => {
-    try {
-        const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-
-        if (!webhookSecret) {
-            throw new Error('Razorpay webhook secret not configured');
-        }
-
-        // Verify webhook signature
-        const expectedSignature = crypto
-            .createHmac('sha256', webhookSecret)
-            .update(JSON.stringify(body))
-            .digest('hex');
-
-        if (expectedSignature !== signature) {
-            throw new Error('Invalid webhook signature');
-        }
-
-        const event = body.event;
-        const payload = body.payload.payment.entity;
-
-        // Handle different events
-        switch (event) {
-            case 'payment.captured':
-                // Payment was captured successfully
-                await handlePaymentCaptured(payload);
-                break;
-
-            case 'payment.failed':
-                // Payment failed
-                await handlePaymentFailed(payload);
-                break;
-
-            case 'refund.created':
-                // Refund was created
-                await handleRefundCreated(body.payload.refund.entity);
-                break;
-
-            default:
-                console.log('Unhandled webhook event:', event);
-        }
-
-        return {
-            success: true,
-            message: 'Webhook processed successfully',
-        };
-    } catch (error: any) {
-        console.error('Error handling webhook:', error);
-        return {
-            success: false,
-            message: error.message || 'Failed to process webhook',
-        };
-    }
-};
-
-// Helper functions for webhook events
-const handlePaymentCaptured = async (payload: any) => {
-    try {
-        const razorpayPaymentId = payload.id;
-        const razorpayOrderId = payload.order_id;
-
-        // Find payment record
-        const payment = await Payment.findOne({ razorpayOrderId });
-
-        if (payment) {
-            payment.status = 'Completed';
-            payment.razorpayPaymentId = razorpayPaymentId;
-            payment.paidAt = new Date();
-            await payment.save();
-
-            // Update order
-            await Order.findByIdAndUpdate(payment.order, {
-                paymentStatus: 'Paid',
-                paymentId: razorpayPaymentId,
-            });
-        }
-    } catch (error) {
-        console.error('Error handling payment captured:', error);
-    }
-};
-
-const handlePaymentFailed = async (payload: any) => {
-    try {
-        const razorpayOrderId = payload.order_id;
-
-        // Find payment record
-        const payment = await Payment.findOne({ razorpayOrderId });
-
-        if (payment) {
-            payment.status = 'Failed';
-            payment.gatewayResponse = {
-                success: false,
-                message: payload.error_description || 'Payment failed',
-                rawResponse: payload,
-            };
-            await payment.save();
-
-            // Update order
-            await Order.findByIdAndUpdate(payment.order, {
-                paymentStatus: 'Failed',
-            });
-        }
-    } catch (error) {
-        console.error('Error handling payment failed:', error);
-    }
-};
-
-const handleRefundCreated = async (payload: any) => {
-    try {
-        const razorpayPaymentId = payload.payment_id;
-
-        // Find payment record
-        const payment = await Payment.findOne({ razorpayPaymentId });
-
-        if (payment) {
-            payment.status = 'Refunded';
-            payment.refundAmount = payload.amount / 100; // Convert from paise
-            payment.refundedAt = new Date();
-            await payment.save();
-
-            // Update order
-            await Order.findByIdAndUpdate(payment.order, {
-                paymentStatus: 'Refunded',
-            });
-        }
-    } catch (error) {
-        console.error('Error handling refund created:', error);
     }
 };
