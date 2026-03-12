@@ -67,7 +67,8 @@ export const createHdfcOrder = async (
  * Handle HDFC Return (Decrypt response, validate security audit rules, capture payment)
  */
 export const handleHdfcReturn = async (
-    encResp: string
+    encResp: string,
+    io?: any // SocketIOServer
 ) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -193,6 +194,51 @@ export const handleHdfcReturn = async (
                 await createPendingCommissions(orderId);
             } catch (commError) {
                 console.error("Failed to create pending commissions after payment:", commError);
+            }
+
+            // TRIGGER NOTIFICATIONS FOR SELLERS (Delayed until payment success)
+            if (io) {
+                try {
+                    const { notifySellersOfOrderUpdate } = await import('./sellerNotificationService');
+                    const { sendSellerNewOrderNotification, sendCustomerOrderNotification } = await import('./notificationService');
+                    
+                    // Fetch full order with items for notification
+                    const savedOrder: any = await Order.findById(order._id).populate('items').lean();
+                    
+                    if (savedOrder) {
+                        // Real-time seller notification (Socket)
+                        await notifySellersOfOrderUpdate(io, savedOrder, 'NEW_ORDER');
+
+                        // Push notifications to sellers
+                        const sellerIds = new Set<string>();
+                        (savedOrder.items as any[]).forEach(item => {
+                            if (item.seller) sellerIds.add(item.seller.toString());
+                        });
+
+                        for (const sellerId of sellerIds) {
+                            try {
+                                await sendSellerNewOrderNotification(sellerId, savedOrder._id.toString(), savedOrder.orderNumber, savedOrder.total);
+                            } catch (notifyError) {
+                                console.error(`Error sending push notification to seller ${sellerId}:`, notifyError);
+                            }
+                        }
+
+                        // Push notification to customer (Order Confirmed)
+                        try {
+                            await sendCustomerOrderNotification(
+                                savedOrder._id.toString(),
+                                savedOrder.orderNumber,
+                                savedOrder.customer.toString(),
+                                savedOrder.total,
+                                'Processed'
+                            );
+                        } catch (notifyError) {
+                            console.error("Error sending order confirmation notification to customer:", notifyError);
+                        }
+                    }
+                } catch (notifyError) {
+                    console.error("Error triggering notifications after payment:", notifyError);
+                }
             }
 
             return {

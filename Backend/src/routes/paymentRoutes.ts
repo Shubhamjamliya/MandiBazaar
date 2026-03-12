@@ -72,7 +72,7 @@ router.post('/hdfc-return', async (req: Request, res: Response) => {
             return res.redirect(`${frontendUrl}/orders?error=missing_payment_response`);
         }
 
-        const result = await handleHdfcReturn(encResp);
+        const result = await handleHdfcReturn(encResp, req.app.get('io'));
 
         if (result.success) {
             return res.redirect(`${frontendUrl}/orders/${result.orderId}?payment=success`);
