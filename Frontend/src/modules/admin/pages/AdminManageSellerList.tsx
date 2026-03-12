@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getAllSellers, updateSellerStatus, deleteSeller, Seller as SellerType, updateSeller } from '../../../services/api/sellerService';
 import SellerServiceMap from '../components/SellerServiceMap';
 
@@ -39,7 +39,6 @@ interface Seller {
     addressProof?: string;
     requireProductApproval?: boolean;
     viewCustomerDetails?: boolean;
-    commissionRate?: number;
 }
 
 // Helper function to convert backend seller to frontend format
@@ -80,7 +79,6 @@ const mapSellerToFrontend = (seller: SellerType): Seller => {
         addressProof: seller.addressProof,
         requireProductApproval: seller.requireProductApproval,
         viewCustomerDetails: seller.viewCustomerDetails,
-        commissionRate: seller.commissionRate,
     };
 };
 
@@ -245,7 +243,7 @@ export default function AdminManageSellerList() {
         if (seller) {
             setEditingSeller(seller);
             setNewRadius(seller.serviceRadiusKm || 10);
-            setNewCommissionRate(seller.commissionRate || seller.commission || 0);
+            setNewCommissionRate(seller.commission || 0);
             setIsEditModalOpen(true);
         }
     };
@@ -278,12 +276,11 @@ export default function AdminManageSellerList() {
         try {
             setIsUpdatingCommission(true);
             const response = await updateSeller(editingSeller._id, {
-                commissionRate: newCommissionRate,
-                commission: newCommissionRate // Keep both in sync for legacy compatibility
-            });
+            commission: newCommissionRate
+        });
             if (response.success) {
-                setEditingSeller({ ...editingSeller, commissionRate: newCommissionRate, commission: newCommissionRate });
-                setSellers(sellers.map(s => s._id === editingSeller._id ? { ...s, commissionRate: newCommissionRate, commission: newCommissionRate } : s));
+                setEditingSeller({ ...editingSeller, commission: newCommissionRate });
+                setSellers(sellers.map(s => s._id === editingSeller._id ? { ...s, commission: newCommissionRate } : s));
                 setSuccessMessage('Commission rate updated successfully');
                 setTimeout(() => setSuccessMessage(''), 3000);
             }
@@ -887,7 +884,7 @@ export default function AdminManageSellerList() {
                                                 </div>
                                                 <button
                                                     onClick={handleUpdateCommission}
-                                                    disabled={isUpdatingCommission || newCommissionRate === (editingSeller.commissionRate || editingSeller.commission)}
+                                                    disabled={isUpdatingCommission || newCommissionRate === editingSeller.commission}
                                                     className="px-4 py-2 bg-teal-600 text-white rounded text-sm font-medium hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
                                                 >
                                                     {isUpdatingCommission ? 'Updating...' : 'Update'}

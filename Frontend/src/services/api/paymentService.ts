@@ -26,3 +26,24 @@ export const getPaymentHistory = async () => {
         throw error;
     }
 };
+
+/**
+ * Razorpay Order Creation (Legacy/Placeholder for build)
+ */
+export const createRazorpayOrder = async (_orderId: string) => {
+    return {
+        success: false,
+        message: "Razorpay is disabled.",
+        data: { razorpayOrderId: '', razorpayKey: '' }
+    };
+};
+
+/**
+ * Razorpay Verification (Legacy/Placeholder for build)
+ */
+export const verifyPayment = async (_data: any) => {
+    return {
+        success: false,
+        message: "Razorpay is disabled."
+    };
+};

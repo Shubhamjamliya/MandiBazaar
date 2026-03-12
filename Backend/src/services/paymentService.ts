@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import Payment from '../models/Payment';
 import Order from '../models/Order';
 import mongoose from 'mongoose';
@@ -93,7 +92,6 @@ export const handleHdfcReturn = async (
         const paymentMode = responseParams.get('payment_mode');
         
         const failureMessage = responseParams.get('failure_message');
-        const statusCode = responseParams.get('status_code');
         const statusMessage = responseParams.get('status_message');
 
         if (!orderId || !trackingId || !orderStatus) {
@@ -350,4 +348,21 @@ export const processRefund = async (
             message: error.message || 'Failed to process refund',
         };
     }
+};
+
+/**
+ * Razorpay Order Creation (Legacy/Placeholder for build)
+ */
+export const createRazorpayOrder = async (_orderId: string, _amount: number) => {
+    return {
+        success: false,
+        message: "Razorpay is disabled. Please use HDFC Gateway."
+    };
+};
+
+/**
+ * Razorpay Signature Verification (Legacy/Placeholder for build)
+ */
+export const verifyPaymentSignature = (_orderId: string, _paymentId: string, _signature: string) => {
+    return false;
 };
