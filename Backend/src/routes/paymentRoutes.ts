@@ -36,9 +36,12 @@ router.post('/create-order', authenticate, requireUserType('Customer'), async (r
             });
         }
 
-        const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
-        const redirectUrl = `${backendUrl}/api/v1/payment/hdfc-return`;
-        const cancelUrl = `${backendUrl}/api/v1/payment/hdfc-cancel`;
+        // BACKEND_URL may already include /api/v1 on the server (e.g. https://api.mandibazar.in/api/v1)
+        // So we strip any trailing /api/v1 from it before appending our path to avoid doubling.
+        const rawBackendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
+        const backendBase = rawBackendUrl.replace(/\/api\/v1\/?$/, '');
+        const redirectUrl = `${backendBase}/api/v1/payment/hdfc-return`;
+        const cancelUrl = `${backendBase}/api/v1/payment/hdfc-cancel`;
 
         const result = await createHdfcOrder(orderId, order.total, redirectUrl, cancelUrl);
 
