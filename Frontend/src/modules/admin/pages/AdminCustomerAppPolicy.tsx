@@ -1,56 +1,59 @@
-﻿import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getAppSettings, updateAppSettings } from '../../../services/api/admin/adminSettingsService';
+import { useToast } from '../../../context/ToastContext';
 
 export default function AdminCustomerAppPolicy() {
-  const [policyContent, setPolicyContent] = useState(`Welcome to Mandi Bazaar - 10 Minute App!
+  const [policyContent, setPolicyContent] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { showToast } = useToast();
 
-By using our customer app, you agree to the following terms and conditions:
+  useEffect(() => {
+    fetchPolicy();
+  }, []);
 
-1. Account Registration
-   - You must provide accurate and complete information when creating an account
-   - You are responsible for maintaining the confidentiality of your account credentials
-   - You must notify us immediately of any unauthorized use of your account
-
-2. Order Placement
-   - All orders are subject to product availability
-   - Prices are subject to change without notice
-   - We reserve the right to refuse or cancel any order
-
-3. Payment Terms
-   - Payment must be made at the time of order placement
-   - We accept various payment methods as displayed in the app
-   - All prices are inclusive of applicable taxes
-
-4. Delivery
-   - Delivery times are estimates and may vary
-   - We are not responsible for delays due to circumstances beyond our control
-   - You must be available to receive the delivery at the specified address
-
-5. Returns and Refunds
-   - Returns are accepted within 7 days of delivery
-   - Products must be in original condition and packaging
-   - Refunds will be processed within 5-7 business days
-
-6. Privacy
-   - We respect your privacy and handle your data in accordance with our Privacy Policy
-   - Your personal information will not be shared with third parties without consent
-
-7. Limitation of Liability
-   - Our liability is limited to the value of the products purchased
-   - We are not liable for any indirect or consequential damages
-
-8. Changes to Terms
-   - We reserve the right to modify these terms at any time
-   - Continued use of the app constitutes acceptance of modified terms
-
-For any questions or concerns, please contact our customer support team.
-
-Last updated: December 2025`);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle form submission
-    alert('Customer App Policy updated successfully!');
+  const fetchPolicy = async () => {
+    try {
+      setLoading(true);
+      const response = await getAppSettings();
+      if (response.success && response.data.customerAppPolicy) {
+        setPolicyContent(response.data.customerAppPolicy);
+      }
+    } catch (error) {
+      console.error('Error fetching customer app policy:', error);
+      showToast('Failed to load policy', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      const response = await updateAppSettings({
+        customerAppPolicy: policyContent
+      });
+      if (response.success) {
+        showToast('Customer App Policy updated successfully!', 'success');
+      } else {
+        showToast(response.message || 'Failed to update policy', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating customer app policy:', error);
+      showToast('An error occurred while saving', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -119,12 +122,13 @@ Last updated: December 2025`);
               >
                 Clear
               </button>
-              <button
-                type="submit"
-                className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-2.5 rounded-lg text-base font-medium transition-colors"
-              >
-                Update Policy
-              </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-2.5 rounded-lg text-base font-medium transition-colors disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Update Policy'}
+                </button>
             </div>
           </form>
         </div>

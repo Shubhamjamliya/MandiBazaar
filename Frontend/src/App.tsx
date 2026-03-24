@@ -53,6 +53,7 @@ const FashionStore = lazy(() => import("./modules/user/FashionStore"));
 const ToyStore = lazy(() => import("./modules/user/ToyStore"));
 const HobbyStore = lazy(() => import("./modules/user/HobbyStore"));
 const StorePage = lazy(() => import("./modules/user/StorePage"));
+const PrivacyPolicy = lazy(() => import("./modules/user/PrivacyPolicy"));
 // Lazy load delivery routes
 const DeliveryLayout = lazy(() => import("./modules/delivery/components/DeliveryLayout"));
 const DeliveryDashboard = lazy(() => import("./modules/delivery/pages/DeliveryDashboard"));
@@ -422,6 +423,7 @@ function App() {
                                     <Route path="/store/fashion-basics" element={<FashionStore />} />
                                     <Route path="/store/toy" element={<ToyStore />} />
                                     <Route path="/store/hobby" element={<HobbyStore />} />
+                                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                                   </Routes>
                                 </Suspense>
                               </AppLayout>

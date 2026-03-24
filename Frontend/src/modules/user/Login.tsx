@@ -393,6 +393,26 @@ export default function Login() {
 
 
 
+          {/* Privacy & Terms Agreement */}
+          <div className="w-full px-6 py-2 text-center animate-fade-in" style={{ animationDelay: '0.9s' }}>
+            <p className="text-[10px] text-neutral-500 leading-relaxed font-medium">
+              By continuing, you agree to our{' '}
+              <button 
+                onClick={() => navigate('/privacy-policy')}
+                className="text-emerald-600 font-bold hover:underline"
+              >
+                Privacy Policy
+              </button>
+              {' '}and{' '}
+              <button 
+                onClick={() => navigate('/privacy-policy')}
+                className="text-emerald-600 font-bold hover:underline"
+              >
+                Terms of Service
+              </button>
+            </p>
+          </div>
+
           {/* Privacy Text */}
           <p className="text-[9px] sm:text-[10px] text-neutral-500 text-center max-w-sm leading-tight px-4 relative z-10 pb-1">
             Access your saved addresses from Mandi Bazaar automatically!

@@ -1,87 +1,59 @@
-﻿import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getAppSettings, updateAppSettings } from '../../../services/api/admin/adminSettingsService';
+import { useToast } from '../../../context/ToastContext';
 
 export default function AdminDeliveryAppPolicy() {
-  const [policyContent, setPolicyContent] = useState(`Welcome to Mandi Bazaar - 10 Minute App Delivery Partner Program!
+  const [policyContent, setPolicyContent] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { showToast } = useToast();
 
-By using our delivery app, you agree to the following terms and conditions:
+  useEffect(() => {
+    fetchPolicy();
+  }, []);
 
-1. Delivery Partner Registration
-   - You must provide accurate and complete information during registration
-   - You must have a valid driver's license and vehicle registration
-   - Background checks may be required before approval
-   - You are responsible for maintaining the confidentiality of your account credentials
-
-2. Delivery Responsibilities
-   - You must accept and complete deliveries in a timely manner
-   - You must handle all orders with care and ensure product integrity
-   - You must follow the delivery route provided by the app
-   - You must obtain customer signature or confirmation upon delivery
-
-3. Vehicle and Equipment Requirements
-   - You must maintain a valid driver's license and vehicle insurance
-   - Your vehicle must be in good working condition
-   - You must have a smartphone with GPS capabilities
-   - You must maintain proper delivery equipment (bags, containers, etc.)
-
-4. Payment and Earnings
-   - Delivery fees are calculated based on distance and order value
-   - Earnings are credited to your account after successful delivery
-   - Payment is processed weekly via your registered payment method
-   - You are responsible for reporting your earnings for tax purposes
-
-5. Code of Conduct
-   - You must treat customers with respect and professionalism
-   - You must maintain a clean and presentable appearance
-   - You must not engage in any illegal activities
-   - You must follow all traffic laws and regulations
-
-6. Safety Requirements
-   - You must prioritize safety at all times
-   - You must not use your phone while driving
-   - You must wear appropriate safety gear when required
-   - You must report any accidents or incidents immediately
-
-7. Availability and Scheduling
-   - You can set your own availability through the app
-   - You must honor accepted delivery assignments
-   - Cancellation of accepted orders may result in penalties
-   - You must maintain a minimum acceptance rate to remain active
-
-8. Ratings and Reviews
-   - Customers may rate your service after delivery
-   - Low ratings may affect your access to delivery opportunities
-   - You can view and respond to customer feedback
-   - Maintaining high ratings is important for continued partnership
-
-9. Termination
-   - We reserve the right to suspend or terminate your account for violations
-   - Violations include but are not limited to: fraud, theft, unprofessional conduct
-   - You may terminate your partnership at any time with proper notice
-
-10. Privacy and Data
-    - We respect your privacy and handle your data in accordance with our Privacy Policy
-    - Your location data is used only for delivery purposes
-    - Your personal information will not be shared with customers
-
-11. Limitation of Liability
-    - You are an independent contractor, not an employee
-    - You are responsible for your own taxes and insurance
-    - We are not liable for accidents or incidents during deliveries
-
-12. Changes to Terms
-    - We reserve the right to modify these terms at any time
-    - Continued use of the app constitutes acceptance of modified terms
-    - You will be notified of significant changes via the app or email
-
-For any questions or concerns, please contact our delivery partner support team.
-
-Last updated: January 2025`);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle form submission
-    alert('Delivery App Policy updated successfully!');
+  const fetchPolicy = async () => {
+    try {
+      setLoading(true);
+      const response = await getAppSettings();
+      if (response.success && response.data.deliveryAppPolicy) {
+        setPolicyContent(response.data.deliveryAppPolicy);
+      }
+    } catch (error) {
+      console.error('Error fetching delivery app policy:', error);
+      showToast('Failed to load policy', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      const response = await updateAppSettings({
+        deliveryAppPolicy: policyContent
+      });
+      if (response.success) {
+        showToast('Delivery App Policy updated successfully!', 'success');
+      } else {
+        showToast(response.message || 'Failed to update policy', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating delivery app policy:', error);
+      showToast('An error occurred while saving', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -150,12 +122,13 @@ Last updated: January 2025`);
               >
                 Clear
               </button>
-              <button
-                type="submit"
-                className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-2.5 rounded-lg text-base font-medium transition-colors"
-              >
-                Update Policy
-              </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-2.5 rounded-lg text-base font-medium transition-colors disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Update Policy'}
+                </button>
             </div>
           </form>
         </div>

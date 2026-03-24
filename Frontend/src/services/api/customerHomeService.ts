@@ -70,3 +70,23 @@ export const getStoreProducts = async (
   const response = await api.get(`/customer/home/store/${storeId}`, { params });
   return response.data;
 };
+
+/**
+ * Get public app settings with caching for speed
+ */
+export const getPublicSettings = async (
+  useCache: boolean = true,
+  cacheTTL: number = 30 * 60 * 1000 // 30 minutes
+): Promise<any> => {
+  const cacheKey = 'public-settings';
+  const fetchFn = async () => {
+    const response = await api.get("/customer/home/settings");
+    return response.data;
+  };
+
+  if (useCache) {
+    return apiCache.getOrFetch(cacheKey, fetchFn, cacheTTL);
+  }
+
+  return fetchFn();
+};

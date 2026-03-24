@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendOTP, verifyOTP } from '../../../services/api/auth/sellerAuthService';
 import OTPInput from '../../../components/OTPInput';
@@ -277,11 +277,22 @@ export default function SellerLogin() {
         </div>
 
         {/* Footer */}
-        <p className="mt-6 text-xs text-gray-500 text-center px-4">
+        <div className="mt-6 text-[11px] text-gray-500 text-center px-4 leading-relaxed">
           By continuing, you agree to Mandi Bazaar's{' '}
-          <span className="text-green-600 font-medium">Terms of Service</span> and{' '}
-          <span className="text-green-600 font-medium">Privacy Policy</span>
-        </p>
+          <button 
+            onClick={() => navigate('/privacy-policy')}
+            className="text-emerald-600 font-bold hover:underline"
+          >
+            Terms of Service
+          </button>
+          {' '}and{' '}
+          <button 
+            onClick={() => navigate('/privacy-policy')}
+            className="text-emerald-600 font-bold hover:underline"
+          >
+            Privacy Policy
+          </button>
+        </div>
       </div>
     </div>
   );

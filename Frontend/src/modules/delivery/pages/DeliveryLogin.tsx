@@ -266,9 +266,22 @@ export default function DeliveryLogin() {
       </div>
 
       {/* Footer Text */}
-      <p className="mt-8 text-xs text-gray-500 text-center max-w-md px-4">
-        By continuing, you agree to Mandi Bazaar's Terms of Service and Privacy Policy
-      </p>
+      <div className="mt-8 text-xs text-gray-500 text-center max-w-md px-4 leading-relaxed">
+        By continuing, you agree to Mandi Bazaar's{' '}
+        <button 
+          onClick={() => navigate('/privacy-policy')}
+          className="text-emerald-600 font-bold hover:underline"
+        >
+          Terms of Service
+        </button>
+        {' '}and{' '}
+        <button 
+          onClick={() => navigate('/privacy-policy')}
+          className="text-emerald-600 font-bold hover:underline"
+        >
+          Privacy Policy
+        </button>
+      </div>
     </div>
   );
 }
