@@ -346,6 +346,19 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 style={{ minHeight: '100%' }}
               >
                 {children}
+
+                {/* Local App Badge - Blinkit Style */}
+                <div className="py-20 px-6 text-center bg-white border-t border-neutral-50">
+                   <h2 className="text-4xl md:text-6xl font-black text-[#D1D5DB] tracking-tight leading-[1.1] max-w-2xl mx-auto">
+                     Udaipur Ka Aapka <br />
+                     Apna Local app <span className="text-[#F87171]">❤️</span>
+                   </h2>
+                   <div className="mt-8 select-none pointer-events-none">
+                     <p className="text-2xl md:text-4xl font-black tracking-tighter text-emerald-600">
+                       Mandi Bazaar
+                     </p>
+                   </div>
+                </div>
               </motion.div>
             </AnimatePresence>
           </main>
