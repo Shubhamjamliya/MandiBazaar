@@ -133,7 +133,10 @@ const AdminOutForDeliveryOrders = lazy(() => import("./modules/admin/pages/Admin
 const AdminDeliveredOrders = lazy(() => import("./modules/admin/pages/AdminDeliveredOrders"));
 const AdminCancelledOrders = lazy(() => import("./modules/admin/pages/AdminCancelledOrders"));
 const AdminCustomerAppPolicy = lazy(() => import("./modules/admin/pages/AdminCustomerAppPolicy"));
+const AdminPrivacyPolicy = lazy(() => import("./modules/admin/pages/AdminPrivacyPolicy"));
 const AdminDeliveryAppPolicy = lazy(() => import("./modules/admin/pages/AdminDeliveryAppPolicy"));
+const AdminShippingPolicy = lazy(() => import("./modules/admin/pages/AdminShippingPolicy"));
+const AdminRefundReturnPolicy = lazy(() => import("./modules/admin/pages/AdminRefundReturnPolicy"));
 const AdminOrders = lazy(() => import("./modules/admin/pages/AdminOrders"));
 const AdminOrderDetail = lazy(() => import("./modules/admin/pages/AdminOrderDetail"));
 const AdminManageCustomer = lazy(() => import("./modules/admin/pages/AdminManageCustomer"));
@@ -344,7 +347,10 @@ function App() {
                                         <Route path="sms-gateway" element={<AdminSmsGateway />} />
                                         <Route path="system-user" element={<AdminSystemUser />} />
                                         <Route path="customer-app-policy" element={<AdminCustomerAppPolicy />} />
+                                        <Route path="privacy-policy" element={<AdminPrivacyPolicy />} />
                                         <Route path="delivery-app-policy" element={<AdminDeliveryAppPolicy />} />
+                                        <Route path="shipping-policy" element={<AdminShippingPolicy />} />
+                                        <Route path="refund-return-policy" element={<AdminRefundReturnPolicy />} />
                                         <Route path="users" element={<AdminUsers />} />
                                         <Route path="faq" element={<AdminFAQ />} />
                                         {/* home-section route removed - Home Sections feature removed */}

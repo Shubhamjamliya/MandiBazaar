@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { getAppSettings, updateAppSettings } from '../../../services/api/admin/adminSettingsService';
 import { useToast } from '../../../context/ToastContext';
 
-export default function AdminCustomerAppPolicy() {
-  const [policyContent, setPolicyContent] = useState('');
+export default function AdminPrivacyPolicy() {
+  const [privacyPolicy, setPrivacyPolicy] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
@@ -16,12 +16,12 @@ export default function AdminCustomerAppPolicy() {
     try {
       setLoading(true);
       const response = await getAppSettings();
-      if (response.success && response.data.customerAppPolicy) {
-        setPolicyContent(response.data.customerAppPolicy);
+      if (response.success) {
+        setPrivacyPolicy(response.data.privacyPolicy || '');
       }
     } catch (error) {
-      console.error('Error fetching terms and conditions:', error);
-      showToast('Failed to load terms', 'error');
+      console.error('Error fetching privacy policy:', error);
+      showToast('Failed to load policy', 'error');
     } finally {
       setLoading(false);
     }
@@ -32,15 +32,15 @@ export default function AdminCustomerAppPolicy() {
     try {
       setSaving(true);
       const response = await updateAppSettings({
-        customerAppPolicy: policyContent
+        privacyPolicy: privacyPolicy
       });
       if (response.success) {
-        showToast('Terms & Conditions updated successfully!', 'success');
+        showToast('Privacy Policy updated successfully!', 'success');
       } else {
         showToast(response.message || 'Failed to update policy', 'error');
       }
     } catch (error) {
-      console.error('Error updating terms and conditions:', error);
+      console.error('Error updating privacy policy:', error);
       showToast('An error occurred while saving', 'error');
     } finally {
       setSaving(false);
@@ -61,10 +61,10 @@ export default function AdminCustomerAppPolicy() {
       <div className="bg-white px-4 sm:px-6 py-4 border-b border-neutral-200">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-neutral-900">Terms & Conditions</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-neutral-900">Privacy Policy</h1>
           </div>
           <div className="text-sm text-neutral-600">
-            <span className="text-blue-600">Home</span> / <span className="text-neutral-900">Terms & Conditions</span>
+            <span className="text-blue-600">Home</span> / <span className="text-neutral-900">Privacy Policy</span>
           </div>
         </div>
       </div>
@@ -73,27 +73,27 @@ export default function AdminCustomerAppPolicy() {
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-neutral-50">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Policy Content Section */}
+            {/* Privacy Policy Section */}
             <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
               <div className="bg-teal-600 px-4 sm:px-6 py-3">
-                <h2 className="text-white text-lg font-semibold">Terms & Conditions Content</h2>
+                <h2 className="text-white text-lg font-semibold">Policy Content</h2>
               </div>
               <div className="p-4 sm:p-6">
                 <div>
                   <label className="block text-sm font-bold text-neutral-800 mb-2">
-                    Terms & Conditions Text <span className="text-red-500">*</span>
+                    Privacy Policy Text <span className="text-red-500">*</span>
                   </label>
                   <textarea
-                    name="policyContent"
-                    value={policyContent}
-                    onChange={(e) => setPolicyContent(e.target.value)}
-                    placeholder="Enter Terms & Conditions content..."
+                    name="privacyPolicy"
+                    value={privacyPolicy}
+                    onChange={(e) => setPrivacyPolicy(e.target.value)}
+                    placeholder="Enter Privacy Policy content..."
                     rows={25}
                     required
                     className="w-full px-4 py-3 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-y font-mono"
                   />
                   <p className="mt-2 text-xs text-neutral-500">
-                    This content will be displayed to customers in the "Terms & Conditions" section.
+                    This content will be displayed to customers in the "Privacy Policy" section.
                   </p>
                 </div>
               </div>
@@ -107,7 +107,7 @@ export default function AdminCustomerAppPolicy() {
               <div className="p-4 sm:p-6">
                 <div className="prose max-w-none">
                   <div className="whitespace-pre-wrap text-sm text-neutral-700 bg-neutral-50 p-4 rounded border border-neutral-200 min-h-[200px] max-h-[400px] overflow-y-auto">
-                    {policyContent || 'Terms content will appear here...'}
+                    {privacyPolicy || 'Policy content will appear here...'}
                   </div>
                 </div>
               </div>
@@ -117,7 +117,7 @@ export default function AdminCustomerAppPolicy() {
             <div className="flex justify-end gap-4">
               <button
                 type="button"
-                onClick={() => setPolicyContent('')}
+                onClick={() => setPrivacyPolicy('')}
                 className="px-6 py-2.5 border border-neutral-300 rounded-lg text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
               >
                 Clear

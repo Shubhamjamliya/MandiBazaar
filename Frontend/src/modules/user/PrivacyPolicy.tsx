@@ -33,8 +33,8 @@ export default function PrivacyPolicy() {
   const policies = [
     { title: 'Privacy Policy', content: settings?.privacyPolicy || 'Privacy policy details...', icon: '🔒' },
     { title: 'Terms & Conditions', content: settings?.customerAppPolicy || 'Terms and conditions...', icon: '📄' },
-    { title: 'Shipping & Delivery', content: 'We aim to deliver within 20 minutes...', icon: '🚚' },
-    { title: 'Refund & Returns', content: 'Easy returns and refunds within 7 days...', icon: '🔄' },
+    { title: 'Shipping & Delivery', content: settings?.deliveryAppPolicy || 'We aim to deliver within 20 minutes...', icon: '🚚' },
+    { title: 'Refund & Returns', content: settings?.returnPolicy || 'Refund and return option available only at your door step at the time of delivery', icon: '🔄' },
   ];
 
   if (loading) return <ContentLoader />;
