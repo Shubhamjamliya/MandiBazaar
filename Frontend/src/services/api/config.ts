@@ -7,7 +7,8 @@ const getApiBaseUrl = () => {
 
   // Check if we're in production (Vercel)
   const isProduction = window.location.hostname.includes('vercel.app') ||
-    window.location.hostname.includes('mandibazaar.com');
+    window.location.hostname.includes('mandibazaar.com') ||
+    window.location.hostname.includes('mandibazar.in');
 
   // If in production and env var is not set or malformed, use production URL
   if (isProduction && (!envUrl || envUrl.includes('VITE_API_BASE_URL='))) {
@@ -35,7 +36,8 @@ export const getSocketBaseURL = (): string => {
 
   // Check if we're in production
   const isProduction = window.location.hostname.includes('vercel.app') ||
-    window.location.hostname.includes('mandibazaar.com');
+    window.location.hostname.includes('mandibazaar.com') ||
+    window.location.hostname.includes('mandibazar.in');
 
   // Otherwise, extract base URL from VITE_API_BASE_URL
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1";

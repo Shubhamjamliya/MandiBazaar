@@ -20,6 +20,8 @@ const httpServer = createServer(app);
 
 // Simple CORS configuration - Standard and reliable
 const allowedOrigins = [
+  "https://www.mandibazar.in",
+  "https://mandibazar.in",
   "https://www.mandibazaar.com",
   "https://mandibazaar.com",
   "https://mandi-bazaar.vercel.app",
