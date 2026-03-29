@@ -202,28 +202,23 @@ async function verifyOtpFromDb(mobile: string, otp: string, userType: UserType):
  * Check if special bypass should be used
  */
 function isSpecialBypass(mobile: string): boolean {
-  const cleanMobile = mobile.replace(/\D/g, '');
-  return (
-    cleanMobile === '9111966732' ||
-    cleanMobile === '919111966732' ||
-    cleanMobile === DEFAULT_ADMIN_MOBILE ||
-    cleanMobile === '91' + DEFAULT_ADMIN_MOBILE
-  );
+  // Disabled as per user request: "no special numbers"
+  return false;
 }
 
 /**
  * Check if mock mode should be used
  */
 function isMockMode(): boolean {
-  return process.env.USE_MOCK_OTP === 'true' || !SMS_INDIA_HUB_API_KEY || !SMS_INDIA_HUB_SENDER_ID;
+  return process.env.USE_MOCK_OTP === 'true';
 }
 
 /**
  * Check if developer bypass OTP
  */
 function isDeveloperBypass(otp: string): boolean {
-  const isDev = process.env.NODE_ENV !== 'production' || process.env.USE_MOCK_OTP === 'true';
-  return isDev && (otp === '999999' || otp === DEFAULT_OTP);
+  // Only allow bypass if MOCK is explicitly enabled
+  return process.env.USE_MOCK_OTP === 'true' && (otp === '999999' || otp === DEFAULT_OTP);
 }
 
 // ==========================================

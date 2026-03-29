@@ -402,6 +402,12 @@ export function LocationProvider({ children }: { children: ReactNode }) {
           return { formatted_address: `${lat}, ${lng}` };
         }
 
+        if (data.status === 'REQUEST_DENIED') {
+          const deniedMsg = 'Google Maps API: REQUEST_DENIED. Please ensure "Geocoding API" is active and Billing is enabled in Google Cloud Console.';
+          console.error(`❌ ${deniedMsg}`, data.error_message || '');
+          throw new Error(deniedMsg);
+        }
+
         if (data.status !== 'OK') {
           throw new Error(`Geocoding API error: ${data.status}`);
         }

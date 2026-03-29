@@ -92,7 +92,7 @@ export default function GoogleMapsAutocomplete({
       const places = window.google.maps.places as any;
 
       if (!places.Autocomplete) {
-        setError('Autocomplete not available');
+        setError('Google Maps: Autocomplete service not available. Please check if the Places API is enabled.');
         return;
       }
 
@@ -104,11 +104,19 @@ export default function GoogleMapsAutocomplete({
 
       autocompleteRef.current = autocomplete;
 
+      // Listen for errors (like REQUEST_DENIED)
+      const gm_error_listener = window.google.maps.event.addListener(autocomplete, 'error', (err: any) => {
+        console.error('Autocomplete Error:', err);
+        if (err?.status === 'REQUEST_DENIED') {
+          setError('Google Maps API: REQUEST_DENIED. Please ensure Billing is enabled and Geocoding/Places APIs are active in Cloud Console.');
+        }
+      });
+
       autocomplete.addListener('place_changed', () => {
         const place = autocomplete.getPlace();
 
         if (!place.geometry || !place.geometry.location) {
-          setError('No location details found');
+          setError('No location details found for this selection.');
           return;
         }
 
@@ -132,19 +140,19 @@ export default function GoogleMapsAutocomplete({
 
         isProgrammaticChange.current = true;
         setInputValue(address);
-        lastPropsValueRef.current = address; // Mark this as the new expected prop value
+        lastPropsValueRef.current = address; 
         onChangeRef.current(address, lat, lng, placeName, { city, state });
         setError('');
 
-        // Reset the flag after a short delay
         setTimeout(() => {
           isProgrammaticChange.current = false;
         }, 300);
       });
     } catch (err: unknown) {
-      setError('Autocomplete initialization failed');
+      console.error('Autocomplete init error:', err);
+      setError('Failed to initialize Google Maps search.');
     }
-  }, []); // Truly stable callback
+  }, []); 
 
   useEffect(() => {
     if (isLoaded && inputRef.current && !autocompleteRef.current) {

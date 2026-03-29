@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import ServiceCategoriesSection from "./components/ServiceCategoriesSection";
 import SimpleBanner from "./components/SimpleBanner";
@@ -54,6 +54,7 @@ export default function Home() {
   });
 
   const [products, setProducts] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
 
   // Memoize service categories from homeData to ensure filtering is respected
   const serviceCategories = useMemo(() => {
@@ -73,6 +74,18 @@ export default function Home() {
   const [inlineProducts, setInlineProducts] = useState<any[]>([]);
   const [isInlineLoading, setIsInlineLoading] = useState(false);
 
+  // Pagination for All Products
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  // Pagination for Inline Category Flow
+  const [inlinePage, setInlinePage] = useState(1);
+  const [inlineHasMore, setInlineHasMore] = useState(true);
+  const [isInlineLoadingMore, setIsInlineLoadingMore] = useState(false);
+  const inlineObserverTarget = useRef<HTMLDivElement>(null);
+
   // Function to save scroll position before navigation
   const saveScrollPosition = () => {
     const mainElement = document.querySelector('main');
@@ -85,6 +98,45 @@ export default function Home() {
       sessionStorage.setItem(SCROLL_POSITION_KEY, scrollPos.toString());
     }
   };
+
+  const fetchAllProducts = useCallback(async (pageNum: number = 1, tabId: string = "all") => {
+    setIsLoadingMore(true);
+
+    try {
+      const params: any = { 
+        limit: 20, 
+        page: pageNum,
+        latitude: location?.latitude, 
+        longitude: location?.longitude 
+      };
+
+      if (tabId !== "all") {
+        params.category = tabId;
+      }
+
+      const response = await getCustomerProducts(params);
+
+      if (response.success) {
+        if (pageNum === 1) {
+          setAllProducts(response.data);
+        } else {
+          // Append new products, avoiding duplicates
+          setAllProducts(prev => {
+            const existingIds = new Set(prev.map(p => p._id || p.id));
+            const newProducts = response.data.filter(p => !existingIds.has(p._id || p.id));
+            return [...prev, ...newProducts];
+          });
+        }
+        
+        setHasMore(response.data.length === 20 && response.pagination.page < response.pagination.pages);
+        setPage(pageNum);
+      }
+    } catch (error: any) {
+      console.error("Failed to fetch all products", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [location?.latitude, location?.longitude]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -130,8 +182,13 @@ export default function Home() {
     };
 
     fetchData();
+    // Reset and fetch all products for the current tab
+    setPage(1);
+    setHasMore(true);
+    setAllProducts([]);
+    fetchAllProducts(1, activeTab);
 
-  }, [location?.latitude, location?.longitude, activeTab]);
+  }, [location?.latitude, location?.longitude, activeTab, fetchAllProducts]);
 
   // Removed separate bestseller fetch — now populated from homeData.bestsellerProducts
   // (sourced from BestsellerCard DB schema via home content API)
@@ -161,12 +218,20 @@ export default function Home() {
 
     setActiveInlineCategory(category);
     setIsInlineLoading(true);
+    setInlinePage(1);
+    setInlineHasMore(true);
 
     try {
       // Fetch subcategories and products in parallel
       const [subcatsRes, productsRes] = await Promise.all([
         getSubcategories(categoryId),
-        getCustomerProducts({ category: categoryId, latitude: location?.latitude, longitude: location?.longitude })
+        getCustomerProducts({ 
+          category: categoryId, 
+          page: 1, 
+          limit: 20,
+          latitude: location?.latitude, 
+          longitude: location?.longitude 
+        })
       ]);
 
       if (subcatsRes.success) {
@@ -175,6 +240,7 @@ export default function Home() {
 
       if (productsRes.success) {
         setInlineProducts(productsRes.data);
+        setInlineHasMore(productsRes.data.length === 20 && productsRes.pagination.page < productsRes.pagination.pages);
       }
     } catch (err) {
       console.error("Failed to fetch category details for inline flow:", err);
@@ -182,6 +248,55 @@ export default function Home() {
       setIsInlineLoading(false);
     }
   };
+
+  const fetchMoreInlineProducts = useCallback(async () => {
+    if (!activeInlineCategory || isInlineLoadingMore || !inlineHasMore) return;
+    
+    setIsInlineLoadingMore(true);
+    const categoryId = activeInlineCategory.categoryId || activeInlineCategory.id || activeInlineCategory._id;
+    const nextPage = inlinePage + 1;
+
+    try {
+      const response = await getCustomerProducts({
+        category: categoryId,
+        page: nextPage,
+        limit: 20,
+        latitude: location?.latitude,
+        longitude: location?.longitude
+      });
+
+      if (response.success) {
+        setInlineProducts(prev => {
+          const existingIds = new Set(prev.map(p => p._id || p.id));
+          const newProducts = response.data.filter(p => !existingIds.has(p._id || p.id));
+          return [...prev, ...newProducts];
+        });
+        setInlineHasMore(response.data.length === 20 && response.pagination.page < response.pagination.pages);
+        setInlinePage(nextPage);
+      }
+    } catch (error: any) {
+      console.error("Failed to fetch more inline products", error);
+    } finally {
+      setIsInlineLoadingMore(false);
+    }
+  }, [activeInlineCategory, inlinePage, inlineHasMore, isInlineLoadingMore, location]);
+
+  // Handle Inline Infinite Scroll
+  useEffect(() => {
+    if (!inlineObserverTarget.current || !inlineHasMore || isInlineLoadingMore || !activeInlineCategory) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchMoreInlineProducts();
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
+    );
+
+    observer.observe(inlineObserverTarget.current);
+    return () => observer.disconnect();
+  }, [inlineHasMore, isInlineLoadingMore, fetchMoreInlineProducts, activeInlineCategory]);
 
   // Restore scroll position when returning to this page
   useEffect(() => {
@@ -203,22 +318,18 @@ export default function Home() {
           window.scrollTo(0, scrollY);
         };
 
-        // Try multiple times to ensure scroll is applied even if content is still rendering
+        // Use a single requestAnimationFrame followed by fallback timeouts
         requestAnimationFrame(() => {
           performScroll();
-          requestAnimationFrame(() => {
-            performScroll();
-            // Final fallback after a small delay for any late-rendering content
-            setTimeout(performScroll, 100);
-            setTimeout(performScroll, 300);
-          });
+          // Fallback for late-rendering content
+          const timers = [100, 300, 600];
+          timers.forEach(ms => setTimeout(performScroll, ms));
         });
 
-        // Clear the saved position after some time to ensure AppLayout can also see it if needed
-        // but Home.tsx is the primary restorer now.
+        // Clear the saved position after some time
         setTimeout(() => {
           sessionStorage.removeItem(SCROLL_POSITION_KEY);
-        }, 1000);
+        }, 1500);
       } else {
         // No saved position, ensure we start at the top
         const performReset = () => {
@@ -234,6 +345,23 @@ export default function Home() {
     }
   }, [loading, homeData.shops]);
 
+  // Handle Infinite Scroll Intersection
+  useEffect(() => {
+    if (!observerTarget.current || !hasMore || isLoadingMore || activeInlineCategory) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchAllProducts(page + 1, activeTab);
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
+    );
+
+    observer.observe(observerTarget.current);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, page, activeInlineCategory, fetchAllProducts, activeTab]);
+
   // Global click/touch listener to save scroll position before any navigation
   useEffect(() => {
     const handleNavigationEvent = (e: MouseEvent | TouchEvent) => {
@@ -245,23 +373,14 @@ export default function Home() {
     };
 
     window.addEventListener('click', handleNavigationEvent, { capture: true });
-    window.addEventListener('touchstart', handleNavigationEvent, { capture: true, passive: true });
     return () => {
       window.removeEventListener('click', handleNavigationEvent, { capture: true });
-      window.removeEventListener('touchstart', handleNavigationEvent, { capture: true });
     };
   }, []);
 
   // Removed duplicate saveScrollPosition
   const getFilteredProducts = (tabId: string) => {
-    if (tabId === "all") {
-      return products;
-    }
-    return products.filter(
-      (p) =>
-        p.categoryId === tabId ||
-        (p.category && (p.category._id === tabId || p.category.slug === tabId))
-    );
+    return allProducts;
   };
 
   const filteredProducts = useMemo(
@@ -348,6 +467,19 @@ export default function Home() {
                 products={inlineProducts}
                 isLoading={isInlineLoading}
               />
+              
+              {/* Inline Sentinel for Infinite Scroll */}
+              <div ref={inlineObserverTarget} className="h-10 w-full flex items-center justify-center -mt-2 mb-8">
+                {isInlineLoadingMore && (
+                  <div className="flex items-center gap-2 text-neutral-500">
+                    <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm font-medium">Loading more {activeInlineCategory.name}...</span>
+                  </div>
+                )}
+                {!inlineHasMore && inlineProducts.length > 0 && (
+                  <p className="text-sm text-neutral-400 italic">End of {activeInlineCategory.name}</p>
+                )}
+              </div>
             </div>
           )}
         </>
@@ -366,17 +498,19 @@ export default function Home() {
         <div className="space-y-4 pt-1">
 
 
-          {/* Filtered Products Section (Legacy fallback if no category hierarchy, or complementary) */}
-          {activeTab !== "all" && filteredProducts.length > 0 && homeData.categoryHierarchy?.length === 0 && (
-            <div data-products-section className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 px-4 md:px-6 lg:px-8 capitalize">
-                {activeTab === "grocery" ? "Grocery Items" : activeTab}
+          {/* Category-Specific Products Section (Integrated Infinite Scroll) */}
+          {activeTab !== "all" && allProducts.length > 0 && (
+            <div data-products-section className="bg-white/95 backdrop-blur-sm py-6 mb-8 rounded-2xl mx-2 shadow-sm border border-neutral-100">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-6 px-4 md:px-6 lg:px-8 capitalize">
+                {activeTab === "grocery" ? "Grocery Items" : 
+                 activeTab === "fruits-and-vegetables" ? "Fresh Fruits & Vegetables" : 
+                 activeTab}
               </h2>
               <div className="px-4 md:px-6 lg:px-8">
-                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 md:gap-4">
-                  {filteredProducts.map((product) => (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
+                  {allProducts.map((product) => (
                     <ProductCard
-                      key={product.id}
+                      key={product._id || product.id}
                       product={product}
                       categoryStyle={true}
                       showBadge={true}
@@ -385,6 +519,19 @@ export default function Home() {
                     />
                   ))}
                 </div>
+              </div>
+
+              {/* Sentinel for Infinite Scroll in Tabs */}
+              <div ref={observerTarget} className="h-10 w-full flex items-center justify-center mt-6">
+                {isLoadingMore && (
+                  <div className="flex items-center gap-2 text-neutral-500">
+                    <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm font-medium">Loading items...</span>
+                  </div>
+                )}
+                {!hasMore && allProducts.length > 0 && (
+                  <p className="text-sm text-neutral-400 italic text-center">No more products in this category</p>
+                )}
               </div>
             </div>
           )}
@@ -446,6 +593,44 @@ export default function Home() {
           {homeData.extraBanner3?.map((banner: any) => (
             <InlineBanner key={banner._id} banners={[{ image: banner.image, link: banner.link }]} />
           ))}
+
+          {/* All Products Section - New */}
+          {activeTab === "all" && allProducts.length > 0 && (
+            <div className="bg-white/95 backdrop-blur-sm py-6 mb-8 rounded-2xl mx-2 shadow-sm border border-neutral-100">
+              <div className="flex items-center justify-between px-4 md:px-6 mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 leading-tight">All Products</h2>
+                  <p className="text-xs text-gray-500 mt-1">Explore our full range of products</p>
+                </div>
+              </div>
+              <div className="px-4 md:px-6">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
+                  {allProducts.map((product) => (
+                    <ProductCard
+                      key={product._id || product.id}
+                      product={product}
+                      categoryStyle={true}
+                      showBadge={false}
+                      showStockInfo={true}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Sentinel for Infinite Scroll */}
+              <div ref={observerTarget} className="h-10 w-full flex items-center justify-center mt-4">
+                {isLoadingMore && (
+                  <div className="flex items-center gap-2 text-neutral-500">
+                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-xs font-medium">Loading more products...</span>
+                  </div>
+                )}
+                {!hasMore && allProducts.length > 0 && (
+                  <p className="text-xs text-neutral-400 italic">No more products to show</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Shop by Store Section - Commented out as per request */}
           {/* <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">

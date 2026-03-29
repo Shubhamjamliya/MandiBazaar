@@ -1,5 +1,5 @@
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useState, useMemo, useEffect } from "react";
 import ProductCard from "./components/ProductCard";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -26,6 +26,12 @@ export default function CategoryPage() {
   const [loading, setLoading] = useState(true);
   const [categoryLoading, setCategoryLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   // Fetch Category Details
   useEffect(() => {
@@ -96,50 +102,81 @@ export default function CategoryPage() {
   }, [id, searchParams]);
 
   // Fetch Products when category or subcategory changes
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // If the ID in the URL is actually for a subcategory, we should use the parent category ID
-        // which we fetch in the other useEffect and store in 'category'.
-        // However, for fetching products, the backend getProducts handles 'category' (parent)
-        // and 'subcategory' separately.
+  const fetchProductsList = useCallback(async (pageNum: number = 1) => {
+    if (pageNum === 1) setLoading(true);
+    else setIsLoadingMore(true);
+    
+    setError(null);
+    try {
+      const params: any = { 
+        category: category?._id || id,
+        page: pageNum,
+        limit: 20
+      };
+      
+      if (selectedSubcategory !== "all") {
+        params.subcategory = selectedSubcategory;
+      }
+      
+      if (userLocation?.latitude && userLocation?.longitude) {
+        params.latitude = userLocation.latitude;
+        params.longitude = userLocation.longitude;
+      }
 
-        const params: any = { category: category?._id || id };
-        if (selectedSubcategory !== "all") {
-          params.subcategory = selectedSubcategory;
-        }
-        // Include user location for seller service radius filtering
-        if (userLocation?.latitude && userLocation?.longitude) {
-          params.latitude = userLocation.latitude;
-          params.longitude = userLocation.longitude;
-        }
+      const response = await getProducts(params);
+      if (response.success) {
+        const safeProducts = response.data.map((p: any) => ({
+          ...p,
+          tags: Array.isArray(p.tags) ? p.tags : [],
+          nameParts: p.name ? p.name.toLowerCase().split(" ") : [],
+        }));
 
-        const response = await getProducts(params);
-        if (response.success) {
-          // Ensure products have default tags/name array for filtering logic if missing
-          const safeProducts = response.data.map((p: any) => ({
-            ...p,
-            tags: Array.isArray(p.tags) ? p.tags : [],
-            nameParts: p.name ? p.name.toLowerCase().split(" ") : [],
-          }));
+        if (pageNum === 1) {
           setProducts(safeProducts);
         } else {
-          setError("Failed to fetch products for this category.");
+          setProducts(prev => {
+            const existingIds = new Set(prev.map(p => p._id || p.id));
+            const newProducts = safeProducts.filter(p => !existingIds.has(p._id || p.id));
+            return [...prev, ...newProducts];
+          });
         }
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        setError("Network error while loading products.");
-      } finally {
-        setLoading(false);
+        
+        setHasMore(response.data.length === 20 && response.pagination.page < response.pagination.pages);
+        setPage(pageNum);
+      } else {
+        setError("Failed to fetch products for this category.");
       }
-    };
-
-    if (id) {
-      fetchProducts();
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      setError("Network error while loading products.");
+    } finally {
+      setLoading(false);
+      setIsLoadingMore(false);
     }
   }, [id, selectedSubcategory, category?._id, userLocation]);
+
+  useEffect(() => {
+    if (id) {
+      fetchProductsList(1);
+    }
+  }, [id, selectedSubcategory, category?._id, userLocation, fetchProductsList]);
+
+  // Handle Infinite Scroll Intersection
+  useEffect(() => {
+    if (!observerTarget.current || !hasMore || isLoadingMore || loading) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchProductsList(page + 1);
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
+    );
+
+    observer.observe(observerTarget.current);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, page, loading, fetchProductsList]);
 
   // Client-side filtering removed in favor of backend subcategory filtering
   const categoryProducts = products;
@@ -492,6 +529,19 @@ export default function CategoryPage() {
                     categoryStyle={true}
                   />
                 ))}
+              </div>
+
+              {/* Infinite Scroll Sentinel */}
+              <div ref={observerTarget} className="h-10 w-full flex items-center justify-center mt-6">
+                {isLoadingMore && (
+                  <div className="flex items-center gap-2 text-neutral-500">
+                    <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm font-medium">Loading more products...</span>
+                  </div>
+                )}
+                {!hasMore && products.length > 0 && (
+                  <p className="text-sm text-neutral-400 italic">No more products in this category</p>
+                )}
               </div>
             </div>
           ) : (

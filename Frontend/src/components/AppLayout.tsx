@@ -23,6 +23,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [showLocationRequest, setShowLocationRequest] = useState(false);
   const [showLocationChangeModal, setShowLocationChangeModal] = useState(false);
   const { currentTheme } = useThemeContext();
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearchingSuggestions, setIsSearchingSuggestions] = useState(false);
+  const suggestionRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -82,6 +87,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
   // Handle search input change
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
+    
+    // Suggestion logic
+    if (value.trim().length >= 1) {
+      setShowSuggestions(true);
+      fetchSuggestions(value);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+
     if (location.pathname === '/search') {
       // Update URL params when on search page
       if (value.trim()) {
@@ -90,12 +105,59 @@ export default function AppLayout({ children }: AppLayoutProps) {
         setSearchParams({});
       }
     } else {
-      // Navigate to search page with query
+      // Navigate to search page with query after a short delay (or if they press Enter, handled by form/input)
+      // Actually, existing logic navigates immediately. Let's keep it for consistency but maybe tone it down?
+      // No, let's keep it.
       if (value.trim()) {
         navigate(`/search?q=${encodeURIComponent(value)}`);
       }
     }
   };
+
+  // Debounced suggestion fetch
+  const fetchSuggestions = useRef(
+    (() => {
+      let timeout: any;
+      return (val: string) => {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(async () => {
+          setIsSearchingSuggestions(true);
+          try {
+            const params: any = { 
+              search: val, 
+              limit: 6 
+            };
+            if (userLocation?.latitude && userLocation?.longitude) {
+              params.latitude = userLocation.latitude;
+              params.longitude = userLocation.longitude;
+            }
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1'}/customer/products?search=${encodeURIComponent(val)}&limit=6${userLocation?.latitude ? `&latitude=${userLocation.latitude}&longitude=${userLocation.longitude}` : ''}`);
+            const data = await response.json();
+            if (data.success) {
+              setSuggestions(data.data);
+            }
+          } catch (error) {
+            console.error("Suggestion fetch failed", error);
+          } finally {
+            setIsSearchingSuggestions(false);
+          }
+        }, 300);
+      };
+    })()
+  ).current;
+
+  // Handle click outside suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node) && 
+          searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
 
   const SCROLL_POSITION_KEY = 'home-scroll-position';
@@ -313,13 +375,82 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 <div className="px-4 md:px-6 lg:px-8 pb-4">
                   <div className="relative max-w-2xl md:mx-auto group">
                     <input
+                      ref={searchInputRef}
                       type="text"
                       value={searchQuery}
                       onChange={(e) => handleSearchChange(e.target.value)}
+                      onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
                       placeholder="Search for products..."
                       className="w-full px-4 py-3 pl-10 bg-white shadow-xl shadow-black/5 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-yellow-400 border-none transition-all"
                     />
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 transition-transform group-focus-within:scale-110">🔍</span>
+
+                    {/* Suggestions Dropdown */}
+                    <AnimatePresence>
+                      {showSuggestions && (suggestions.length > 0 || isSearchingSuggestions) && (
+                        <motion.div
+                          ref={suggestionRef}
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-neutral-100 overflow-hidden z-[60]"
+                        >
+                          {isSearchingSuggestions && suggestions.length === 0 && (
+                            <div className="p-4 flex items-center justify-center gap-2 text-neutral-500">
+                              <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                              <span className="text-sm">Looking for products...</span>
+                            </div>
+                          )}
+                          
+                          <div className="max-h-[350px] overflow-y-auto">
+                            {suggestions.map((item) => (
+                              <button
+                                key={item._id || item.id}
+                                onClick={() => {
+                                  navigate(`/product/${item._id || item.id}`);
+                                  setShowSuggestions(false);
+                                  setSearchQuery('');
+                                }}
+                                className="w-full p-3 flex items-center gap-3 hover:bg-neutral-50 transition-colors border-b border-neutral-50 last:border-0"
+                              >
+                                <div className="w-12 h-12 rounded-lg bg-neutral-100 flex-shrink-0 overflow-hidden border border-neutral-100">
+                                  <img 
+                                    src={item.mainImage || item.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.productName || item.name)}&background=f0fdf4&color=16a34a`} 
+                                    alt="" 
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="flex-1 text-left min-w-0">
+                                  <p className="text-sm font-bold text-neutral-800 truncate">{item.productName || item.name}</p>
+                                  <p className="text-xs text-neutral-500 truncate">{item.pack || item.smallDescription || 'Fresh Product'}</p>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className="text-xs font-black text-emerald-700">₹{item.price}</span>
+                                    {item.mrp > item.price && (
+                                      <span className="text-[10px] text-neutral-400 line-through">₹{item.mrp}</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                          
+                          <button 
+                            onClick={() => {
+                              navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+                              setShowSuggestions(false);
+                            }}
+                            className="w-full p-2.5 bg-neutral-50 text-[10px] font-black text-neutral-400 text-center uppercase tracking-widest hover:bg-neutral-100 transition-colors"
+                          >
+                            View all results for "{searchQuery}"
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               )}
@@ -348,17 +479,19 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 {children}
 
                 {/* Local App Badge - Blinkit Style */}
-                <div className="py-20 px-6 text-center bg-white border-t border-neutral-50">
-                   <h2 className="text-4xl md:text-6xl font-black text-[#D1D5DB] tracking-tight leading-[1.1] max-w-2xl mx-auto">
-                     Udaipur Ka Aapka <br />
-                     Apna Local app <span className="text-[#F87171]">❤️</span>
-                   </h2>
-                   <div className="mt-8 select-none pointer-events-none">
-                     <p className="text-2xl md:text-4xl font-black tracking-tighter text-emerald-600">
-                       Mandi Bazaar
-                     </p>
-                   </div>
-                </div>
+                {isHomePage && (
+                  <div className="py-20 px-6 text-center bg-white border-t border-neutral-50">
+                    <h2 className="text-4xl md:text-6xl font-black text-[#D1D5DB] tracking-tight leading-[1.1] max-w-2xl mx-auto">
+                      Udaipur Ka Aapka <br />
+                      Apna Local app <span className="text-[#F87171]">❤️</span>
+                    </h2>
+                    <div className="mt-8 select-none pointer-events-none">
+                      <p className="text-2xl md:text-4xl font-black tracking-tighter text-emerald-600">
+                        Mandi Bazaar
+                      </p>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             </AnimatePresence>
           </main>
