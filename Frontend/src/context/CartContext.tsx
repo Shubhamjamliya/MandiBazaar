@@ -14,6 +14,12 @@ import {
 import { calculateProductPrice } from '../utils/priceUtils';
 
 const CART_STORAGE_KEY = 'saved_cart';
+const CART_META_STORAGE_KEY = 'saved_cart_meta';
+
+type SavedCartMeta = {
+  // If set, the cart belongs to an authenticated customer session
+  ownerUserId: string | null;
+};
 
 interface AddToCartEvent {
   product: Product;
@@ -52,6 +58,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     }
     return [];
+  });
+  const [savedCartMeta, setSavedCartMeta] = useState<SavedCartMeta>(() => {
+    const raw = localStorage.getItem(CART_META_STORAGE_KEY);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        return {
+          ownerUserId: typeof parsed?.ownerUserId === 'string' ? parsed.ownerUserId : null,
+        };
+      } catch (e) {
+        console.error("Failed to parse saved cart meta", e);
+      }
+    }
+    return { ownerUserId: null };
   });
   const [lastAddEvent, setLastAddEvent] = useState<AddToCartEvent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,6 +112,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
+  // Persist meta whenever it changes
+  useEffect(() => {
+    localStorage.setItem(CART_META_STORAGE_KEY, JSON.stringify(savedCartMeta));
+  }, [savedCartMeta]);
+
   // Helper to sync cart from API
   const fetchCart = async (lat?: number, lng?: number) => {
     // Debounce: prevent multiple fetches within 2 seconds
@@ -104,6 +129,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     setLoading(true);
     if (!isAuthenticated || user?.userType !== 'Customer') {
+      // Mark saved cart as "guest-owned" when logged out, so we can safely sync it once on next login.
+      if (savedCartMeta.ownerUserId !== null) {
+        setSavedCartMeta({ ownerUserId: null });
+      }
       // If we cleared it above but had things in localStorage, we keep them for guests?
       // For now, if logged out, we clear if it was an authenticated session.
       // But if guest, we might want to keep it.
@@ -126,7 +155,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       // Sync guest cart to backend if items exist in local state but not yet synced
       // Only do this on the first fetch after authentication in this session
-      if (items.length > 0 && !hasSyncedGuestCartRef.current) {
+      // IMPORTANT: Only sync if the saved cart is from a guest session.
+      // Otherwise, refreshing while logged-in would re-add the same items and double quantities.
+      const isGuestCart = savedCartMeta.ownerUserId === null;
+      if (isGuestCart && items.length > 0 && !hasSyncedGuestCartRef.current) {
         hasSyncedGuestCartRef.current = true; // Mark as started/synced immediately
         let hasFailures = false;
 
@@ -181,6 +213,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (response.data.items.length > 0 || hasLocation) {
           setItems(mapApiItemsToState(response.data.items));
         }
+        // After a successful fetch as an authenticated customer, mark the saved cart as owned
+        // so we never treat it as a guest cart on refresh.
+        const currentUserId = (user as any)?.userId || (user as any)?.id || null;
+        if (currentUserId && savedCartMeta.ownerUserId !== currentUserId) {
+          setSavedCartMeta({ ownerUserId: currentUserId });
+        }
         setEstimatedFee(response.data.estimatedDeliveryFee);
         setPlatformFee(response.data.platformFee);
         setFreeDeliveryThreshold(response.data.freeDeliveryThreshold);
@@ -210,7 +248,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       // Guest cart is already in 'items' from localStorage if it existed
       setLoading(false);
     }
-  }, [isAuthenticated, user?.userId, location?.latitude, location?.longitude]);
+  }, [isAuthenticated, (user as any)?.userId, (user as any)?.id, location?.latitude, location?.longitude]);
 
   // State for estimate delivery fee
   const [estimatedFee, setEstimatedFee] = useState<number | undefined>(undefined);
