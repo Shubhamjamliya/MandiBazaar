@@ -150,7 +150,7 @@ export default function PetStore() {
 
 
                     <div className="text-[9px] text-neutral-600 mb-0.5">
-                      15 MINS
+                      20 MINS
                     </div>
 
                     {hasDiscount && (

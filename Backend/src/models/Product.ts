@@ -101,6 +101,9 @@ export interface IProduct extends Document {
   isShopByStoreOnly?: boolean;
   shopId?: mongoose.Types.ObjectId;
 
+  hsnCode?: string;
+  gstPercentage?: number;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -357,6 +360,14 @@ const ProductSchema = new Schema<IProduct>(
     shopId: {
       type: Schema.Types.ObjectId,
       ref: "Shop",
+    },
+    hsnCode: {
+      type: String,
+      trim: true,
+    },
+    gstPercentage: {
+      type: Number,
+      default: 0,
     },
   },
   {

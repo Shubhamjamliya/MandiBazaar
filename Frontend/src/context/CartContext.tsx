@@ -67,24 +67,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const mapApiItemsToState = (apiItems: any[]): ExtendedCartItem[] => {
     return apiItems
       .filter((item: any) => item.product) // Safety filter
-      .map((item: any) => ({
-        id: item._id, // Store CartItem ID
-        product: {
-          id: item.product._id, // Map _id to id
-          name: item.product.productName || item.product.name,
-          price: item.product.price,
-          mrp: item.product.mrp,
-          discPrice: item.product.discPrice,
-          variations: item.product.variations,
-          imageUrl: item.product.mainImage || item.product.imageUrl,
-          pack: item.product.pack || '1 unit',
-          categoryId: item.product.category || '',
-          description: item.product.description,
-          variantId: item.variation // Preserving variation ID/value
-        },
-        quantity: item.quantity,
-        variant: item.variation // Also preserve it here for order placement
-      }));
+      .map((item: any) => {
+        // Robust quantity parsing to prevent "billion items" concatenation bug
+        const qty = Math.max(parseInt(String(item.quantity || 0), 10) || 0, 0);
+        return {
+          id: item._id, // Store CartItem ID
+          product: {
+            id: item.product._id, // Map _id to id
+            name: item.product.productName || item.product.name,
+            price: Number(item.product.price) || 0,
+            mrp: Number(item.product.mrp) || 0,
+            discPrice: Number(item.product.discPrice) || 0,
+            variations: item.product.variations,
+            imageUrl: item.product.mainImage || item.product.imageUrl,
+            pack: item.product.pack || '1 unit',
+            categoryId: item.product.category || '',
+            description: item.product.description,
+            variantId: item.variation // Preserving variation ID/value
+          },
+          quantity: qty,
+          variant: item.variation // Also preserve it here for order placement
+        };
+      });
   };
 
   // Sync to localStorage whenever items change
@@ -104,59 +108,42 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     setLoading(true);
     if (!isAuthenticated || user?.userType !== 'Customer') {
-      // If we cleared it above but had things in localStorage, we keep them for guests?
-      // For now, if logged out, we clear if it was an authenticated session.
-      // But if guest, we might want to keep it.
-      // Let's only clear if we are transition from logged in to logged out.
       setLoading(false);
       return;
     }
 
     try {
-      // Use explicitly provided coordinates first, then fall back to user's current location
-      // This ensures the cart is always validated against the user's actual location
       const queryLat = lat ?? location?.latitude;
       const queryLng = lng ?? location?.longitude;
 
-      // If no coordinates available at all, skip API call and keep existing items from localStorage
       if (queryLat === undefined || queryLng === undefined) {
         setLoading(false);
         return;
       }
 
-      // Sync guest cart to backend if items exist in local state but not yet synced
-      // Only do this on the first fetch after authentication in this session
-      if (items.length > 0 && !hasSyncedGuestCartRef.current) {
-        hasSyncedGuestCartRef.current = true; // Mark as started/synced immediately
+      // Only sync items that don't have a CartItem ID (meaning they are guest items not yet on the server)
+      const guestItems = items.filter(item => !item.id);
+      
+      if (guestItems.length > 0 && !hasSyncedGuestCartRef.current) {
+        hasSyncedGuestCartRef.current = true; // Mark as synced
         let hasFailures = false;
 
-        // Mark as synced immediately to prevent concurrent syncs/loops
-        (items as any)._isSynced = true;
-
         try {
-          // Sync items one by one (since no bulk API)
-          for (const item of items) {
+          for (const item of guestItems) {
             const p = item.product;
             const productId = p?.id || p?._id;
             if (productId) {
               const variation = (p as any).variantId || item.variant || (p as any).selectedVariant?._id || (p as any).pack;
               try {
-                // If we don't have location yet, wait or skip syncing these items to avoid 403
                 if (queryLat === undefined || queryLng === undefined) {
-                  console.log(`Skipping sync for ${productId} due to missing location coordinates`);
                   continue;
                 }
-
-                await apiAddToCart(productId.toString(), item.quantity || 1, variation as string | undefined, queryLat, queryLng);
+                // Robust quantity parsing for sync
+                const qtyToSync = Math.max(parseInt(String(item.quantity || 1), 10) || 1, 1);
+                await apiAddToCart(productId.toString(), qtyToSync, variation as string | undefined, queryLat, queryLng);
               } catch (itemError: any) {
-                const errorMsg = itemError.response?.data?.message || itemError.message;
-
-                // If it's a 403 (out of range), we just skip it but note the failure
                 if (itemError.response?.status === 403) {
-                  console.warn(`[Sync] Item ${productId} out of range for current location. Skipping.`);
                   hasFailures = true;
-                } else {
-                  console.error(`[Sync] Failed to sync item ${productId}:`, errorMsg);
                 }
               }
             }
@@ -175,8 +162,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
         longitude: queryLng
       });
       if (response && response.data && response.data.items) {
-        // Only update items if we got real data back
-        // If no location was provided, backend returns empty items - don't clear existing cart
         const hasLocation = queryLat !== undefined && queryLng !== undefined;
         if (response.data.items.length > 0 || hasLocation) {
           setItems(mapApiItemsToState(response.data.items));
@@ -184,10 +169,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setEstimatedFee(response.data.estimatedDeliveryFee);
         setPlatformFee(response.data.platformFee);
         setFreeDeliveryThreshold(response.data.freeDeliveryThreshold);
-        (items as any).debug_config = response.data.debug_config;
-        (items as any).backendTotal = response.data.backendTotal;
       } else if (queryLat !== undefined && queryLng !== undefined) {
-        // Only clear items if we had valid location but got no response
         setItems([]);
         setEstimatedFee(undefined);
         setPlatformFee(undefined);
@@ -200,54 +182,45 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Load cart on auth change or when location becomes available
   useEffect(() => {
     if (isAuthenticated) {
       fetchCart();
     } else {
-      // Reset sync flag if user logs out
       hasSyncedGuestCartRef.current = false;
-      // Guest cart is already in 'items' from localStorage if it existed
       setLoading(false);
     }
   }, [isAuthenticated, user?.userId, location?.latitude, location?.longitude]);
 
-  // State for estimate delivery fee
+  // State for fees
   const [estimatedFee, setEstimatedFee] = useState<number | undefined>(undefined);
   const [platformFee, setPlatformFee] = useState<number | undefined>(undefined);
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | undefined>(undefined);
 
   const cart: Cart = useMemo(() => {
-    // Filter out any items with null products before computing totals
     const validItems = items.filter(item => item?.product);
     const total = validItems.reduce((sum, item) => {
       const { displayPrice } = calculateProductPrice(item.product, item.variant);
-      return sum + displayPrice * (item.quantity || 0);
+      // Ensure numeric addition to prevent concatenation bug
+      return Number(sum) + (Number(displayPrice) * (Number(item.quantity) || 0));
     }, 0);
-    const itemCount = validItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const itemCount = validItems.reduce((sum, item) => Number(sum) + (Number(item.quantity) || 0), 0);
     return {
       items: validItems,
-      total,
-      itemCount,
+      total: Number(total.toFixed(2)),
+      itemCount: Number(itemCount),
       estimatedDeliveryFee: estimatedFee,
       platformFee,
-      freeDeliveryThreshold,
-      debug_config: (items as any).debug_config,
-      backendTotal: (items as any).backendTotal
+      freeDeliveryThreshold
     };
   }, [items, estimatedFee, platformFee, freeDeliveryThreshold]);
 
   const addToCart = async (product: Product, sourceElement?: HTMLElement | null) => {
-    // Get consistent product ID - MongoDB returns _id, frontend expects id
     const productId = product._id || product.id;
-
-    // Prevent concurrent operations on the same product
     if (pendingOperationsRef.current.has(productId)) {
       return;
     }
     pendingOperationsRef.current.add(productId);
 
-    // Normalize product to always have 'id' property for consistency
     const normalizedProduct: Product = {
       ...product,
       id: productId,
@@ -255,8 +228,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       imageUrl: product.imageUrl || product.mainImage,
     };
 
-    // Optimistic Update
-    // Get source position if element is provided
     let sourcePosition: { x: number; y: number } | undefined;
     if (sourceElement) {
       const rect = sourceElement.getBoundingClientRect();
@@ -268,54 +239,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setLastAddEvent({ product: normalizedProduct, sourcePosition });
     setTimeout(() => setLastAddEvent(null), 800);
 
-    // Optimistically update state
     const previousItems = [...items];
     setItems((prevItems) => {
-      // Filter out null products and find existing item
       const validItems = prevItems.filter(item => item?.product);
-
-      // Check for variant ID or variant title if product has variants
       const variantId = (product as any).variantId || (product as any).selectedVariant?._id;
       const variantTitle = (product as any).variantTitle || (product as any).pack;
 
-      // Find existing item - match by product ID and variant (if variant exists)
-      const existingItem = validItems.find((item) => {
+      const existingItemIndex = validItems.findIndex((item) => {
         const itemProductId = item.product.id || item.product._id;
         const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
         const itemVariantTitle = (item.product as any).variantTitle || (item.product as any).pack;
 
-        // If both have variants, match by variant ID or title
         if (variantId || variantTitle) {
           return itemProductId === productId &&
             (itemVariantId === variantId || itemVariantTitle === variantTitle);
         }
-        // If no variant, match by product ID only
         return itemProductId === productId && !itemVariantId && !itemVariantTitle;
       });
 
-      if (existingItem) {
-        return validItems.map((item) => {
-          const itemProductId = item.product.id || item.product._id;
-          const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
-          const itemVariantTitle = (item.product as any).variantTitle || (item.product as any).pack;
-
-          // Match by product ID and variant
-          const isMatch = variantId || variantTitle
-            ? itemProductId === productId && (itemVariantId === variantId || itemVariantTitle === variantTitle)
-            : itemProductId === productId && !itemVariantId && !itemVariantTitle;
-
-          return isMatch
-            ? { ...item, quantity: item.quantity + 1 }
-            : item;
-        });
+      if (existingItemIndex > -1) {
+        const newItems = [...validItems];
+        newItems[existingItemIndex] = {
+          ...newItems[existingItemIndex],
+          quantity: Number(newItems[existingItemIndex].quantity || 0) + 1
+        };
+        return newItems;
       }
       return [...validItems, { product: normalizedProduct, quantity: 1 }];
     });
 
-    // Only sync to API if user is authenticated
     if (isAuthenticated && user?.userType === 'Customer') {
       try {
-        // Pass variation info to API if available
         const variation = (product as any).variantId || (product as any).selectedVariant?._id || (product as any).variantTitle || (product as any).pack;
         const response = await apiAddToCart(
           productId,
@@ -325,43 +279,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
           location?.longitude
         );
         if (response && response.data && response.data.items) {
-          // Atomic update from server response
           setItems(mapApiItemsToState(response.data.items));
           setEstimatedFee(response.data.estimatedDeliveryFee);
           setPlatformFee(response.data.platformFee);
           setFreeDeliveryThreshold(response.data.freeDeliveryThreshold);
         }
       } catch (error: any) {
-        console.error("Add to cart failed", error);
-        // Show error toast
         showToast(error.response?.data?.message || "Failed to add to cart", 'error');
-        // Revert on error
         setItems(previousItems);
       } finally {
-        // Remove from pending operations
         pendingOperationsRef.current.delete(productId);
       }
     } else {
-      // For unregistered users, the optimistic update is already saved to localStorage
-      // Remove from pending operations immediately
       pendingOperationsRef.current.delete(productId);
     }
   };
 
   const removeFromCart = async (productId: string) => {
-    // Prevent concurrent operations on the same product
     if (pendingOperationsRef.current.has(productId)) {
       return;
     }
     pendingOperationsRef.current.add(productId);
 
-    // Find item matching either id or _id
     const itemToRemove = items.find(item => item?.product && (item.product.id === productId || item.product._id === productId));
-
     const previousItems = [...items];
     setItems((prevItems) => prevItems.filter((item) => item?.product && item.product.id !== productId && item.product._id !== productId));
 
-    // Only sync to API if user is authenticated and item has CartItemID
     if (isAuthenticated && user?.userType === 'Customer' && itemToRemove?.id) {
       try {
         const response = await apiRemoveFromCart(
@@ -379,80 +322,73 @@ export function CartProvider({ children }: { children: ReactNode }) {
         console.error("Remove from cart failed", error);
         setItems(previousItems);
       } finally {
-        // Remove from pending operations
         pendingOperationsRef.current.delete(productId);
       }
     } else {
-      // For unregistered users, remove from pending operations immediately
       pendingOperationsRef.current.delete(productId);
     }
   };
 
   const updateQuantity = async (productId: string, quantity: number, variantId?: string, variantTitle?: string) => {
-    if (quantity <= 0) {
+    const sanitizedQty = Math.max(parseInt(String(quantity), 10) || 0, 0);
+
+    if (sanitizedQty <= 0) {
       removeFromCart(productId);
       return;
     }
 
-    // Create a unique operation key for this product/variant combination
     const operationKey = variantId ? `${productId}-${variantId}` : (variantTitle ? `${productId}-${variantTitle}` : productId);
-
-    // Prevent concurrent operations on the same product
     if (pendingOperationsRef.current.has(operationKey)) {
       return;
     }
     pendingOperationsRef.current.add(operationKey);
 
-    // Find item matching product ID and variant (if variant info provided)
     const itemToUpdate = items.find(item => {
       if (!item?.product) return false;
       const itemProductId = item.product.id || item.product._id;
       if (itemProductId !== productId) return false;
 
-      // If variant info provided, match by variant
       if (variantId || variantTitle) {
         const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
         const itemVariantTitle = (item.product as any).variantTitle || (item.product as any).pack;
         return itemVariantId === variantId || itemVariantTitle === variantTitle;
       }
 
-      // If no variant info, match items without variants
       const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
       const itemVariantTitle = (item.product as any).variantTitle;
       return !itemVariantId && !itemVariantTitle;
     });
 
     const previousItems = [...items];
-    setItems((prevItems) =>
-      prevItems.filter(item => item?.product).map((item) => {
+    setItems((prevItems) => {
+      const filtered = prevItems.filter(item => item?.product);
+      const index = filtered.findIndex(item => {
         const itemProductId = item.product.id || item.product._id;
-        if (itemProductId !== productId) return item;
+        if (itemProductId !== productId) return false;
 
-        // If variant info provided, match by variant
         if (variantId || variantTitle) {
-          const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
-          const itemVariantTitle = (item.product as any).variantTitle || (item.product as any).pack;
-          if (itemVariantId === variantId || itemVariantTitle === variantTitle) {
-            return { ...item, quantity };
-          }
-        } else {
-          // If no variant info, match items without variants
-          const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
-          const itemVariantTitle = (item.product as any).variantTitle;
-          if (!itemVariantId && !itemVariantTitle) {
-            return { ...item, quantity };
-          }
+          const ivId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
+          const ivTitle = (item.product as any).variantTitle || (item.product as any).pack;
+          return ivId === variantId || ivTitle === variantTitle;
         }
-        return item;
-      })
-    );
+        const ivId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
+        const ivTitle = (item.product as any).variantTitle;
+        return !ivId && !ivTitle;
+      });
 
-    // Only sync to API if user is authenticated and item has CartItemID
+      if (index > -1) {
+        const nextItems = [...filtered];
+        nextItems[index] = { ...nextItems[index], quantity: sanitizedQty };
+        return nextItems;
+      }
+      return filtered;
+    });
+
     if (isAuthenticated && user?.userType === 'Customer' && itemToUpdate?.id) {
       try {
         const response = await apiUpdateCartItem(
           itemToUpdate.id,
-          quantity,
+          sanitizedQty,
           location?.latitude,
           location?.longitude
         );
@@ -466,15 +402,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
         console.error("Update quantity failed", error);
         setItems(previousItems);
       } finally {
-        // Remove from pending operations
         pendingOperationsRef.current.delete(operationKey);
       }
     } else {
-      // For unregistered users, remove from pending operations immediately
       pendingOperationsRef.current.delete(operationKey);
     }
   };
-
 
   const clearCart = async () => {
     setItems([]);
@@ -506,5 +439,3 @@ export function useCart() {
   }
   return context;
 }
-
-

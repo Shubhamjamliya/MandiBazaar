@@ -264,7 +264,7 @@ export default function OrderAgain() {
                       </div>
                       <div className="p-2 bg-white flex-1 flex flex-col">
                         <h3 className="text-[10px] font-bold text-neutral-900 line-clamp-2 leading-tight mb-1">{product.name}</h3>
-                        <div className="text-[8px] text-neutral-500 font-medium mb-1 uppercase">15 MINS • {product.pack}</div>
+                        <div className="text-[8px] text-neutral-500 font-medium mb-1 uppercase">20 MINS • {product.pack}</div>
                         <div className="flex items-baseline gap-1 mt-auto">
                           <span className="text-xs font-bold text-neutral-900">₹{displayPrice}</span>
                           {hasDiscount && <span className="text-[9px] text-neutral-400 line-through">₹{mrp}</span>}

@@ -103,11 +103,11 @@ export default function Home() {
     setIsLoadingMore(true);
 
     try {
-      const params: any = { 
-        limit: 20, 
+      const params: any = {
+        limit: 20,
         page: pageNum,
-        latitude: location?.latitude, 
-        longitude: location?.longitude 
+        latitude: location?.latitude,
+        longitude: location?.longitude
       };
 
       if (tabId !== "all") {
@@ -127,7 +127,7 @@ export default function Home() {
             return [...prev, ...newProducts];
           });
         }
-        
+
         setHasMore(response.data.length === 20 && response.pagination.page < response.pagination.pages);
         setPage(pageNum);
       }
@@ -139,6 +139,11 @@ export default function Home() {
   }, [location?.latitude, location?.longitude]);
 
   useEffect(() => {
+    // Logic to reset to 'all' if needed could go here
+    // But we let the user stay on their selected activeTab
+  }, []);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
         startRouteLoading();
@@ -148,7 +153,8 @@ export default function Home() {
         const response = await getHomeContent(
           activeTab,
           location?.latitude,
-          location?.longitude
+          location?.longitude,
+          false // Disable cache to ensure fresh data after tab switch
         );
         if (response.success && response.data) {
           setHomeData(response.data);
@@ -182,18 +188,14 @@ export default function Home() {
     };
 
     fetchData();
-    // Reset and fetch all products for the current tab
-    setPage(1);
-    setHasMore(true);
-    setAllProducts([]);
-    fetchAllProducts(1, activeTab);
-
+    if (activeTab !== "all") {
+      setPage(1);
+      setHasMore(true);
+      setAllProducts([]);
+      fetchAllProducts(1, activeTab);
+    }
   }, [location?.latitude, location?.longitude, activeTab, fetchAllProducts]);
 
-  // Removed separate bestseller fetch — now populated from homeData.bestsellerProducts
-  // (sourced from BestsellerCard DB schema via home content API)
-
-  // Removed independent category fetching to ensure global Fruits/Vegetables filter is respected
 
   const handleCategorySelect = async (category: any) => {
     const categoryId = category.categoryId || category.id || category._id;
@@ -225,12 +227,12 @@ export default function Home() {
       // Fetch subcategories and products in parallel
       const [subcatsRes, productsRes] = await Promise.all([
         getSubcategories(categoryId),
-        getCustomerProducts({ 
-          category: categoryId, 
-          page: 1, 
+        getCustomerProducts({
+          category: categoryId,
+          page: 1,
           limit: 20,
-          latitude: location?.latitude, 
-          longitude: location?.longitude 
+          latitude: location?.latitude,
+          longitude: location?.longitude
         })
       ]);
 
@@ -251,7 +253,7 @@ export default function Home() {
 
   const fetchMoreInlineProducts = useCallback(async () => {
     if (!activeInlineCategory || isInlineLoadingMore || !inlineHasMore) return;
-    
+
     setIsInlineLoadingMore(true);
     const categoryId = activeInlineCategory.categoryId || activeInlineCategory.id || activeInlineCategory._id;
     const nextPage = inlinePage + 1;
@@ -301,7 +303,7 @@ export default function Home() {
   // Restore scroll position when returning to this page
   useEffect(() => {
     // Only restore scroll after data has loaded
-    if (!loading && homeData.shops) {
+    if (!loading && (homeData.shops || homeData.categories)) {
       // Use a ref to ensure we only handle initial scroll once per mount
       if (scrollHandledRef.current) return;
       scrollHandledRef.current = true;
@@ -343,7 +345,7 @@ export default function Home() {
         setTimeout(performReset, 100);
       }
     }
-  }, [loading, homeData.shops]);
+  }, [loading, homeData.shops, homeData.categories]);
 
   // Handle Infinite Scroll Intersection
   useEffect(() => {
@@ -378,18 +380,9 @@ export default function Home() {
     };
   }, []);
 
-  // Removed duplicate saveScrollPosition
-  const getFilteredProducts = (tabId: string) => {
-    return allProducts;
-  };
-
-  const filteredProducts = useMemo(
-    () => getFilteredProducts(activeTab),
-    [activeTab, products]
-  );
 
   if (loading && !products.length && !homeData.categoryHierarchy?.length) {
-    return <PageLoader />; // Let the global IconLoader handle the initial loading state
+    return <PageLoader />;
   }
 
   if (error && !loading) {
@@ -467,7 +460,7 @@ export default function Home() {
                 products={inlineProducts}
                 isLoading={isInlineLoading}
               />
-              
+
               {/* Inline Sentinel for Infinite Scroll */}
               <div ref={inlineObserverTarget} className="h-10 w-full flex items-center justify-center -mt-2 mb-8">
                 {isInlineLoadingMore && (
@@ -485,8 +478,8 @@ export default function Home() {
         </>
       )}
 
-      {/* Lowest Prices Ever Section */}
-      {!activeInlineCategory && homeData.lowestPrices && homeData.lowestPrices.length > 0 && (
+      {/* Lowest Prices Ever Section - Restored to show all low-price products as requested */}
+      {!activeInlineCategory && homeData.lowestPrices && (
         <LowestPricesEver
           activeTab={activeTab}
           products={homeData.lowestPrices}
@@ -502,9 +495,9 @@ export default function Home() {
           {activeTab !== "all" && allProducts.length > 0 && (
             <div data-products-section className="bg-white/95 backdrop-blur-sm py-6 mb-8 rounded-2xl mx-2 shadow-sm border border-neutral-100">
               <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-6 px-4 md:px-6 lg:px-8 capitalize">
-                {activeTab === "grocery" ? "Grocery Items" : 
-                 activeTab === "fruits-and-vegetables" ? "Fresh Fruits & Vegetables" : 
-                 activeTab}
+                {activeTab === "grocery" ? "Grocery Items" :
+                  activeTab === "fruits-and-vegetables" ? "Fresh Fruits & Vegetables" :
+                    activeTab}
               </h2>
               <div className="px-4 md:px-6 lg:px-8">
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
@@ -542,150 +535,36 @@ export default function Home() {
       {/* Category-Specific Product Sliders (Dynamic Sections) */}
       {!activeInlineCategory && activeTab === "all" && homeData.categoryHierarchy && homeData.categoryHierarchy.length > 0 && (
         <div className="space-y-4">
-          {/* Bestsellers Section (Global Only) */}
-          {activeTab === "all" && bestsellerProducts.length > 0 && (
-            <div className="bg-white/95 backdrop-blur-sm py-5 mb-4 rounded-2xl mx-2 shadow-sm border-b border-neutral-100">
-              <h2 className="text-sm font-semibold text-neutral-900 mb-3 px-4">Bestsellers</h2>
-              <div className="px-2 md:px-4 pb-2">
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 md:gap-4">
-                  {bestsellerProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product as any}
-                      showHeartIcon={false}
-                      showStockInfo={false}
-                      showBadge={true}
-                      showOptionsText={true}
-                      categoryStyle={true}
+          {homeData.categoryHierarchy
+            .filter((category: any) => {
+              const name = category.name.toLowerCase();
+              const slug = category.slug.toLowerCase();
+              return name.includes("fruit") || name.includes("vegetable") ||
+                slug.includes("fruit") || slug.includes("vegetable");
+            })
+            .map((category: any, catIndex: number) => (
+              <div key={category.id || category._id}>
+                <CategoryProductSlider category={category} />
+
+                {/* Banner after each category for the first few categories as requested */}
+                {catIndex < homeData.extraBanner1?.length && (
+                  <div className="mb-4">
+                    <InlineBanner
+                      banners={[{
+                        image: homeData.extraBanner1[catIndex].image,
+                        link: homeData.extraBanner1[catIndex].link
+                      }]}
                     />
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-          {homeData.categoryHierarchy.map((category: any, catIndex: number) => (
-            <div key={category.id || category._id}>
-              <CategoryProductSlider category={category} />
-
-              {/* Banner after each category for the first few categories as requested */}
-              {catIndex < homeData.extraBanner1?.length && (
-                <div className="mb-4">
-                  <InlineBanner
-                    banners={[{
-                      image: homeData.extraBanner1[catIndex].image,
-                      link: homeData.extraBanner1[catIndex].link
-                    }]}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-
-
-          {/* Featured this week Section - Hidden as requested */}
-          {/* 
-          <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
-            <FeaturedThisWeek />
-          </div> 
-          */}
+            ))}
 
           {/* Single Banner after Featured */}
           {homeData.extraBanner3?.map((banner: any) => (
             <InlineBanner key={banner._id} banners={[{ image: banner.image, link: banner.link }]} />
           ))}
 
-          {/* All Products Section - New */}
-          {activeTab === "all" && allProducts.length > 0 && (
-            <div className="bg-white/95 backdrop-blur-sm py-6 mb-8 rounded-2xl mx-2 shadow-sm border border-neutral-100">
-              <div className="flex items-center justify-between px-4 md:px-6 mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 leading-tight">All Products</h2>
-                  <p className="text-xs text-gray-500 mt-1">Explore our full range of products</p>
-                </div>
-              </div>
-              <div className="px-4 md:px-6">
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
-                  {allProducts.map((product) => (
-                    <ProductCard
-                      key={product._id || product.id}
-                      product={product}
-                      categoryStyle={true}
-                      showBadge={false}
-                      showStockInfo={true}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Sentinel for Infinite Scroll */}
-              <div ref={observerTarget} className="h-10 w-full flex items-center justify-center mt-4">
-                {isLoadingMore && (
-                  <div className="flex items-center gap-2 text-neutral-500">
-                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-xs font-medium">Loading more products...</span>
-                  </div>
-                )}
-                {!hasMore && allProducts.length > 0 && (
-                  <p className="text-xs text-neutral-400 italic">No more products to show</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Shop by Store Section - Commented out as per request */}
-          {/* <div className="bg-white/95 backdrop-blur-sm py-6 mb-4 rounded-2xl mx-2 shadow-sm">
-            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 px-4 md:px-6 lg:px-8">
-              Shop by Store
-            </h2>
-            <div className="px-4 md:px-6 lg:px-8">
-              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 md:gap-4">
-                {(homeData.shops || []).map((tile: any) => {
-                  const hasImages =
-                    tile.image ||
-                    (tile.productImages &&
-                      tile.productImages.filter(Boolean).length > 0);
-
-                  return (
-                    <div key={tile.id} className="flex flex-col">
-                      <div
-                        onClick={() => {
-                          const storeSlug =
-                            tile.slug || tile.id.replace("-store", "");
-                          saveScrollPosition();
-                          navigate(`/store/${storeSlug}`);
-                        }}
-                        className="block bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl shadow-sm border border-gray-200 hover:shadow-lg hover:scale-105 transition-all cursor-pointer overflow-hidden">
-                        {hasImages ? (
-                          <img
-                            src={
-                              tile.image ||
-                              (tile.productImages
-                                ? tile.productImages[0]
-                                : "")
-                            }
-                            alt={tile.name}
-                            className="w-full h-20 object-cover"
-                          />
-                        ) : (
-                          <div
-                            className={`w-full h-20 flex items-center justify-center text-3xl font-bold ${tile.bgColor || "bg-gradient-to-br from-orange-100 to-orange-200 text-orange-600"
-                              }`}>
-                            {tile.name.charAt(0)}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mt-2 text-center">
-                        <span className="text-xs font-semibold text-gray-800 line-clamp-2 leading-tight">
-                          {tile.name}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div> */}
         </div>
       )}
     </div>

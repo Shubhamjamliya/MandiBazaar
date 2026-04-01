@@ -32,11 +32,14 @@ export const getHomeContent = async (
   cacheTTL: number = 5 * 60 * 1000, // 5 minutes
   skipLoader: boolean = false
 ): Promise<HomeContentResponse> => {
-  const cacheKey = `home-content-${headerCategorySlug || 'all'}-${latitude || 0}-${longitude || 0}`;
+  const normalizedSlug = (headerCategorySlug === 'all' || !headerCategorySlug) ? 'all' : headerCategorySlug;
+  const cacheKey = normalizedSlug === 'all'
+    ? `home-content-all`
+    : `home-content-${normalizedSlug}-${latitude || 0}-${longitude || 0}`;
 
   const fetchFn = async () => {
-    const params: any = headerCategorySlug ? { headerCategorySlug } : {};
-    if (latitude !== undefined && longitude !== undefined) {
+    const params: any = { headerCategorySlug: normalizedSlug };
+    if (normalizedSlug !== 'all' && latitude !== undefined && longitude !== undefined) {
       params.latitude = latitude;
       params.longitude = longitude;
     }
