@@ -23,7 +23,7 @@ export const fetchHdfcTransactionStatus = async (orderId: string): Promise<{ suc
     try {
         const workingKey = process.env.HDFC_WORKING_KEY;
         const accessCode = process.env.HDFC_ACCESS_CODE;
-        const apiUrl = process.env.HDFC_API_URL; // e.g., https://apitest.ccavenue.com
+        const apiUrl = process.env.HDFC_API_URL?.trim(); // e.g., https://api.ccavenue.com
 
         if (!workingKey || !accessCode || !apiUrl) {
             throw new Error('HDFC API credentials not configured');

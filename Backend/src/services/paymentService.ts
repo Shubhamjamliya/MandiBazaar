@@ -127,11 +127,20 @@ export const handleHdfcReturn = async (
              throw new Error(`Dual enquiry failed: ${dualEnquiry.message}`);
         }
 
-        const verifiedStatus = dualEnquiry.data.order_status;
+        const verifiedStatusRaw = dualEnquiry.data.order_status;
+        const verifiedStatus =
+            typeof verifiedStatusRaw === 'string' ? verifiedStatusRaw.trim() : String(verifiedStatusRaw ?? '');
         const verifiedAmount = dualEnquiry.data.order_amt;
 
+        // HDFC/CC-Avenue status strings can vary slightly (e.g. Successful vs Success vs SUCCESS).
+        // We treat common "success" variants case-insensitively.
+        const isSuccessfulPayment = (() => {
+            const s = verifiedStatus.toLowerCase();
+            return s === 'successful' || s === 'success' || s === 'paid';
+        })();
+
         // Compare amounts (tampering check)
-        if (verifiedStatus === 'Successful') {
+        if (isSuccessfulPayment) {
             const dbTotalAmount = order.total; // Stored expected amount
             
             // Allow small rounding differences if any, but exact match is preferred
@@ -162,10 +171,10 @@ export const handleHdfcReturn = async (
             razorpaySignature: 'HDFC_ENCRYPTED_SIGNATURE', // Placeholder since HDFC uses encryption instead of signature
             amount: verifiedAmount || parseFloat(amountStr || '0'),
             currency: 'INR',
-            status: verifiedStatus === 'Successful' ? 'Completed' : 'Failed',
-            paidAt: verifiedStatus === 'Successful' ? new Date() : undefined,
+            status: isSuccessfulPayment ? 'Completed' : 'Failed',
+            paidAt: isSuccessfulPayment ? new Date() : undefined,
             gatewayResponse: {
-                success: verifiedStatus === 'Successful',
+                success: isSuccessfulPayment,
                 message: statusMessage || failureMessage || verifiedStatus,
                 rawResponse: {
                     decryptedParams: decryptedResponse,
@@ -176,7 +185,7 @@ export const handleHdfcReturn = async (
 
         await paymentRecord.save({ session });
 
-        if (verifiedStatus === 'Successful') {
+        if (isSuccessfulPayment) {
             order.paymentStatus = 'Paid';
             order.paymentId = paymentRecord._id.toString();
             // Change order status from 'Pending' to 'Received' after successful payment

@@ -443,6 +443,7 @@ export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const confirmed = searchParams.get("confirmed") === "true";
+  const paymentSuccess = searchParams.get("payment") === "success";
   const { getOrderById, fetchOrderById, loading: contextLoading } = useOrders();
   const [order, setOrder] = useState<any>(id ? getOrderById(id) : undefined);
   const [loading, setLoading] = useState(!order);
@@ -498,7 +499,9 @@ export default function OrderDetail() {
       if (!id) return;
 
       const existingOrder = getOrderById(id);
-      if (existingOrder) {
+      // If this page is opened right after a successful payment redirect,
+      // force a refetch so UI reflects updated payment/order status.
+      if (existingOrder && !paymentSuccess) {
         setOrder(existingOrder);
         setOrderStatus(existingOrder.status);
         setLoading(false);
@@ -515,7 +518,7 @@ export default function OrderDetail() {
     };
 
     loadOrder();
-  }, [id, getOrderById, fetchOrderById]);
+  }, [id, getOrderById, fetchOrderById, paymentSuccess]);
 
   // Fetch seller locations when order is loaded
   useEffect(() => {

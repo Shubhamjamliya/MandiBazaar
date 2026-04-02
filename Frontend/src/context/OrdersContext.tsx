@@ -168,8 +168,10 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         };
         // Optionally update the orders list
         setOrders((prev) => {
-          if (prev.find((o) => o.id === mappedOrder.id)) return prev;
-          return [...prev, mappedOrder];
+          const exists = prev.find((o) => o.id === mappedOrder.id);
+          if (!exists) return [...prev, mappedOrder];
+          // Replace existing order so UI reflects updated payment/order status
+          return prev.map((o) => (o.id === mappedOrder.id ? mappedOrder : o));
         });
         return mappedOrder;
       }
