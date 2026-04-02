@@ -133,17 +133,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     setLoading(true);
     if (!isAuthenticated || user?.userType !== 'Customer') {
-<<<<<<< HEAD
-=======
       // Mark saved cart as "guest-owned" when logged out, so we can safely sync it once on next login.
       if (savedCartMeta.ownerUserId !== null) {
         setSavedCartMeta({ ownerUserId: null });
       }
-      // If we cleared it above but had things in localStorage, we keep them for guests?
-      // For now, if logged out, we clear if it was an authenticated session.
-      // But if guest, we might want to keep it.
-      // Let's only clear if we are transition from logged in to logged out.
->>>>>>> ccdc3f6f05b62bcd38db65165a704fc542267cc2
       setLoading(false);
       return;
     }
@@ -157,21 +150,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-<<<<<<< HEAD
       // Only sync items that don't have a CartItem ID (meaning they are guest items not yet on the server)
-      const guestItems = items.filter(item => !item.id);
-      
-      if (guestItems.length > 0 && !hasSyncedGuestCartRef.current) {
-        hasSyncedGuestCartRef.current = true; // Mark as synced
-=======
       // Sync guest cart to backend if items exist in local state but not yet synced
       // Only do this on the first fetch after authentication in this session
       // IMPORTANT: Only sync if the saved cart is from a guest session.
       // Otherwise, refreshing while logged-in would re-add the same items and double quantities.
+      const guestItems = items.filter(item => !item.id);
       const isGuestCart = savedCartMeta.ownerUserId === null;
-      if (isGuestCart && items.length > 0 && !hasSyncedGuestCartRef.current) {
-        hasSyncedGuestCartRef.current = true; // Mark as started/synced immediately
->>>>>>> ccdc3f6f05b62bcd38db65165a704fc542267cc2
+      
+      if (isGuestCart && guestItems.length > 0 && !hasSyncedGuestCartRef.current) {
+        hasSyncedGuestCartRef.current = true; // Mark as synced
         let hasFailures = false;
 
         try {
