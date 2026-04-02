@@ -103,11 +103,11 @@ export default function Home() {
     setIsLoadingMore(true);
 
     try {
-      const params: any = { 
-        limit: 20, 
+      const params: any = {
+        limit: 20,
         page: pageNum,
-        latitude: location?.latitude, 
-        longitude: location?.longitude 
+        latitude: location?.latitude,
+        longitude: location?.longitude
       };
 
       if (tabId !== "all") {
@@ -127,7 +127,7 @@ export default function Home() {
             return [...prev, ...newProducts];
           });
         }
-        
+
         setHasMore(response.data.length === 20 && response.pagination.page < response.pagination.pages);
         setPage(pageNum);
       }
@@ -225,12 +225,12 @@ export default function Home() {
       // Fetch subcategories and products in parallel
       const [subcatsRes, productsRes] = await Promise.all([
         getSubcategories(categoryId),
-        getCustomerProducts({ 
-          category: categoryId, 
-          page: 1, 
+        getCustomerProducts({
+          category: categoryId,
+          page: 1,
           limit: 20,
-          latitude: location?.latitude, 
-          longitude: location?.longitude 
+          latitude: location?.latitude,
+          longitude: location?.longitude
         })
       ]);
 
@@ -251,7 +251,7 @@ export default function Home() {
 
   const fetchMoreInlineProducts = useCallback(async () => {
     if (!activeInlineCategory || isInlineLoadingMore || !inlineHasMore) return;
-    
+
     setIsInlineLoadingMore(true);
     const categoryId = activeInlineCategory.categoryId || activeInlineCategory.id || activeInlineCategory._id;
     const nextPage = inlinePage + 1;
@@ -467,7 +467,7 @@ export default function Home() {
                 products={inlineProducts}
                 isLoading={isInlineLoading}
               />
-              
+
               {/* Inline Sentinel for Infinite Scroll */}
               <div ref={inlineObserverTarget} className="h-10 w-full flex items-center justify-center -mt-2 mb-8">
                 {isInlineLoadingMore && (
@@ -502,9 +502,9 @@ export default function Home() {
           {activeTab !== "all" && allProducts.length > 0 && (
             <div data-products-section className="bg-white/95 backdrop-blur-sm py-6 mb-8 rounded-2xl mx-2 shadow-sm border border-neutral-100">
               <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-6 px-4 md:px-6 lg:px-8 capitalize">
-                {activeTab === "grocery" ? "Grocery Items" : 
-                 activeTab === "fruits-and-vegetables" ? "Fresh Fruits & Vegetables" : 
-                 activeTab}
+                {activeTab === "grocery" ? "Grocery Items" :
+                  activeTab === "fruits-and-vegetables" ? "Fresh Fruits & Vegetables" :
+                    activeTab}
               </h2>
               <div className="px-4 md:px-6 lg:px-8">
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
