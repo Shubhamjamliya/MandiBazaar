@@ -8,7 +8,7 @@ import BestsellerCard from "../../../models/BestsellerCard";
 import LowestPricesProduct from "../../../models/LowestPricesProduct";
 import Banner from "../../../models/Banner";
 import mongoose from "mongoose";
-import { findSellersWithinRange } from "../../../utils/locationHelper";
+import { findSellersWithinRange, getAdminSellerIds } from "../../../utils/locationHelper";
 
 // Get Home Page Content
 export const getHomeContent = async (req: Request, res: Response) => {
@@ -23,6 +23,9 @@ export const getHomeContent = async (req: Request, res: Response) => {
     let nearbySellerIds: mongoose.Types.ObjectId[] = [];
     if (locationProvided) {
       nearbySellerIds = await findSellersWithinRange(userLat!, userLng!);
+    } else {
+      // If no location, only show Admin sellers
+      nearbySellerIds = await getAdminSellerIds();
     }
 
     // 1. Featured / Bestsellers - Get bestseller cards from admin configuration
@@ -34,7 +37,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
       .limit(6)
       .lean();
 
-    // For each bestseller card, get 4 products from the associated category
+    // For each bestseller card, get products from the associated category
     const bestsellers = await Promise.all(
       bestsellerCards
         .filter((card: any) => {
@@ -50,25 +53,23 @@ export const getHomeContent = async (req: Request, res: Response) => {
             publish: true,
           };
 
-          // Fetch 4 active products from the category for preview images
-          // We fetch these irrespective of location radius to show category preview
+          // Fetch active products from the category for preview images
           const categoryProducts = await Product.find(productQuery)
             .select("productName mainImage galleryImages")
             .sort({ createdAt: -1 })
-            .limit(4)
+            .limit(100)
             .lean();
 
-          // Extract exactly 4 product images (prefer mainImage, fallback to galleryImages[0])
+          // Extract product images
           const productImages: string[] = [];
-          categoryProducts.forEach((product: any) => {
+          categoryProducts.slice(0, 4).forEach((product: any) => {
             if (productImages.length < 4 && product.mainImage) {
               productImages.push(product.mainImage);
             }
           });
 
-          // If we have less than 4 products, try to use gallery images
           if (productImages.length < 4) {
-            categoryProducts.forEach((product: any) => {
+            categoryProducts.slice(0, 4).forEach((product: any) => {
               if (
                 productImages.length < 4 &&
                 product.galleryImages &&
@@ -79,7 +80,6 @@ export const getHomeContent = async (req: Request, res: Response) => {
             });
           }
 
-          // Ensure we have exactly 4 images (pad with first image if needed)
           while (productImages.length < 4 && productImages[0]) {
             productImages.push(productImages[0]);
           }
@@ -94,8 +94,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
         })
     );
 
-    // 1b. Bestseller Products for the horizontal slider —
-    //     fetch individual products from BestsellerCard categories, location-filtered
+    // 1b. Bestseller Products for the horizontal slider
     const bestsellerProductsList: any[] = [];
     for (const card of bestsellerCards) {
       if (!card.category) continue;
@@ -111,37 +110,36 @@ export const getHomeContent = async (req: Request, res: Response) => {
         ],
       };
 
-      // Apply location filter if available
-      if (nearbySellerIds && nearbySellerIds.length > 0) {
-        productQuery.seller = { $in: nearbySellerIds };
-      }
-
       const products = await Product.find(productQuery)
         .select("productName mainImage price mrp discount pack variations smallDescription seller rating reviewsCount")
         .sort({ createdAt: -1 })
-        .limit(3)
+        .limit(100)
         .lean();
 
       products.forEach((p: any) => {
-        bestsellerProductsList.push({
-          id: p._id.toString(),
-          _id: p._id.toString(),
-          name: p.productName,
-          productName: p.productName,
-          imageUrl: p.mainImage,
-          mainImage: p.mainImage,
-          price: p.price,
-          mrp: p.mrp || p.price,
-          discount: p.discount || (p.mrp && p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0),
-          pack: p.pack || p.variations?.[0]?.title || p.smallDescription || '',
-          rating: p.rating || 0,
-          reviewsCount: p.reviewsCount || 0,
-          seller: p.seller,
-          categoryId: categoryId.toString(),
-          isAvailable: (locationProvided && nearbySellerIds.length > 0)
-            ? nearbySellerIds.some(id => id.toString() === (p.seller?._id || p.seller)?.toString())
-            : !locationProvided,
-        });
+        const isAvailable = (nearbySellerIds.length > 0 && p.seller) 
+          ? nearbySellerIds.some(id => id.toString() === (p.seller?._id || p.seller)?.toString())
+          : false;
+
+        if (isAvailable) {
+          bestsellerProductsList.push({
+            id: p._id.toString(),
+            _id: p._id.toString(),
+            name: p.productName,
+            productName: p.productName,
+            imageUrl: p.mainImage,
+            mainImage: p.mainImage,
+            price: p.price,
+            mrp: p.mrp || p.price,
+            discount: p.discount || (p.mrp && p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0),
+            pack: p.pack || p.variations?.[0]?.title || p.smallDescription || '',
+            rating: p.rating || 0,
+            reviewsCount: p.reviewsCount || 0,
+            seller: p.seller,
+            categoryId: categoryId.toString(),
+            isAvailable: true,
+          });
+        }
       });
     }
 
@@ -165,19 +163,20 @@ export const getHomeContent = async (req: Request, res: Response) => {
       .sort({ order: 1 })
       .lean();
 
-    // Filter out any products that were null (due to match condition) OR don't belong to fruits/vegetables
     const validLowestPricesProducts = lowestPricesProducts
       .filter((item: any) => {
         const p = item.product;
-        return p && !!p.category;
+        if (!p || !p.category) return false;
+        
+        // Strictly filter by location if provided
+        const isAvailable = (nearbySellerIds.length > 0 && p.seller)
+          ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
+          : false;
+        
+        return isAvailable;
       })
       .map((item: any) => {
         const product = item.product;
-        // Check if the product's seller is within range
-        const isAvailable = (locationProvided && nearbySellerIds.length > 0 && product.seller)
-          ? nearbySellerIds.some(id => id.toString() === (product.seller._id || product.seller).toString())
-          : !locationProvided;
-
         return {
           id: product._id.toString(),
           _id: product._id.toString(),
@@ -192,9 +191,8 @@ export const getHomeContent = async (req: Request, res: Response) => {
           subcategory: product.subcategory?.toString() || "",
           status: product.status,
           publish: product.publish,
-          isAvailable,
+          isAvailable: true,
           seller: product.seller,
-          // Add these fields
           weightVariants: product.weightVariants || [],
           variations: product.variations || [],
           sellingUnit: product.sellingUnit || 'unit',
@@ -204,7 +202,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
         };
       });
 
-    // 3. Categories for Tiles (Grocery, Snacks, etc)
+    // 3. Categories for Tiles
     const categories = await Category.find({
       status: "Active",
     })
@@ -212,14 +210,13 @@ export const getHomeContent = async (req: Request, res: Response) => {
       .sort({ order: 1 })
       .lean();
 
-    // 4. Shop By Store - Fetch from database
+    // 4. Shop By Store
     const shopDocuments = await Shop.find({ isActive: true })
       .populate("category", "name slug")
       .sort({ order: 1, createdAt: -1 })
       .lean();
 
-    // Transform shop data to match frontend expected format and include preview images
-    const shops = await Promise.all(
+    const shopsPromise = await Promise.all(
       shopDocuments.map(async (shop: any) => {
         let productImages: string[] = [];
 
@@ -228,6 +225,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
             _id: { $in: shop.products.slice(0, 4) },
             status: "Active",
             publish: true,
+            seller: { $in: nearbySellerIds },
           })
             .select("mainImage")
             .lean();
@@ -239,7 +237,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
           id: shop.storeId || shop._id.toString(),
           name: shop.name,
           image: shop.image,
-          productImages, // Include preview images irrespective of location
+          productImages,
           slug: shop.storeId || shop._id.toString(),
           category: shop.category,
           productIds: shop.products?.map((p: any) => p.toString()) || [],
@@ -248,7 +246,9 @@ export const getHomeContent = async (req: Request, res: Response) => {
       })
     );
 
-    // 5. Trending Items (Fetch some popular categories or products)
+    const shops = shopsPromise.filter(s => s.productImages && s.productImages.length > 0);
+
+    // 5. Trending Items
     const trendingCategories = await Category.find({
       status: "Active",
     })
@@ -262,10 +262,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
       type: "category",
     }));
 
-    // 6. Personal Care Subcategories - Now handled by dynamic sections
-
-    // 7. Cooking Ideas (Fetch some products from 'Food' or 'Grocery' categories)
-    // We fetch these irrespective of location radius to show preview images
+    // 7. Cooking Ideas
     const foodProductsQuery: any = {
       status: "Active",
       publish: true,
@@ -282,7 +279,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
       productId: p._id,
     }));
 
-    // 8. Promo Cards (Simplified to use top categories)
+    // 8. Promo Cards
     const promoCategories = await Category.find({
       status: "Active",
     })
@@ -292,7 +289,6 @@ export const getHomeContent = async (req: Request, res: Response) => {
 
     const promoCards = await Promise.all(
       promoCategories.map(async (category: any) => {
-        // Get subcategories for this category from SubCategory model
         const subcategories = await SubCategory.find({
           category: category._id,
         })
@@ -318,7 +314,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
 
     const finalPromoCards = promoCards.length > 0 ? promoCards : [];
 
-    // 9. Category Hierarchy - Category → Subcategory → Products
+    // 9. Category Hierarchy
     const allCategories = await Category.find({
       status: "Active",
     })
@@ -328,13 +324,11 @@ export const getHomeContent = async (req: Request, res: Response) => {
 
     const categoryHierarchy = await Promise.all(
       allCategories.map(async (category: any) => {
-        // Get subcategories for this category
         const subcategories = await SubCategory.find({ category: category._id })
           .select("name image order")
           .sort({ order: 1 })
           .lean();
 
-        // For each subcategory, get its products
         const subcatsWithProducts = await Promise.all(
           subcategories.map(async (subcat: any) => {
             const productQuery: any = {
@@ -349,18 +343,22 @@ export const getHomeContent = async (req: Request, res: Response) => {
 
             const products = await Product.find(productQuery)
               .sort({ createdAt: -1 })
-              .limit(20)
+              .limit(100)
               .select("productName mainImage price mrp compareAtPrice discount rating reviewsCount pack variations weightVariants sellingUnit seller")
               .lean();
+
+            const availableProducts = products.filter((p: any) => {
+              const isAvailable = (nearbySellerIds.length > 0 && p.seller)
+                ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
+                : false;
+              return isAvailable;
+            });
 
             return {
               id: subcat._id.toString(),
               name: subcat.name,
               image: subcat.image || "",
-              products: products.map((p: any) => {
-                const isAvailable = (locationProvided && nearbySellerIds.length > 0 && p.seller)
-                  ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
-                  : !locationProvided;
+              products: availableProducts.map((p: any) => {
                 return {
                   id: p._id.toString(),
                   productId: p._id.toString(),
@@ -377,7 +375,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
                   variations: p.variations || [],
                   weightVariants: p.weightVariants || [],
                   sellingUnit: p.sellingUnit || "unit",
-                  isAvailable,
+                  isAvailable: true,
                   seller: p.seller,
                 };
               }),
@@ -385,7 +383,6 @@ export const getHomeContent = async (req: Request, res: Response) => {
           })
         );
 
-        // Also fetch products that belong directly to the category (no subcategory assigned)
         const directProductQuery: any = {
           status: "Active",
           publish: true,
@@ -404,21 +401,20 @@ export const getHomeContent = async (req: Request, res: Response) => {
           ],
         };
 
-        // Apply location filter for direct products too
-        if (nearbySellerIds && nearbySellerIds.length > 0) {
-          (directProductQuery as any).seller = { $in: nearbySellerIds };
-        }
-
         const directProducts = await Product.find(directProductQuery)
           .sort({ createdAt: -1 })
-          .limit(20)
+          .limit(100)
           .select("productName mainImage price mrp compareAtPrice discount rating reviewsCount pack variations weightVariants sellingUnit seller")
           .lean();
 
-        const mappedDirectProducts = directProducts.map((p: any) => {
-          const isAvailable = (locationProvided && nearbySellerIds.length > 0 && p.seller)
+        const availableDirectProducts = directProducts.filter((p: any) => {
+          const isAvailable = (nearbySellerIds.length > 0 && p.seller)
             ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
-            : !locationProvided;
+            : false;
+          return isAvailable;
+        });
+
+        const mappedDirectProducts = availableDirectProducts.map((p: any) => {
           return {
             id: p._id.toString(),
             productId: p._id.toString(),
@@ -435,12 +431,11 @@ export const getHomeContent = async (req: Request, res: Response) => {
             variations: p.variations || [],
             weightVariants: p.weightVariants || [],
             sellingUnit: p.sellingUnit || "unit",
-            isAvailable,
+            isAvailable: true,
             seller: p.seller,
           };
         });
 
-        // Combine: subcategory products + direct-category products (as a virtual subcategory)
         const allSubcats = subcatsWithProducts.filter(s => s.products.length > 0);
         if (mappedDirectProducts.length > 0) {
           allSubcats.push({
@@ -461,10 +456,10 @@ export const getHomeContent = async (req: Request, res: Response) => {
       })
     );
 
-    // Filter out categories that have no products at all (no subcategory products AND no direct products)
-    const filteredHierarchy = categoryHierarchy.filter(c => c.subcategories.length > 0);
+    // Keep all active categories in hierarchy for consistency with top tiles
+    const filteredHierarchy = categoryHierarchy; 
 
-    // Fetch active banners and group by type
+    // Fetch active banners
     const activeBanners = await Banner.find({ isActive: true }).sort({ order: 1 }).lean();
 
     const promoBanners = activeBanners.filter(b => b.type === 'carousel');
@@ -473,7 +468,6 @@ export const getHomeContent = async (req: Request, res: Response) => {
     const marqueeBanner = activeBanners.find(b => b.type === 'marquee');
     const marqueeText = (marqueeBanner as any)?.text || '';
 
-    // Default banners if none exist for carousel
     const finalPromoBanners = promoBanners.length > 0 ? promoBanners : [
       {
         id: 1,
@@ -515,22 +509,17 @@ export const getHomeContent = async (req: Request, res: Response) => {
   }
 };
 
-// Get Products for a specific "Store" (Campaign/Collection)
-// Fetch products based on store configuration from database
+// Get Products for a specific "Store"
 export const getStoreProducts = async (req: Request, res: Response) => {
   try {
     const { storeId } = req.params;
-    const { latitude, longitude } = req.query; // User location for filtering
+    const { latitude, longitude } = req.query;
     let query: any = {
       status: "Active",
       publish: true,
-      // Only show shop-by-store-only products in shop by store section
       isShopByStoreOnly: true,
     };
 
-    console.log(`[getStoreProducts] Looking for shop with storeId: ${storeId}`);
-
-    // Build shop query - only include _id if storeId is a valid ObjectId
     const shopQuery: any = { isActive: true };
     if (mongoose.Types.ObjectId.isValid(storeId)) {
       shopQuery.$or = [
@@ -541,13 +530,10 @@ export const getStoreProducts = async (req: Request, res: Response) => {
       shopQuery.storeId = storeId.toLowerCase();
     }
 
-    // Find the shop by storeId or _id
     const shop = await Shop.findOne(shopQuery)
       .populate("category", "_id name slug image")
       .populate("subCategory", "_id name")
       .lean();
-
-    console.log(`[getStoreProducts] Shop found:`, shop ? { name: shop.name, productsCount: shop.products?.length || 0, category: shop.category, image: shop.image } : 'NOT FOUND');
 
     let shopData: any = null;
 
@@ -559,12 +545,9 @@ export const getStoreProducts = async (req: Request, res: Response) => {
         category: shop.category,
       };
 
-      // Convert products array to ObjectIds if needed
-      // When using .lean(), products array contains ObjectIds directly
       let productIds: mongoose.Types.ObjectId[] = [];
       if (shop.products && shop.products.length > 0) {
         productIds = shop.products.map((p: any) => {
-          // Handle different formats: ObjectId, string, or object with _id
           if (mongoose.Types.ObjectId.isValid(p)) {
             return typeof p === 'string' ? new mongoose.Types.ObjectId(p) : p;
           }
@@ -572,46 +555,32 @@ export const getStoreProducts = async (req: Request, res: Response) => {
         }).filter(Boolean);
       }
 
-      console.log(`[getStoreProducts] Shop has ${productIds.length} products assigned`);
-
-      // Get shop ID for filtering
       const shopId = (shop as any)._id;
 
-      // If shop has specific products assigned, use those
       if (productIds.length > 0) {
         query._id = { $in: productIds };
-        // Also filter by shopId to ensure products belong to this shop
         query.shopId = shopId;
-        console.log(`[getStoreProducts] Filtering by product IDs: ${productIds.length} products and shopId: ${shopId}`);
       }
-      // Otherwise, filter by shopId and category/subcategory
       else {
-        // Filter by shopId to show only products assigned to this shop
         query.shopId = shopId;
-        console.log(`[getStoreProducts] Filtering by shopId: ${shopId}`);
 
         if (shop.category) {
           const categoryId = (shop.category as any)._id || (shop.category as any);
           query.category = categoryId;
-          console.log(`[getStoreProducts] Also filtering by category: ${categoryId}`);
 
-          // If subcategory is also specified, filter by both
           if (shop.subCategory) {
             const subCategoryId = (shop.subCategory as any)._id || (shop.subCategory as any);
             query.$or = [
               { category: categoryId, shopId: shopId },
               { subcategory: subCategoryId, shopId: shopId },
             ];
-            console.log(`[getStoreProducts] Also filtering by subcategory: ${subCategoryId}`);
           }
         }
       }
     } else {
-      // Fallback: try to match by category name (legacy support)
       const categoryId = await getCategoryIdByName(storeId);
       if (categoryId) {
         query.category = categoryId;
-        // Try to get category details for shop data
         const category = await Category.findById(categoryId).select("name slug image").lean();
         if (category) {
           shopData = {
@@ -622,7 +591,6 @@ export const getStoreProducts = async (req: Request, res: Response) => {
           };
         }
       } else {
-        // No matching shop or category found
         return res.status(200).json({
           success: true,
           data: [],
@@ -632,19 +600,13 @@ export const getStoreProducts = async (req: Request, res: Response) => {
       }
     }
 
-    // Location-based filtering: Only show products from sellers within user's range
     const userLat = latitude ? parseFloat(latitude as string) : null;
     const userLng = longitude ? parseFloat(longitude as string) : null;
 
-    console.log(`[getStoreProducts] User location: lat=${userLat}, lng=${userLng}`);
-
     if (userLat && userLng && !isNaN(userLat) && !isNaN(userLng)) {
       const nearbySellerIds = await findSellersWithinRange(userLat, userLng);
-      console.log(`[getStoreProducts] Found ${nearbySellerIds.length} sellers within range`);
 
       if (nearbySellerIds.length === 0) {
-        // No sellers within range, return shop data but empty products
-        console.log(`[getStoreProducts] No sellers in range, returning empty products`);
         return res.status(200).json({
           success: true,
           data: [],
@@ -659,12 +621,8 @@ export const getStoreProducts = async (req: Request, res: Response) => {
         });
       }
 
-      // Filter products by sellers within range
       query.seller = { $in: nearbySellerIds };
-      console.log(`[getStoreProducts] Added seller filter to query`);
     } else {
-      // If no location provided, return empty (require location for marketplace)
-      console.log(`[getStoreProducts] No location provided, returning empty products`);
       return res.status(200).json({
         success: true,
         data: [],
@@ -679,8 +637,6 @@ export const getStoreProducts = async (req: Request, res: Response) => {
       });
     }
 
-    console.log(`[getStoreProducts] Final query:`, JSON.stringify(query, null, 2));
-
     const products = await Product.find(query)
       .populate("category", "name icon image")
       .populate("subcategory", "name")
@@ -691,8 +647,6 @@ export const getStoreProducts = async (req: Request, res: Response) => {
       .lean({ virtuals: true });
 
     const total = await Product.countDocuments(query);
-
-    console.log(`[getStoreProducts] Found ${total} products matching query, returning ${products.length}`);
 
     return res.status(200).json({
       success: true,

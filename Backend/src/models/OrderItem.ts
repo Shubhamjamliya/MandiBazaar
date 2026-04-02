@@ -13,6 +13,8 @@ export interface IOrderItem extends Document {
   // Pricing
   unitPrice: number;
   quantity: number;
+  gstPercentage?: number;
+  hsnCode?: string;
   total: number;
 
   // Variation
@@ -63,6 +65,14 @@ const OrderItemSchema = new Schema<IOrderItem>(
       type: Number,
       required: [true, "Unit price is required"],
       min: [0, "Unit price cannot be negative"],
+    },
+    gstPercentage: {
+      type: Number,
+      default: 0,
+    },
+    hsnCode: {
+      type: String,
+      trim: true,
     },
     quantity: {
       type: Number,

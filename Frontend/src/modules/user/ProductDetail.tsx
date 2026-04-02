@@ -556,7 +556,7 @@ export default function ProductDetail() {
               />
             </svg>
             <span className="text-sm text-neutral-700 font-medium">
-              17 MINS
+              20 MIN
             </span>
           </div>
 
@@ -699,31 +699,7 @@ export default function ProductDetail() {
           <div className="mt-1.5">
             {/* Service Guarantees Card */}
             <div className="bg-white rounded-lg p-3 mb-2">
-              <div className="grid grid-cols-3 gap-2">
-                {/* Replacement */}
-                <div className="flex flex-col items-center">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="mb-1">
-                    <path
-                      d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3M20.49 15a9 9 0 0 1-14.85 3"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <span className="text-sm font-bold text-neutral-900">
-                    48 hours
-                  </span>
-                  <span className="text-xs text-neutral-600">
-                    Replacement
-                  </span>
-                </div>
+              <div className="grid grid-cols-2 gap-2">
 
                 {/* Support */}
                 <div className="flex flex-col items-center">
@@ -1066,7 +1042,7 @@ export default function ProductDetail() {
                               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
                               <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                             </svg>
-                            <span>{similarProduct.deliveryTime || 15} MINS</span>
+                            <span>{similarProduct.deliveryTime || 20} MINS</span>
                           </p>
                         </div>
 

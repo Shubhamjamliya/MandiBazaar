@@ -306,6 +306,8 @@ export const createOrder = async (req: Request, res: Response) => {
                 sku: product.sku,
                 unitPrice: itemPrice,
                 quantity: qty,
+                gstPercentage: product.gstPercentage || 0,
+                hsnCode: product.hsnCode || '',
                 total: itemTotal,
                 variation: variationValue,
                 status: 'Pending'

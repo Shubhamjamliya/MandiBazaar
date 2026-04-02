@@ -5,6 +5,8 @@ export interface CartItem {
   product: Product;
   quantity: number;
   variant?: any;
+  hsnCode?: string;
+  gstPercentage?: number;
 }
 
 export interface Cart {

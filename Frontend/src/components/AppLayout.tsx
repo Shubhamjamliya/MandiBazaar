@@ -87,7 +87,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   // Handle search input change
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    
+
     // Suggestion logic
     if (value.trim().length >= 1) {
       setShowSuggestions(true);
@@ -123,9 +123,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
         timeout = setTimeout(async () => {
           setIsSearchingSuggestions(true);
           try {
-            const params: any = { 
-              search: val, 
-              limit: 6 
+            const params: any = {
+              search: val,
+              limit: 6
             };
             if (userLocation?.latitude && userLocation?.longitude) {
               params.latitude = userLocation.latitude;
@@ -149,8 +149,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
   // Handle click outside suggestions
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node) && 
-          searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node) &&
+        searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
       }
     };
@@ -335,7 +335,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <header className="sticky top-0 z-50 bg-gradient-to-r from-emerald-600 to-green-700 shadow-lg md:top-[60px]">
               {/* Delivery info line */}
               <div className="px-4 md:px-6 lg:px-8 py-2 bg-black/10 backdrop-blur-sm text-[10px] uppercase tracking-wider font-black text-emerald-50 text-center">
-                ✨ Delivering fresh in 10–15 mins
+                ✨ Delivering fresh in 20 mins
               </div>
 
               {/* Location line - only show if user has provided location */}
@@ -401,7 +401,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                               <span className="text-sm">Looking for products...</span>
                             </div>
                           )}
-                          
+
                           <div className="max-h-[350px] overflow-y-auto">
                             {suggestions.map((item) => (
                               <button
@@ -414,9 +414,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
                                 className="w-full p-3 flex items-center gap-3 hover:bg-neutral-50 transition-colors border-b border-neutral-50 last:border-0"
                               >
                                 <div className="w-12 h-12 rounded-lg bg-neutral-100 flex-shrink-0 overflow-hidden border border-neutral-100">
-                                  <img 
-                                    src={item.mainImage || item.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.productName || item.name)}&background=f0fdf4&color=16a34a`} 
-                                    alt="" 
+                                  <img
+                                    src={item.mainImage || item.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.productName || item.name)}&background=f0fdf4&color=16a34a`}
+                                    alt=""
                                     className="w-full h-full object-cover"
                                   />
                                 </div>
@@ -438,8 +438,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
                               </button>
                             ))}
                           </div>
-                          
-                          <button 
+
+                          <button
                             onClick={() => {
                               navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
                               setShowSuggestions(false);

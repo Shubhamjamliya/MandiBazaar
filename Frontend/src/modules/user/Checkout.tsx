@@ -35,9 +35,6 @@ export default function Checkout() {
   const { showToast: showGlobalToast } = useToast();
   const { user, updateUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [tipAmount, setTipAmount] = useState<number | null>(null);
-  const [customTipAmount, setCustomTipAmount] = useState<number>(0);
-  const [showCustomTipInput, setShowCustomTipInput] = useState(false);
   const [savedAddress, setSavedAddress] = useState<OrderAddress | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<OrderAddress | null>(null);
   const [showCouponSheet, setShowCouponSheet] = useState(false);
@@ -352,10 +349,8 @@ export default function Checkout() {
     }
   }
 
-  // Calculate tip amount (use custom tip if custom tip input is shown, otherwise use selected tip)
-  const finalTipAmount = showCustomTipInput ? customTipAmount : (tipAmount || 0);
   const giftPackagingFee = giftPackaging ? 30 : 0;
-  const grandTotal = Math.max(0, discountedTotal + handlingCharge + deliveryCharge + finalTipAmount + giftPackagingFee - currentCouponDiscount);
+  const grandTotal = Math.max(0, discountedTotal + handlingCharge + deliveryCharge + giftPackagingFee - currentCouponDiscount);
 
   const handleApplyCoupon = async (coupon: ApiCoupon) => {
     setIsValidatingCoupon(true);
@@ -466,7 +461,6 @@ export default function Checkout() {
       address: addressWithLocation,
       status: 'Pending',
       createdAt: new Date().toISOString(),
-      tipAmount: finalTipAmount,
       gstin: gstin || undefined,
       couponCode: selectedCoupon?.code || undefined,
       giftPackaging: giftPackaging,
@@ -1274,7 +1268,7 @@ export default function Checkout() {
 
                     {/* Delivery Time */}
                     <div className="text-[9px] text-neutral-600 mb-0.5">
-                      20 MINS
+                      20 MIN
                     </div>
 
                     {/* Discount - Blue Text */}
@@ -1454,18 +1448,7 @@ export default function Checkout() {
             </div>
           )}
 
-          {/* Tip amount */}
-          {finalTipAmount > 0 && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="text-xs text-neutral-700">Tip to delivery partner</span>
-              </div>
-              <span className="text-xs font-medium text-neutral-900">₹{finalTipAmount}</span>
-            </div>
-          )}
+
 
           {/* Gift Packaging */}
           {giftPackaging && (
@@ -1512,100 +1495,7 @@ export default function Checkout() {
       </div>
 
 
-      {/* Tip your delivery partner */}
-      <div className="px-4 py-2 border-b border-neutral-200">
-        <h3 className="text-sm font-bold text-neutral-900 mb-0.5">Tip your delivery partner</h3>
-        <p className="text-xs text-neutral-600 mb-2">Your kindness means a lot! 100% of your tip will go directly to your delivery partner.</p>
-
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1.5">
-          <button
-            onClick={() => {
-              setTipAmount(20);
-              setShowCustomTipInput(false);
-            }}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-lg border-2 font-medium text-xs ${tipAmount === 20 && !showCustomTipInput
-              ? 'border-green-600 bg-green-50 text-green-700'
-              : 'border-neutral-300 bg-white text-neutral-700'
-              }`}
-          >
-            😊 ₹20
-          </button>
-          <button
-            onClick={() => {
-              setTipAmount(30);
-              setShowCustomTipInput(false);
-            }}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-lg border-2 font-medium text-xs ${tipAmount === 30 && !showCustomTipInput
-              ? 'border-green-600 bg-green-50 text-green-700'
-              : 'border-neutral-300 bg-white text-neutral-700'
-              }`}
-          >
-            🤩 ₹30
-          </button>
-          <button
-            onClick={() => {
-              setTipAmount(50);
-              setShowCustomTipInput(false);
-            }}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-lg border-2 font-medium text-xs ${tipAmount === 50 && !showCustomTipInput
-              ? 'border-green-600 bg-green-50 text-green-700'
-              : 'border-neutral-300 bg-white text-neutral-700'
-              }`}
-          >
-            😍 ₹50
-          </button>
-          <button
-            onClick={() => {
-              setShowCustomTipInput(true);
-              setTipAmount(null);
-            }}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-lg border-2 font-medium text-xs ${showCustomTipInput
-              ? 'border-green-600 bg-green-50 text-green-700'
-              : 'border-neutral-300 bg-white text-neutral-700'
-              }`}
-          >
-            🎁 Custom
-          </button>
-        </div>
-
-        {/* Custom Tip Input */}
-        {showCustomTipInput && (
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              type="number"
-              value={customTipAmount || ''}
-              onChange={(e) => {
-                const val = Number(e.target.value);
-                if (val >= 0) {
-                  setCustomTipAmount(val);
-                }
-              }}
-              onBlur={(e) => {
-                const val = Number(e.target.value);
-                if (val < 0) {
-                  setCustomTipAmount(0);
-                }
-              }}
-              placeholder="Enter custom tip amount"
-              className="flex-1 px-3 py-1.5 bg-white border-2 border-green-600 rounded-lg text-xs text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-green-500"
-              min="0"
-              step="1"
-            />
-            <button
-              onClick={() => {
-                setShowCustomTipInput(false);
-                setCustomTipAmount(0);
-                setTipAmount(null);
-              }}
-              className="px-3 py-1.5 text-xs font-medium text-neutral-700 hover:text-neutral-900"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Gift Packaging */}
+      {/* Gift Packaging Section */}
       <div className="px-4 py-2 border-b border-neutral-200">
         <button
           onClick={() => setGiftPackaging(!giftPackaging)}

@@ -56,7 +56,7 @@ const faqData: FAQItem[] = [
   {
     id: '10',
     question: 'What if I receive a damaged or wrong item?',
-    answer: 'If you receive a damaged or incorrect item, please contact our customer support immediately. We offer 48-hour replacement guarantee. You can report the issue through the order details page or contact us at help@mandibazaar.com.',
+    answer: 'If you receive a damaged or incorrect item, please contact our customer support immediately. You can report the issue through the order details page or contact us at help@mandibazaar.com.',
   },
   {
     id: '11',

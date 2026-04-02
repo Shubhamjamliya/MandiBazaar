@@ -114,3 +114,21 @@ export async function findSellersWithinRange(
     return [];
   }
 }
+
+/**
+ * Get all Admin seller IDs (radius exempt)
+ */
+export async function getAdminSellerIds(): Promise<mongoose.Types.ObjectId[]> {
+  try {
+    const adminSellers = await Seller.find({
+      $or: [
+        { category: "Admin" },
+        { storeName: { $regex: /admin/i } }
+      ]
+    }).select("_id");
+    return adminSellers.map(s => s._id as mongoose.Types.ObjectId);
+  } catch (error) {
+    console.error("[LocationHelper] Error fetching admin sellers:", error);
+    return [];
+  }
+}

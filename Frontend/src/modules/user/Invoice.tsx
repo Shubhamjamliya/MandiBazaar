@@ -248,6 +248,12 @@ export default function Invoice() {
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
                     Item
                   </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
+                    HSN
+                  </th>
+                  <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">
+                    GST (%)
+                  </th>
                   <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">
                     Quantity
                   </th>
@@ -290,6 +296,12 @@ export default function Invoice() {
                             )}
                           </div>
                         </div>
+                      </td>
+                      <td className="py-4 px-4 text-gray-700 text-sm">
+                        {item.hsnCode || "-"}
+                      </td>
+                      <td className="text-center py-4 px-4 text-gray-700 text-sm">
+                        {item.gstPercentage ? `${item.gstPercentage}%` : "-"}
                       </td>
                       <td className="text-center py-4 px-4 text-gray-700">
                         {quantity}

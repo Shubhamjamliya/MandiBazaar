@@ -3,7 +3,7 @@ import Product from "../../../models/Product";
 import Category from "../../../models/Category";
 import SubCategory from "../../../models/SubCategory";
 import mongoose from "mongoose";
-import { findSellersWithinRange } from "../../../utils/locationHelper";
+import { findSellersWithinRange, getAdminSellerIds } from "../../../utils/locationHelper";
 
 // Get products with filtering options (public)
 export const getProducts = async (req: Request, res: Response) => {
@@ -43,18 +43,15 @@ export const getProducts = async (req: Request, res: Response) => {
     if (userLat !== null && userLng !== null && !isNaN(userLat) && !isNaN(userLng)) {
       locationProvided = true;
       // Find sellers within user's location range
-      nearbySellerIds = await findSellersWithinRange(userLat, userLng);
+      nearbySellerIds = await findSellersWithinRange(userLat!, userLng!);
 
-      // If we have location but no sellers nearby, we can still show products 
-      // but they will be marked as unavailable (just like home sections)
-      // query.seller = { $in: nearbySellerIds }; // Don't strictly filter yet
+      // Strictly filter by nearby sellers as requested
+      query.seller = { $in: nearbySellerIds };
+    } else {
+      // Fallback for no location: only show Admin products
+      nearbySellerIds = await getAdminSellerIds();
+      query.seller = { $in: nearbySellerIds };
     }
-
-    // We can filter by nearby sellers if we want strict mode, 
-    // but the user's issue implies products should show up 
-    // especially those from Admin store which we now always return in nearbySellerIds.
-    // Let's only filter if we definitely want to restrict the view.
-    // For now, let's allow showing all but mark availability.
 
     // Helper to resolve category/subcategory ID from slug or ID
     const resolveId = async (
@@ -187,18 +184,7 @@ export const getProducts = async (req: Request, res: Response) => {
 
       // Check if product's seller is in the nearby list
       const sellerId = productObj.seller?._id || productObj.seller;
-
-      let isAvailable = false;
-      if (locationProvided) {
-        if (nearbySellerIds.length > 0 && sellerId) {
-          isAvailable = nearbySellerIds.some(id => id.toString() === sellerId.toString());
-        } else {
-          isAvailable = false; // No sellers nearby or no seller assigned
-        }
-      } else {
-        // If no location provided, assume available for browsing
-        isAvailable = true;
-      }
+      const isAvailable = sellerId && nearbySellerIds.some(id => id.toString() === sellerId.toString());
 
       return {
         ...productObj,
