@@ -8,7 +8,7 @@ import BestsellerCard from "../../../models/BestsellerCard";
 import LowestPricesProduct from "../../../models/LowestPricesProduct";
 import Banner from "../../../models/Banner";
 import mongoose from "mongoose";
-import { findSellersWithinRange } from "../../../utils/locationHelper";
+import { findSellersWithinRange, getAdminSellerIds } from "../../../utils/locationHelper";
 
 // Get Home Page Content
 export const getHomeContent = async (req: Request, res: Response) => {
@@ -23,6 +23,9 @@ export const getHomeContent = async (req: Request, res: Response) => {
     let nearbySellerIds: mongoose.Types.ObjectId[] = [];
     if (locationProvided) {
       nearbySellerIds = await findSellersWithinRange(userLat!, userLng!);
+    } else {
+      // If no location, only show Admin sellers
+      nearbySellerIds = await getAdminSellerIds();
     }
 
     // 1. Featured / Bestsellers - Get bestseller cards from admin configuration
@@ -114,25 +117,29 @@ export const getHomeContent = async (req: Request, res: Response) => {
         .lean();
 
       products.forEach((p: any) => {
-        bestsellerProductsList.push({
-          id: p._id.toString(),
-          _id: p._id.toString(),
-          name: p.productName,
-          productName: p.productName,
-          imageUrl: p.mainImage,
-          mainImage: p.mainImage,
-          price: p.price,
-          mrp: p.mrp || p.price,
-          discount: p.discount || (p.mrp && p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0),
-          pack: p.pack || p.variations?.[0]?.title || p.smallDescription || '',
-          rating: p.rating || 0,
-          reviewsCount: p.reviewsCount || 0,
-          seller: p.seller,
-          categoryId: categoryId.toString(),
-          isAvailable: (locationProvided && nearbySellerIds.length > 0)
-            ? nearbySellerIds.some(id => id.toString() === (p.seller?._id || p.seller)?.toString())
-            : !locationProvided,
-        });
+        const isAvailable = (nearbySellerIds.length > 0 && p.seller) 
+          ? nearbySellerIds.some(id => id.toString() === (p.seller?._id || p.seller)?.toString())
+          : false;
+
+        if (isAvailable) {
+          bestsellerProductsList.push({
+            id: p._id.toString(),
+            _id: p._id.toString(),
+            name: p.productName,
+            productName: p.productName,
+            imageUrl: p.mainImage,
+            mainImage: p.mainImage,
+            price: p.price,
+            mrp: p.mrp || p.price,
+            discount: p.discount || (p.mrp && p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0),
+            pack: p.pack || p.variations?.[0]?.title || p.smallDescription || '',
+            rating: p.rating || 0,
+            reviewsCount: p.reviewsCount || 0,
+            seller: p.seller,
+            categoryId: categoryId.toString(),
+            isAvailable: true,
+          });
+        }
       });
     }
 
@@ -159,14 +166,17 @@ export const getHomeContent = async (req: Request, res: Response) => {
     const validLowestPricesProducts = lowestPricesProducts
       .filter((item: any) => {
         const p = item.product;
-        return p && !!p.category;
+        if (!p || !p.category) return false;
+        
+        // Strictly filter by location if provided
+        const isAvailable = (nearbySellerIds.length > 0 && p.seller)
+          ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
+          : false;
+        
+        return isAvailable;
       })
       .map((item: any) => {
         const product = item.product;
-        const isAvailable = (locationProvided && nearbySellerIds.length > 0 && product.seller)
-          ? nearbySellerIds.some(id => id.toString() === (product.seller._id || product.seller).toString())
-          : !locationProvided;
-
         return {
           id: product._id.toString(),
           _id: product._id.toString(),
@@ -181,7 +191,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
           subcategory: product.subcategory?.toString() || "",
           status: product.status,
           publish: product.publish,
-          isAvailable,
+          isAvailable: true,
           seller: product.seller,
           weightVariants: product.weightVariants || [],
           variations: product.variations || [],
@@ -206,7 +216,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
       .sort({ order: 1, createdAt: -1 })
       .lean();
 
-    const shops = await Promise.all(
+    const shopsPromise = await Promise.all(
       shopDocuments.map(async (shop: any) => {
         let productImages: string[] = [];
 
@@ -215,6 +225,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
             _id: { $in: shop.products.slice(0, 4) },
             status: "Active",
             publish: true,
+            seller: { $in: nearbySellerIds },
           })
             .select("mainImage")
             .lean();
@@ -234,6 +245,8 @@ export const getHomeContent = async (req: Request, res: Response) => {
         };
       })
     );
+
+    const shops = shopsPromise.filter(s => s.productImages && s.productImages.length > 0);
 
     // 5. Trending Items
     const trendingCategories = await Category.find({
@@ -334,14 +347,18 @@ export const getHomeContent = async (req: Request, res: Response) => {
               .select("productName mainImage price mrp compareAtPrice discount rating reviewsCount pack variations weightVariants sellingUnit seller")
               .lean();
 
+            const availableProducts = products.filter((p: any) => {
+              const isAvailable = (nearbySellerIds.length > 0 && p.seller)
+                ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
+                : false;
+              return isAvailable;
+            });
+
             return {
               id: subcat._id.toString(),
               name: subcat.name,
               image: subcat.image || "",
-              products: products.map((p: any) => {
-                const isAvailable = (locationProvided && nearbySellerIds.length > 0 && p.seller)
-                  ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
-                  : !locationProvided;
+              products: availableProducts.map((p: any) => {
                 return {
                   id: p._id.toString(),
                   productId: p._id.toString(),
@@ -358,7 +375,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
                   variations: p.variations || [],
                   weightVariants: p.weightVariants || [],
                   sellingUnit: p.sellingUnit || "unit",
-                  isAvailable,
+                  isAvailable: true,
                   seller: p.seller,
                 };
               }),
@@ -390,10 +407,14 @@ export const getHomeContent = async (req: Request, res: Response) => {
           .select("productName mainImage price mrp compareAtPrice discount rating reviewsCount pack variations weightVariants sellingUnit seller")
           .lean();
 
-        const mappedDirectProducts = directProducts.map((p: any) => {
-          const isAvailable = (locationProvided && nearbySellerIds.length > 0 && p.seller)
+        const availableDirectProducts = directProducts.filter((p: any) => {
+          const isAvailable = (nearbySellerIds.length > 0 && p.seller)
             ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
-            : !locationProvided;
+            : false;
+          return isAvailable;
+        });
+
+        const mappedDirectProducts = availableDirectProducts.map((p: any) => {
           return {
             id: p._id.toString(),
             productId: p._id.toString(),
@@ -410,7 +431,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
             variations: p.variations || [],
             weightVariants: p.weightVariants || [],
             sellingUnit: p.sellingUnit || "unit",
-            isAvailable,
+            isAvailable: true,
             seller: p.seller,
           };
         });

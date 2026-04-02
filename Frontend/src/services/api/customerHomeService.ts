@@ -39,7 +39,7 @@ export const getHomeContent = async (
 
   const fetchFn = async () => {
     const params: any = { headerCategorySlug: normalizedSlug };
-    if (normalizedSlug !== 'all' && latitude !== undefined && longitude !== undefined) {
+    if (latitude !== undefined && longitude !== undefined) {
       params.latitude = latitude;
       params.longitude = longitude;
     }

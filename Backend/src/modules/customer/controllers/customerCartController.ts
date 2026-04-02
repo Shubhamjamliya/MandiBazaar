@@ -179,7 +179,7 @@ export const getCart = async (req: Request, res: Response) => {
         for (const item of (cart.items as any)) {
             const product = item.product;
             if (product && product.status === 'Active' && product.publish) {
-                const isAvailable = nearbySellerIds.some(id => id.toString() === product.seller.toString());
+                const isAvailable = nearbySellerIds.some(id => id.toString() === (product.seller?._id || product.seller).toString());
                 if (isAvailable) {
                     filteredItems.push(item);
                     const price = calculateItemPrice(product, item.variation);
@@ -263,6 +263,9 @@ export const addToCart = async (req: Request, res: Response) => {
             });
         }
 
+
+
+
         // Get or create cart
         let cart = await Cart.findOne({ customer: userId });
         if (!cart) {
@@ -306,7 +309,7 @@ export const addToCart = async (req: Request, res: Response) => {
 
         const filteredItems = (updatedCart?.items as any[] || []).filter(item => {
             const prod = item.product;
-            return prod && nearbySellerIds.some(id => id.toString() === prod.seller.toString());
+            return prod && nearbySellerIds.some(id => id.toString() === (prod.seller?._id || prod.seller).toString());
         });
 
         // Calculate fees
@@ -377,6 +380,9 @@ export const updateCartItem = async (req: Request, res: Response) => {
             });
         }
 
+
+
+
         cartItem.quantity = quantity;
         await cartItem.save();
 
@@ -393,7 +399,7 @@ export const updateCartItem = async (req: Request, res: Response) => {
 
         const filteredItems = (updatedCart?.items as any[] || []).filter(item => {
             const prod = item.product;
-            return prod && nearbySellerIds.some(id => id.toString() === prod.seller.toString());
+            return prod && nearbySellerIds.some(id => id.toString() === (prod.seller?._id || prod.seller).toString());
         });
 
         // Calculate fees
@@ -458,10 +464,7 @@ export const removeFromCart = async (req: Request, res: Response) => {
 
         const filteredItems = (updatedCart?.items as any[] || []).filter(item => {
             const prod = item.product;
-            if (nearbySellerIds.length > 0) {
-                return prod && nearbySellerIds.some(id => id.toString() === prod.seller.toString());
-            }
-            return true; // If no location provided for removal, just return all (though getCart will filter)
+            return prod && nearbySellerIds.some(id => id.toString() === (prod.seller?._id || prod.seller).toString());
         });
 
         // Calculate fees
