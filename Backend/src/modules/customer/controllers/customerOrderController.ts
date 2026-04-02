@@ -168,85 +168,123 @@ export const createOrder = async (req: Request, res: Response) => {
             // The frontend sends variation info as 'variant' or 'variation'
             // In the product model, it's stored in 'variations' array
             const variationValue = item.variant || item.variation;
+            const isWeightVariant = typeof variationValue === 'string' && variationValue.startsWith('wv_');
+            const weightLabel = isWeightVariant ? variationValue.replace('wv_', '') : variationValue;
 
             if (variationValue) {
-                // Try to decrement stock for the specific variation first
-                // We check variations._id, variations.value, variations.title, or variations.pack
-                product = session
-                    ? await Product.findOneAndUpdate(
-                        {
-                            _id: item.product.id,
-                            $or: [
-                                { "variations._id": mongoose.isValidObjectId(variationValue) ? variationValue : new mongoose.Types.ObjectId() },
-                                { "variations.value": variationValue },
-                                { "variations.title": variationValue },
-                                { "variations.pack": variationValue }
-                            ],
-                            "variations.stock": { $gte: qty }
-                        },
-                        { $inc: { "variations.$.stock": -qty, stock: -qty } },
-                        { session, new: true }
-                    )
-                    : await Product.findOneAndUpdate(
-                        {
-                            _id: item.product.id,
-                            $or: [
-                                { "variations._id": mongoose.isValidObjectId(variationValue) ? variationValue : new mongoose.Types.ObjectId() },
-                                { "variations.value": variationValue },
-                                { "variations.title": variationValue },
-                                { "variations.pack": variationValue }
-                            ],
-                            "variations.stock": { $gte: qty }
-                        },
-                        { $inc: { "variations.$.stock": -qty, stock: -qty } },
-                        { new: true }
-                    );
-            }
-
-            if (!product) {
-                // If we are here, either variationValue wasn't provided, or it didn't match any variation with enough stock.
-                // We'll try to find the product first to see if it has variations.
-                const checkProduct = await Product.findById(item.product.id);
-
-                if (checkProduct && checkProduct.variations && checkProduct.variations.length > 0) {
-                    // Product has variations, but we didn't match one.
-                    // If a variation was provided, it means that specific variation is out of stock.
-                    if (variationValue) {
-                        throw new Error(`Insufficient stock for variation: ${variationValue}`);
-                    }
-
-                    // No variation was provided, but the product has them.
-                    // To maintain data consistency, we'll try to decrement from the first variation.
+                if (isWeightVariant) {
                     product = session
                         ? await Product.findOneAndUpdate(
                             {
                                 _id: item.product.id,
-                                "variations.0.stock": { $gte: qty }
+                                "weightVariants.label": weightLabel,
+                                "weightVariants.stock": { $gte: qty }
                             },
-                            { $inc: { "variations.0.stock": -qty, stock: -qty } },
+                            { $inc: { "weightVariants.$.stock": -qty, stock: -qty } },
                             { session, new: true }
                         )
                         : await Product.findOneAndUpdate(
                             {
                                 _id: item.product.id,
-                                "variations.0.stock": { $gte: qty }
+                                "weightVariants.label": weightLabel,
+                                "weightVariants.stock": { $gte: qty }
                             },
-                            { $inc: { "variations.0.stock": -qty, stock: -qty } },
+                            { $inc: { "weightVariants.$.stock": -qty, stock: -qty } },
                             { new: true }
                         );
                 } else {
-                    // No variations, just decrement top-level stock
                     product = session
                         ? await Product.findOneAndUpdate(
-                            { _id: item.product.id, stock: { $gte: qty } },
-                            { $inc: { stock: -qty } },
+                            {
+                                _id: item.product.id,
+                                $or: [
+                                    { "variations._id": mongoose.isValidObjectId(variationValue) ? variationValue : new mongoose.Types.ObjectId() },
+                                    { "variations.value": variationValue },
+                                    { "variations.title": variationValue },
+                                    { "variations.pack": variationValue }
+                                ],
+                                "variations.stock": { $gte: qty }
+                            },
+                            { $inc: { "variations.$.stock": -qty, stock: -qty } },
                             { session, new: true }
                         )
                         : await Product.findOneAndUpdate(
-                            { _id: item.product.id, stock: { $gte: qty } },
-                            { $inc: { stock: -qty } },
+                            {
+                                _id: item.product.id,
+                                $or: [
+                                    { "variations._id": mongoose.isValidObjectId(variationValue) ? variationValue : new mongoose.Types.ObjectId() },
+                                    { "variations.value": variationValue },
+                                    { "variations.title": variationValue },
+                                    { "variations.pack": variationValue }
+                                ],
+                                "variations.stock": { $gte: qty }
+                            },
+                            { $inc: { "variations.$.stock": -qty, stock: -qty } },
                             { new: true }
                         );
+                }
+            }
+
+            if (!product) {
+                // Fallback: If we are here, either variationValue wasn't provided, or it didn't match with enough stock.
+                const checkProduct = await Product.findById(item.product.id);
+
+                if (checkProduct) {
+                    // Check weight variants first if it's a weight-based product
+                    if (checkProduct.sellingUnit === 'weight' && checkProduct.weightVariants && checkProduct.weightVariants.length > 0) {
+                        if (isWeightVariant) {
+                            throw new Error(`Insufficient stock for weight selection: ${weightLabel}`);
+                        }
+
+                        // No variation specified or mismatch, fallback to default/first enabled variant
+                        const targetVariant = checkProduct.weightVariants.find((v: any) => v.isDefault && v.isEnabled) ||
+                            checkProduct.weightVariants.find((v: any) => v.isEnabled) ||
+                            checkProduct.weightVariants[0];
+
+                        product = session
+                            ? await Product.findOneAndUpdate(
+                                { _id: item.product.id, "weightVariants.label": targetVariant.label, "weightVariants.stock": { $gte: qty } },
+                                { $inc: { "weightVariants.$.stock": -qty, stock: -qty } },
+                                { session, new: true }
+                            )
+                            : await Product.findOneAndUpdate(
+                                { _id: item.product.id, "weightVariants.label": targetVariant.label, "weightVariants.stock": { $gte: qty } },
+                                { $inc: { "weightVariants.$.stock": -qty, stock: -qty } },
+                                { new: true }
+                            );
+                    }
+                    // Then try quantity variations
+                    else if (checkProduct.variations && checkProduct.variations.length > 0) {
+                        if (variationValue && !isWeightVariant) {
+                            throw new Error(`Insufficient stock for variation: ${variationValue}`);
+                        }
+
+                        product = session
+                            ? await Product.findOneAndUpdate(
+                                { _id: item.product.id, "variations.0.stock": { $gte: qty } },
+                                { $inc: { "variations.0.stock": -qty, stock: -qty } },
+                                { session, new: true }
+                            )
+                            : await Product.findOneAndUpdate(
+                                { _id: item.product.id, "variations.0.stock": { $gte: qty } },
+                                { $inc: { "variations.0.stock": -qty, stock: -qty } },
+                                { new: true }
+                            );
+                    }
+                    // Simple product
+                    else {
+                        product = session
+                            ? await Product.findOneAndUpdate(
+                                { _id: item.product.id, stock: { $gte: qty } },
+                                { $inc: { stock: -qty } },
+                                { session, new: true }
+                            )
+                            : await Product.findOneAndUpdate(
+                                { _id: item.product.id, stock: { $gte: qty } },
+                                { $inc: { stock: -qty } },
+                                { new: true }
+                            );
+                    }
                 }
 
                 // Low Stock Alert
@@ -275,7 +313,11 @@ export const createOrder = async (req: Request, res: Response) => {
 
             // Determine the price based on variation and discounts
             let selectedVariation;
-            if (variationValue && product.variations) {
+            let selectedWeightVariant;
+
+            if (isWeightVariant && product.weightVariants) {
+                selectedWeightVariant = product.weightVariants.find((v: any) => v.label === weightLabel);
+            } else if (variationValue && product.variations) {
                 selectedVariation = product.variations.find((v: any) =>
                     (v._id && v._id.toString() === variationValue) ||
                     v.value === variationValue ||
@@ -283,16 +325,22 @@ export const createOrder = async (req: Request, res: Response) => {
                     v.pack === variationValue
                 );
             }
-            if (!selectedVariation && product.variations && product.variations.length > 0) {
-                // Fallback to first if no variation spec or not found (consistent with stock fallback)
-                selectedVariation = product.variations[0];
+
+            let itemPrice = 0;
+            if (selectedWeightVariant) {
+                itemPrice = selectedWeightVariant.price || product.price || 0;
+            } else {
+                if (!selectedVariation && product.variations && product.variations.length > 0) {
+                    // Fallback to first if no variation spec or not found (consistent with stock fallback)
+                    selectedVariation = product.variations[0];
+                }
+                itemPrice = (selectedVariation?.discPrice && selectedVariation.discPrice > 0)
+                    ? selectedVariation.discPrice
+                    : (product.discPrice && product.discPrice > 0)
+                        ? product.discPrice
+                        : (selectedVariation?.price || product.price || 0);
             }
 
-            const itemPrice = (selectedVariation?.discPrice && selectedVariation.discPrice > 0)
-                ? selectedVariation.discPrice
-                : (product.discPrice && product.discPrice > 0)
-                    ? product.discPrice
-                    : (selectedVariation?.price || product.price || 0);
             const itemTotal = itemPrice * qty;
             calculatedSubtotal += itemTotal;
 
@@ -615,7 +663,7 @@ export const getOrderById = async (req: Request, res: Response) => {
                 path: 'items',
                 populate: [
                     { path: 'product', select: 'productName mainImage pack manufacturer price' },
-                    { path: 'seller', select: 'storeName city phone fssaiLicNo' }
+                    { path: 'seller', select: 'storeName city phone fssaiLicNo taxName taxNumber' }
                 ]
             })
             .populate('deliveryBoy', 'name phone profileImage vehicleNumber');
@@ -759,14 +807,27 @@ export const cancelOrder = async (req: Request, res: Response) => {
                 if (product) {
                     // Check if it was a variation
                     if (orderItem.variation) {
-                        // Try to find matching variation
-                        const variationIndex = product.variations?.findIndex((v: any) => v.value === orderItem.variation || v.title === orderItem.variation || v.pack === orderItem.variation);
+                        const isWeightVar = typeof orderItem.variation === 'string' && orderItem.variation.startsWith('wv_');
+                        
+                        if (isWeightVar) {
+                            const wLabel = orderItem.variation.replace('wv_', '');
+                            const weightIndex = product.weightVariants?.findIndex((v: any) => v.label === wLabel);
+                            if (weightIndex !== undefined && weightIndex !== -1 && product.weightVariants) {
+                                product.weightVariants[weightIndex].stock += orderItem.quantity;
+                            } else if (product.weightVariants && product.weightVariants.length > 0) {
+                                // Fallback to first if mismatch
+                                product.weightVariants[0].stock += orderItem.quantity;
+                            }
+                        } else {
+                            // Try to find matching variation
+                            const variationIndex = product.variations?.findIndex((v: any) => v.value === orderItem.variation || v.title === orderItem.variation || v.pack === orderItem.variation);
 
-                        if (variationIndex !== undefined && variationIndex !== -1 && product.variations) {
-                            product.variations[variationIndex].stock += orderItem.quantity;
-                        } else if (product.variations && product.variations.length > 0) {
-                            // Fallback to first variation if specific one not found (should be rare)
-                            product.variations[0].stock += orderItem.quantity;
+                            if (variationIndex !== undefined && variationIndex !== -1 && product.variations) {
+                                product.variations[variationIndex].stock += orderItem.quantity;
+                            } else if (product.variations && product.variations.length > 0) {
+                                // Fallback to first variation if specific one not found (should be rare)
+                                product.variations[0].stock += orderItem.quantity;
+                            }
                         }
                     }
 

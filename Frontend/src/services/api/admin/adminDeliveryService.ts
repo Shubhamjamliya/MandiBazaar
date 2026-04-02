@@ -92,6 +92,7 @@ export interface CashCollection {
   remark?: string;
   collectedAt: string;
   collectedBy: string;
+  paymentMethod: string;
 }
 
 export interface CreateCashCollectionData {
@@ -119,6 +120,7 @@ export interface GetCashCollectionParams {
   fromDate?: string;
   toDate?: string;
   search?: string;
+  paymentMethod?: string;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
 }

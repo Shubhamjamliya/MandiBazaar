@@ -15,6 +15,7 @@ export const getCashCollections = asyncHandler(
             deliveryBoyId,
             fromDate,
             toDate,
+            paymentMethod,
             // search = "",
             sortBy = "collectedAt",
             sortOrder = "desc",
@@ -35,6 +36,15 @@ export const getCashCollections = asyncHandler(
             }
             if (toDate) {
                 query.collectedAt.$lte = new Date(toDate as string);
+            }
+        }
+
+        // Filter by payment method
+        if (paymentMethod && paymentMethod !== 'all') {
+            if (paymentMethod === 'online' || paymentMethod === 'Online') {
+                query.paymentMethod = { $in: ['razorpay', 'HDFC'] };
+            } else {
+                query.paymentMethod = (paymentMethod as string).toLowerCase();
             }
         }
 
@@ -64,7 +74,7 @@ export const getCashCollections = asyncHandler(
             remark: collection.remark,
             paymentMethod: collection.paymentMethod || 'cash',
             collectedAt: collection.collectedAt,
-            collectedBy: collection.collectedBy?.name || (collection.paymentMethod === 'razorpay' ? "App Payment" : "Unknown"),
+            collectedBy: collection.collectedBy?.name || (['razorpay', 'HDFC'].includes(collection.paymentMethod) ? "App Payment" : "Unknown"),
         }));
 
         return res.status(200).json({

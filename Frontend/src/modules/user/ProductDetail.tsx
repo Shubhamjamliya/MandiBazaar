@@ -184,10 +184,13 @@ export default function ProductDetail() {
         if (itemProductId !== productId) return false;
 
         // If variant exists, match by variant
-        if (selectedVariant) {
+        const currentVariantId = isWeightMode && selectedWeightVariant ? `wv_${selectedWeightVariant.label}` : selectedVariant?._id;
+        const currentVariantTitle = variantTitle;
+
+        if (currentVariantId || currentVariantTitle) {
           const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
           const itemVariantTitle = (item.product as any).variantTitle || (item.product as any).pack;
-          return itemVariantId === selectedVariant._id || itemVariantTitle === variantTitle;
+          return itemVariantId === currentVariantId || itemVariantTitle === currentVariantTitle;
         }
 
         // If no variant, check that item also has no variant

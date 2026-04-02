@@ -76,8 +76,7 @@ const CategorySchema = new Schema<ICategory>(
 
 // Index for faster queries
 CategorySchema.index({ order: 1 });
-CategorySchema.index({ name: 1 });
-CategorySchema.index({ slug: 1 });
+CategorySchema.index({ status: 1 });
 CategorySchema.index({ status: 1 });
 // Compound indexes for common queries
 CategorySchema.index({ status: 1, order: 1 }); // For getCategories

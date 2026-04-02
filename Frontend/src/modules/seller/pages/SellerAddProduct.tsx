@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { uploadImage, uploadImages } from "../../../services/api/uploadService";
 import {
@@ -139,6 +139,8 @@ export default function SellerAddProduct() {
     galleryImageUrls: [] as string[],
     isShopByStoreOnly: "No",
     shopId: "",
+    hsnCode: "",
+    gstPercentage: "0",
   });
 
   const [variations, setVariations] = useState<ProductVariation[]>([]);
@@ -217,6 +219,8 @@ export default function SellerAddProduct() {
               galleryImageUrls: product.galleryImageUrls || [],
               isShopByStoreOnly: (product as any).isShopByStoreOnly ? "Yes" : "No",
               shopId: (product as any).shopId?._id || (product as any).shopId || "",
+              hsnCode: product.hsnCode || "",
+              gstPercentage: (product.gstPercentage || 0).toString(),
             });
             const su = (product as any).sellingUnit || "quantity";
             setSellingUnit(su);
@@ -283,7 +287,19 @@ export default function SellerAddProduct() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      
+      // If tax is selected, auto-fill gstPercentage
+      if (name === "tax" && value) {
+        const selectedTax = taxes.find(t => t._id === value);
+        if (selectedTax) {
+          updated.gstPercentage = selectedTax.percentage.toString();
+        }
+      }
+      
+      return updated;
+    });
   };
 
   const handleMainImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -379,6 +395,8 @@ export default function SellerAddProduct() {
         galleryImageUrls,
         isShopByStoreOnly: formData.isShopByStoreOnly === "Yes",
         shopId: formData.isShopByStoreOnly === "Yes" && formData.shopId ? formData.shopId : undefined,
+        hsnCode: formData.hsnCode || undefined,
+        gstPercentage: parseFloat(formData.gstPercentage) || 0,
         sellingUnit,
         ...(sellingUnit === "weight"
           ? {
@@ -814,6 +832,15 @@ export default function SellerAddProduct() {
                     <option value="">Select Tax</option>
                     {taxes.map((t) => <option key={t._id} value={t._id}>{t.name} ({t.percentage}%)</option>)}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">GST Percentage (%)</label>
+                  <input type="number" name="gstPercentage" value={formData.gstPercentage} onChange={handleChange} placeholder="e.g. 5" className={inputCls} />
+                  <p className="text-xs text-neutral-400 mt-1">Leave 0 if tax-free</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">HSN Code</label>
+                  <input type="text" name="hsnCode" value={formData.hsnCode} onChange={handleChange} placeholder="e.g. 1234.56.78" className={inputCls} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">Is Returnable?</label>

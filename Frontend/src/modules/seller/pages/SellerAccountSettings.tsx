@@ -40,6 +40,7 @@ const SellerAccountSettings = () => {
         logo: '',
         storeBanner: '',
         storeDescription: '',
+        fssaiLicNo: '',
         commission: 0,
         status: ''
     });
@@ -178,6 +179,7 @@ const SellerAccountSettings = () => {
                 accountNumber: sellerData.accountNumber,
                 ifsc: sellerData.ifsc,
                 storeDescription: sellerData.storeDescription,
+                fssaiLicNo: sellerData.fssaiLicNo,
             };
 
             const response = await updateSellerProfile(updateData);
@@ -667,7 +669,9 @@ const SellerAccountSettings = () => {
                                                     </div>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50/50 p-6 rounded-xl border border-gray-100">
                                                         <InputGroup label="PAN Card Number" name="panCard" value={sellerData.panCard} onChange={handleInputChange} disabled={!isEditing} />
-                                                        <InputGroup label="Tax Number (GST)" name="taxNumber" value={sellerData.taxNumber} onChange={handleInputChange} disabled={!isEditing} />
+                                                        <InputGroup label="Tax Type (e.g. GST)" name="taxName" value={sellerData.taxName} onChange={handleInputChange} disabled={!isEditing} />
+                                                        <InputGroup label="Tax Number (GSTIN)" name="taxNumber" value={sellerData.taxNumber} onChange={handleInputChange} disabled={!isEditing} />
+                                                        <InputGroup label="FSSAI License No." name="fssaiLicNo" value={sellerData.fssaiLicNo} onChange={handleInputChange} disabled={!isEditing} />
                                                     </div>
                                                 </section>
                                             </div>

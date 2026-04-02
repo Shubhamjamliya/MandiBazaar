@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useToast } from "../../../context/ToastContext";
@@ -9,7 +9,6 @@ import {
   getDeliveryWithdrawals,
   getDeliveryCommissions,
   createSettleCashOrder,
-  verifySettleCash,
 } from "../../../services/api/deliveryWalletService";
 
 type Tab = "transactions" | "withdrawals" | "commissions";
@@ -39,10 +38,28 @@ export default function DeliveryWallet() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [settleAmount, setSettleAmount] = useState("");
+  const [hdfcPaymentData, setHdfcPaymentData] = useState<any>(null);
 
   useEffect(() => {
     fetchWalletData();
+    checkPaymentStatus();
   }, []);
+
+  const checkPaymentStatus = () => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    const error = params.get('error');
+
+    if (payment === 'success') {
+      showToast("Cash settled successfully", "success");
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (error) {
+      showToast(`Payment failed: ${error}`, "error");
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  };
 
   const fetchWalletData = async () => {
     try {
@@ -106,15 +123,6 @@ export default function DeliveryWallet() {
     }
   };
 
-  const loadRazorpay = () => {
-    return new Promise((resolve) => {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
 
   const handleSettleCash = async () => {
     try {
@@ -131,58 +139,14 @@ export default function DeliveryWallet() {
 
       setIsSubmitting(true);
 
-      const scriptLoaded = await loadRazorpay();
-      if (!scriptLoaded) {
-        showToast("Razorpay SDK failed to load", "error");
-        return;
-      }
-
       const orderRes = await createSettleCashOrder(amount);
       if (!orderRes.success) {
         showToast(orderRes.message || "Failed to initiate payment", "error");
         return;
       }
 
-      const options = {
-        key: orderRes.data.razorpayKey,
-        amount: orderRes.data.amount,
-        currency: orderRes.data.currency,
-        name: "Mandi Bazaar",
-        description: "Cash Settlement",
-        order_id: orderRes.data.razorpayOrderId,
-        handler: async (response: any) => {
-          try {
-            const verifyRes = await verifySettleCash({
-              amount,
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-            });
-            if (verifyRes.success) {
-              showToast("Cash settled successfully", "success");
-              setShowSettleModal(false);
-              setSettleAmount("");
-              fetchWalletData();
-            }
-          } catch (e: any) {
-            showToast(e.response?.data?.message || "Verification failed", "error");
-          }
-        },
-        prefill: {
-          name: profile?.name || "",
-          contact: profile?.mobile || "",
-          email: profile?.email || "",
-        },
-        theme: { color: "#16a34a" },
-        modal: {
-          ondismiss: () => {
-            showToast("Payment cancelled", "info");
-          }
-        }
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
+      // Set HDFC payment data for auto-submission
+      setHdfcPaymentData(orderRes.data);
     } catch (error: any) {
       showToast(
         error.response?.data?.message || "Failed to settle cash",
@@ -614,6 +578,40 @@ export default function DeliveryWallet() {
           </motion.div>
         </div>
       )}
+
+      {/* HDFC Re-direction Form (Auto-submit) */}
+      {hdfcPaymentData && (
+        <HdfcRedirectForm
+          gatewayUrl={hdfcPaymentData.gatewayUrl}
+          encRequest={hdfcPaymentData.encRequest}
+          accessCode={hdfcPaymentData.accessCode}
+        />
+      )}
+    </div>
+  );
+}
+
+function HdfcRedirectForm({ gatewayUrl, encRequest, accessCode }: any) {
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (formRef.current) {
+      formRef.current.submit();
+    }
+  }, []);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex flex-col items-center justify-center z-[100] text-center p-6">
+      <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl">
+        <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">Redirecting to Payment Gateway</h3>
+        <p className="text-gray-500 text-sm">Please do not refresh the page or press the back button.</p>
+
+        <form ref={formRef} action={gatewayUrl} method="POST" className="hidden">
+          <input type="hidden" name="encRequest" value={encRequest} />
+          <input type="hidden" name="access_code" value={accessCode} />
+        </form>
+      </div>
     </div>
   );
 }

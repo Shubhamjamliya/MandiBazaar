@@ -7,12 +7,17 @@ import {
     getWithdrawals,
     getCommissions,
     createSettleCashOrder,
-    verifySettleCash,
+    hdfcSettleCashReturn,
+    hdfcSettleCashCancel,
 } from '../modules/delivery/controllers/deliveryWalletController';
 
 const router = Router();
 
-// All routes require delivery boy authentication
+// Settlement callbacks (Public - Called by HDFC)
+router.post('/settle-cash/return', hdfcSettleCashReturn);
+router.post('/settle-cash/cancel', hdfcSettleCashCancel);
+
+// All other routes require delivery boy authentication
 router.use(authenticate, requireUserType('Delivery'));
 
 // Wallet balance
@@ -30,5 +35,4 @@ router.get('/commissions', getCommissions);
 
 // Settle Cash
 router.post('/settle-cash/create', createSettleCashOrder);
-router.post('/settle-cash/verify', verifySettleCash);
 export default router;

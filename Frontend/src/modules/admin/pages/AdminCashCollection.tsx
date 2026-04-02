@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   getCashCollections,
   createCashCollection,
@@ -68,6 +68,10 @@ export default function AdminCashCollection() {
           params.search = searchTerm;
         }
 
+        if (selectedMethod !== "all") {
+          params.paymentMethod = selectedMethod.toLowerCase();
+        }
+
         const cashResponse = await getCashCollections(params);
 
         if (cashResponse.success) {
@@ -96,6 +100,7 @@ export default function AdminCashCollection() {
     fromDate,
     toDate,
     searchTerm,
+    selectedMethod,
   ]);
 
   const handleSort = (column: string) => {

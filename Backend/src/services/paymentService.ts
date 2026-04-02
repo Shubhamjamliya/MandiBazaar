@@ -13,7 +13,8 @@ export const createHdfcOrder = async (
     amount: number,
     redirectUrl: string,
     cancelUrl: string,
-    currency: string = 'INR'
+    currency: string = 'INR',
+    extraParams: Record<string, string> = {}
 ) => {
     try {
         const merchantId = process.env.HDFC_MERCHANT_ID;
@@ -39,7 +40,8 @@ export const createHdfcOrder = async (
             amount: amount.toString(),
             redirect_url: redirectUrl,
             cancel_url: cancelUrl,
-            language: 'EN'
+            language: 'EN',
+            ...extraParams
         });
 
         // Generate encrypted request

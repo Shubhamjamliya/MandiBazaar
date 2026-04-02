@@ -15,7 +15,6 @@ if (!SMS_INDIA_HUB_API_KEY || !SMS_INDIA_HUB_SENDER_ID) {
 }
 
 const DEFAULT_OTP = process.env.DEFAULT_OTP || '1234';
-const DEFAULT_ADMIN_MOBILE = process.env.DEFAULT_ADMIN_MOBILE || '9876543210';
 
 /**
  * Interface for OTP Response
@@ -201,7 +200,7 @@ async function verifyOtpFromDb(mobile: string, otp: string, userType: UserType):
 /**
  * Check if special bypass should be used
  */
-function isSpecialBypass(mobile: string): boolean {
+function isSpecialBypass(_mobile: string): boolean {
   // Disabled as per user request: "no special numbers"
   return false;
 }

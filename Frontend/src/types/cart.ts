@@ -7,6 +7,14 @@ export interface CartItem {
   variant?: any;
   hsnCode?: string;
   gstPercentage?: number;
+  seller?: {
+    id: string;
+    storeName: string;
+    taxName?: string;
+    taxNumber?: string;
+    fssaiLicNo?: string;
+    phone?: string;
+  };
 }
 
 export interface Cart {

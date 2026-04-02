@@ -80,6 +80,8 @@ export interface Product {
   // Shop by Store fields
   isShopByStoreOnly?: boolean;
   shopId?: string | any;
+  hsnCode?: string;
+  gstPercentage?: number;
 }
 
 export interface CreateProductData {
@@ -111,6 +113,8 @@ export interface CreateProductData {
   variationType?: string;
   isShopByStoreOnly?: boolean;
   shopId?: string;
+  hsnCode?: string;
+  gstPercentage?: number;
 }
 
 export interface Shop {

@@ -5,7 +5,7 @@ export interface ICashCollection extends Document {
     order?: Types.ObjectId;
     amount: number;
     remark?: string;
-    paymentMethod: 'cash' | 'razorpay';
+    paymentMethod: 'cash' | 'razorpay' | 'HDFC';
     collectedBy?: Types.ObjectId;
     collectedAt: Date;
     createdAt: Date;
@@ -34,7 +34,7 @@ const cashCollectionSchema = new Schema<ICashCollection>(
         },
         paymentMethod: {
             type: String,
-            enum: ['cash', 'razorpay'],
+            enum: ['cash', 'razorpay', 'HDFC'],
             default: 'cash',
         },
         collectedBy: {
