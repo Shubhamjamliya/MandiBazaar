@@ -397,18 +397,26 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
         const data = await response.json();
 
-        // Handle API errors
+        // Handle API errors with descriptive logging for production debugging
         if (data.status === 'ZERO_RESULTS') {
+          console.warn('[LocationContext] Reverse Geocoding: No results found for these coordinates.');
           return { formatted_address: `${lat}, ${lng}` };
         }
 
         if (data.status === 'REQUEST_DENIED') {
-          const deniedMsg = 'Google Maps API: REQUEST_DENIED. Please ensure "Geocoding API" is active and Billing is enabled in Google Cloud Console.';
-          console.error(`❌ ${deniedMsg}`, data.error_message || '');
+          const deniedMsg = `Google Maps API: REQUEST_DENIED. Message: ${data.error_message || 'No additional info'}`;
+          console.error(`❌ ${deniedMsg}`);
+          console.error('💡 Recommendation: Ensure "Geocoding API" is ENABLED and your PRODUCTION DOMAIN is added to the Authorized Referrers in Google Cloud Console.');
           throw new Error(deniedMsg);
         }
 
+        if (data.status === 'OVER_QUERY_LIMIT') {
+          console.error('❌ Google Maps API: OVER_QUERY_LIMIT. Please check your billing or quota settings.');
+          throw new Error('Google Maps quota exceeded');
+        }
+
         if (data.status !== 'OK') {
+          console.error(`❌ Google Maps API Status: ${data.status}`, data.error_message || '');
           throw new Error(`Geocoding API error: ${data.status}`);
         }
 
