@@ -113,3 +113,18 @@ export const toggleShopStatus = async (): Promise<any> => {
 };
 
 
+/**
+ * Request account deletion OTP for seller
+ */
+export const requestDeleteAccountOTP = async (mobile: string): Promise<{ success: boolean; message: string }> => {
+  const response = await api.post('/auth/seller/delete-account-request', { mobile });
+  return response.data;
+};
+
+/**
+ * Confirm account deletion for seller
+ */
+export const confirmDeleteAccount = async (mobile: string, otp: string): Promise<{ success: boolean; message: string }> => {
+  const response = await api.post('/auth/seller/delete-account-confirm', { mobile, otp });
+  return response.data;
+};

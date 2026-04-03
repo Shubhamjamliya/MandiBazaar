@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSellerProfile, updateSellerProfile } from '../../../services/api/auth/sellerAuthService';
 import { useAuth } from '../../../context/AuthContext';
@@ -7,6 +8,7 @@ import GoogleMapsAutocomplete from '../../../components/GoogleMapsAutocomplete';
 import LocationPickerMap from '../../../components/LocationPickerMap';
 
 const SellerAccountSettings = () => {
+    const navigate = useNavigate();
     const { user, updateUser } = useAuth();
     const [activeTab, setActiveTab] = useState('profile');
     const [isEditing, setIsEditing] = useState(false);
@@ -257,6 +259,15 @@ const SellerAccountSettings = () => {
             icon: (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+            )
+        },
+        {
+            id: 'security',
+            label: 'Security',
+            icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2m16-11a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-7 7l4-4m0 0l-4-4m4 4H7" />
                 </svg>
             )
         },
@@ -674,6 +685,31 @@ const SellerAccountSettings = () => {
                                                         <InputGroup label="FSSAI License No." name="fssaiLicNo" value={sellerData.fssaiLicNo} onChange={handleInputChange} disabled={!isEditing} />
                                                     </div>
                                                 </section>
+                                            </div>
+                                        )}
+
+                                        {activeTab === 'security' && (
+                                            <div className="space-y-10 p-4">
+                                                <div className="bg-red-50 rounded-2xl p-6 border border-red-100">
+                                                    <div className="flex items-start gap-4">
+                                                        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 shrink-0">
+                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <h4 className="text-lg font-bold text-red-900 mb-1">Delete Seller Account</h4>
+                                                            <p className="text-sm text-red-700 leading-relaxed mb-6">
+                                                                Closing your account will permanently remove your store from Mandi Bazaar. This includes all your product listings, inventory data, and history. <b>This action cannot be undone.</b>
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => navigate('/seller/delete-account')}
+                                                                className="px-6 py-3 bg-red-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2"
+                                                            >
+                                                                Start Deletion Process
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         )}
                                     </div>

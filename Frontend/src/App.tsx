@@ -38,6 +38,7 @@ const Categories = lazy(() => import("./modules/user/Categories"));
 const Category = lazy(() => import("./modules/user/Category"));
 const Invoice = lazy(() => import("./modules/user/Invoice"));
 const Login = lazy(() => import("./modules/user/Login"));
+const DeleteAccount = lazy(() => import("./modules/user/DeleteAccount"));
 
 const AboutUs = lazy(() => import("./modules/user/AboutUs"));
 const FAQ = lazy(() => import("./modules/user/FAQ"));
@@ -73,6 +74,7 @@ const DeliveryAbout = lazy(() => import("./modules/delivery/pages/DeliveryAbout"
 const DeliverySellersInRange = lazy(() => import("./modules/delivery/pages/DeliverySellersInRange"));
 const DeliveryLogin = lazy(() => import("./modules/delivery/pages/DeliveryLogin"));
 const DeliverySignUp = lazy(() => import("./modules/delivery/pages/DeliverySignUp"));
+const DeliveryDeleteAccount = lazy(() => import("./modules/delivery/pages/DeliveryDeleteAccount"));
 
 // Lazy load seller routes
 const SellerLayout = lazy(() => import("./modules/seller/components/SellerLayout"));
@@ -91,6 +93,7 @@ const SellerReturnRequest = lazy(() => import("./modules/seller/pages/SellerRetu
 const SellerAccountSettings = lazy(() => import("./modules/seller/pages/SellerAccountSettings"));
 const SellerLogin = lazy(() => import("./modules/seller/pages/SellerLogin"));
 const SellerSignUp = lazy(() => import("./modules/seller/pages/SellerSignUp"));
+const SellerDeleteAccount = lazy(() => import("./modules/seller/pages/SellerDeleteAccount"));
 const SellerHelp = lazy(() => import("./modules/seller/pages/HelpSupport"));
 
 // Lazy load admin routes
@@ -272,6 +275,7 @@ function App() {
                                       <Route path="help" element={<DeliveryHelp />} />
                                       <Route path="about" element={<DeliveryAbout />} />
                                       <Route path="sellers-in-range" element={<DeliverySellersInRange />} />
+                                      <Route path="delete-account" element={<DeliveryDeleteAccount />} />
                                     </Routes>
                                   </DeliveryLayout>
                                 </Suspense>
@@ -302,6 +306,7 @@ function App() {
                                       <Route path="wallet" element={<SellerWallet />} />
                                       <Route path="reports/sales" element={<SellerSalesReport />} />
                                       <Route path="account-settings" element={<SellerAccountSettings />} />
+                                      <Route path="delete-account" element={<SellerDeleteAccount />} />
                                       <Route path="help" element={<SellerHelp />} />
                                     </Routes>
                                   </SellerLayout>
@@ -432,6 +437,14 @@ function App() {
                                     <Route path="/store/toy" element={<ToyStore />} />
                                     <Route path="/store/hobby" element={<HobbyStore />} />
                                     <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                                    <Route
+                                      path="/delete-account"
+                                      element={
+                                        <ProtectedRoute requiredUserType="Customer" redirectTo="/login">
+                                          <DeleteAccount />
+                                        </ProtectedRoute>
+                                      }
+                                    />
                                   </Routes>
                                 </Suspense>
                               </AppLayout>

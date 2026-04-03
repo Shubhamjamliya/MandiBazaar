@@ -6,6 +6,10 @@ import {
 } from "../../../services/otpService";
 import { generateToken } from "../../../services/jwtService";
 import { asyncHandler } from "../../../utils/asyncHandler";
+import DeliveryTracking from "../../../models/DeliveryTracking";
+import WalletTransaction from "../../../models/WalletTransaction";
+import WithdrawRequest from "../../../models/WithdrawRequest";
+import Notification from "../../../models/Notification";
 // import { uploadDocument } from "../../../services/uploadService"; // File does not exist
 
 /**
@@ -234,5 +238,92 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     success: true,
     data: delivery,
+  });
+});
+
+/**
+ * Request OTP for delivery account deletion
+ */
+export const requestDeleteAccountOTP = asyncHandler(async (req: Request, res: Response) => {
+  // @ts-ignore
+  const userId = req.user.userId;
+
+  const delivery = await Delivery.findById(userId);
+  if (!delivery) {
+    return res.status(404).json({
+      success: false,
+      message: "Delivery partner not found",
+    });
+  }
+
+  // Send OTP to delivery partner's mobile
+  const result = await sendSmsOtpService(delivery.mobile, "Delivery");
+
+  return res.status(200).json({
+    success: true,
+    message: "OTP sent to your registered mobile number",
+    sessionId: result.sessionId,
+  });
+});
+
+/**
+ * Confirm delivery account deletion and cleanup data
+ */
+export const confirmDeleteAccount = asyncHandler(async (req: Request, res: Response) => {
+  const { otp, sessionId } = req.body;
+  // @ts-ignore
+  const userId = req.user.userId;
+
+  if (!otp || !sessionId) {
+    return res.status(400).json({
+      success: false,
+      message: "OTP and Session ID are required",
+    });
+  }
+
+  const delivery = await Delivery.findById(userId);
+  if (!delivery) {
+    return res.status(404).json({
+      success: false,
+      message: "Delivery partner not found",
+    });
+  }
+
+  // Verify OTP
+  const isValid = await verifySmsOtpService(
+    sessionId,
+    otp,
+    delivery.mobile,
+    "Delivery"
+  );
+
+  if (!isValid) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired OTP",
+    });
+  }
+
+  // Start Cascading Deletion
+  const deliveryId = delivery._id;
+
+  // 1. Delete Delivery Tracking
+  await DeliveryTracking.deleteMany({ deliveryBoy: deliveryId });
+
+  // 2. Delete Wallet Transactions
+  await WalletTransaction.deleteMany({ userId: deliveryId, userType: "DELIVERY_BOY" });
+
+  // 3. Delete Withdraw Requests
+  await WithdrawRequest.deleteMany({ userId: deliveryId, userType: "DELIVERY_BOY" });
+
+  // 4. Delete Notifications
+  await Notification.deleteMany({ recipient: deliveryId, recipientType: "Delivery" });
+
+  // 5. Finally delete the Delivery record
+  await Delivery.findByIdAndDelete(deliveryId);
+
+  return res.status(200).json({
+    success: true,
+    message: "Your delivery account and all associated data have been permanently deleted.",
   });
 });

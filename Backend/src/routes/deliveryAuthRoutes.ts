@@ -13,4 +13,21 @@ router.post("/verify-sms-otp", loginRateLimiter, deliveryAuthController.verifySm
 // Register route
 router.post("/register", deliveryAuthController.register);
 
+import { authenticate, requireUserType } from "../middleware/auth";
+
+// Delete Account Routes (Protected)
+router.post(
+  "/delete-account-request",
+  authenticate,
+  requireUserType("Delivery"),
+  deliveryAuthController.requestDeleteAccountOTP
+);
+
+router.post(
+  "/delete-account-confirm",
+  authenticate,
+  requireUserType("Delivery"),
+  deliveryAuthController.confirmDeleteAccount
+);
+
 export default router;

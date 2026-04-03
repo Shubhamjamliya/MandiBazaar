@@ -15,6 +15,7 @@ export default function DeliveryMenu() {
     { id: "menu-3", title: "Settings", route: "/delivery/settings" },
     { id: "menu-4", title: "Help & Support", route: "/delivery/help" },
     { id: "menu-5", title: "About", route: "/delivery/about" },
+    { id: "menu-delete", title: "Delete Account", route: "/delivery/delete-account" },
     { id: "menu-6", title: "Logout", route: "/delivery/login" },
   ];
 
@@ -199,6 +200,24 @@ export default function DeliveryMenu() {
             />
           </svg>
         );
+      case "menu-delete": // Delete Account
+        return (
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </svg>
+        );
       case "menu-6": // Logout
         return (
           <svg
@@ -260,16 +279,16 @@ export default function DeliveryMenu() {
               <button
                 key={item.id}
                 onClick={() => handleMenuClick(item.route)}
-                className={`w-full bg-white rounded-xl p-4 shadow-sm border border-neutral-200 flex items-center gap-3 hover:shadow-md transition-shadow ${item.id === "menu-6"
+                className={`w-full bg-white rounded-xl p-4 shadow-sm border border-neutral-200 flex items-center gap-3 hover:shadow-md transition-shadow ${item.id === "menu-6" || item.id === "menu-delete"
                   ? "text-red-600 hover:bg-red-50"
                   : "hover:bg-neutral-50"
                   }`}>
                 <span
-                  className={`flex-shrink-0 ${item.id === "menu-6" ? "text-red-600" : "text-neutral-600"}`}>
+                  className={`flex-shrink-0 ${item.id === "menu-6" || item.id === "menu-delete" ? "text-red-600" : "text-neutral-600"}`}>
                   {getMenuIcon(item.id)}
                 </span>
                 <span
-                  className={`text-sm font-medium flex-1 text-left ${item.id === "menu-6" ? "text-red-600" : "text-neutral-900"
+                  className={`text-sm font-medium flex-1 text-left ${item.id === "menu-6" || item.id === "menu-delete" ? "text-red-600" : "text-neutral-900"
                     }`}>
                   {item.title}
                 </span>
