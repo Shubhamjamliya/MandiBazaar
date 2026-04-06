@@ -402,7 +402,7 @@ function App() {
                                     <Route path="/order-again" element={<OrderAgain />} />
                                     <Route path="/account" element={<Account />} />
                                     <Route path="/about-us" element={<AboutUs />} />
-                                    <Route path="/faq" element={<FAQ />} />
+                                    <Route path="/support" element={<FAQ />} />
                                     <Route path="/wishlist" element={<Wishlist />} />
                                     <Route path="/categories" element={<Categories />} />
                                     <Route path="/category/:id" element={<Category />} />
