@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { uploadImage } from "../../../services/api/uploadService";
 import {
   validateImageFile,
@@ -1087,7 +1087,7 @@ export default function AdminShopByStore() {
       <div className="text-center text-sm text-neutral-500 py-4">
         Copyright Â© 2025. Developed By{" "}
         <a href="#" className="text-teal-600 hover:text-teal-700">
-          Mandi Bazaar - 10 Minute App
+          Mandi Bazaar - 20 Minute App
         </a>
       </div>
     </div>

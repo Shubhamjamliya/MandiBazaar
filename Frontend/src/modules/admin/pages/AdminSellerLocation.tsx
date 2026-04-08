@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getAllSellers, Seller as SellerType } from '../../../services/api/sellerService';
 import SellerServiceMap from '../components/SellerServiceMap';
 
@@ -252,7 +252,7 @@ export default function AdminSellerLocation() {
       <div className="text-center text-sm text-neutral-500 py-4">
         Copyright Â© 2025. Developed By{' '}
         <a href="#" className="text-teal-600 hover:text-teal-700">
-          Mandi Bazaar - 10 Minute App
+          Mandi Bazaar - 20 Minute App
         </a>
       </div>
     </div>

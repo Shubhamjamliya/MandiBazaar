@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   getOrdersByStatus,
@@ -897,7 +897,7 @@ export default function AdminShippedOrders() {
       <div className="text-center py-4 text-xs sm:text-sm text-neutral-600">
         Copyright Â© 2025. Developed By{" "}
         <Link to="/" className="text-blue-600 hover:text-blue-700">
-          Mandi Bazaar - 10 Minute App
+          Mandi Bazaar - 20 Minute App
         </Link>
       </div>
     </div>

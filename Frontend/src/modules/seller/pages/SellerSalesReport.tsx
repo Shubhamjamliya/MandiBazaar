@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getSalesReport, SalesReport } from '../../../services/api/reportService';
 
@@ -371,7 +371,7 @@ export default function SellerSalesReport() {
             <footer className="px-4 sm:px-6 py-4 text-center bg-white border-t border-neutral-200">
                 <p className="text-xs sm:text-sm text-neutral-600">
                     Copyright Â© 2025. Developed By{' '}
-                    <span className="font-semibold text-teal-600">Mandi Bazaar - 10 Minute App</span>
+                    <span className="font-semibold text-teal-600">Mandi Bazaar - 20 Minute App</span>
                 </p>
             </footer>
         </div>

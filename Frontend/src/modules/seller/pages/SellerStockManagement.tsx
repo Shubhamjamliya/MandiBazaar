@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { getProducts, updateStock, Product } from '../../../services/api/productService';
 import { getCategories } from '../../../services/api/categoryService';
 import { useAuth } from '../../../context/AuthContext';
+import { apiCache } from '../../../utils/apiCache';
+import { useToast } from '../../../context/ToastContext';
 
 interface StockItem {
     variationId: string;
@@ -31,6 +33,7 @@ export default function SellerStockManagement() {
     const [categories, setCategories] = useState<string[]>([]);
     const [totalPages, setTotalPages] = useState(1);
     const { user } = useAuth();
+    const { showToast } = useToast();
 
     // Fetch categories for filter
     useEffect(() => {
@@ -175,11 +178,16 @@ export default function SellerStockManagement() {
                         ? { ...item, stock: newStock }
                         : item
                 ));
+
+                // Clear cached customer-facing data so homepage/product lists reflect stock changes immediately.
+                apiCache.invalidatePattern(/^home-content-/);
+                apiCache.invalidatePattern(/^customer-products-/);
+                showToast('Stock saved successfully', 'success');
             } else {
-                alert(response.message || 'Failed to update stock');
+                showToast(response.message || 'Failed to update stock', 'error');
             }
         } catch (err: any) {
-            alert(err.response?.data?.message || err.message || 'Failed to update stock');
+            showToast(err.response?.data?.message || err.message || 'Failed to update stock', 'error');
         } finally {
             setUpdatingStock(null);
         }
