@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendOTP, verifyOTP } from '../../../services/api/auth/sellerAuthService';
 import OTPInput from '../../../components/OTPInput';
@@ -7,10 +7,28 @@ import { useAuth } from '../../../context/AuthContext';
 export default function SellerLogin() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const RESEND_OTP_COOLDOWN_SECONDS = 30;
   const [mobileNumber, setMobileNumber] = useState('');
   const [showOTP, setShowOTP] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!showOTP || resendCooldown <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [showOTP, resendCooldown]);
 
   const handleMobileLogin = async () => {
     if (mobileNumber.length !== 10) return;
@@ -23,6 +41,7 @@ export default function SellerLogin() {
       if (response.success) {
         setShowOTP(true);
         setError('');
+        setResendCooldown(RESEND_OTP_COOLDOWN_SECONDS);
       } else {
         setError(response.message || 'Failed to send OTP. Please try again.');
       }
@@ -239,12 +258,15 @@ export default function SellerLogin() {
                   </button>
                   <button
                     onClick={async () => {
+                      if (resendCooldown > 0) return;
                       setLoading(true);
                       setError('');
                       try {
                         const response = await sendOTP(mobileNumber);
                         if (!response.success) {
                           setError(response.message || 'Failed to resend OTP');
+                        } else {
+                          setResendCooldown(RESEND_OTP_COOLDOWN_SECONDS);
                         }
                       } catch (err: any) {
                         setError(err.response?.data?.message || 'Failed to resend OTP');
@@ -252,10 +274,14 @@ export default function SellerLogin() {
                         setLoading(false);
                       }
                     }}
-                    disabled={loading}
-                    className="flex-1 py-3 rounded-xl font-semibold text-sm bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 transition-all"
+                    disabled={loading || resendCooldown > 0}
+                    className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all ${
+                      loading || resendCooldown > 0 
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600'
+                    }`}
                   >
-                    {loading ? 'Sending...' : 'Resend OTP'}
+                    {loading ? 'Sending...' : resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
                   </button>
                 </div>
               </div>

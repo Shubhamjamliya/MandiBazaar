@@ -153,7 +153,7 @@ export const getOrderById = asyncHandler(
 
     // Format order items for frontend
     // Format order items for frontend
-    const formattedItems = orderItems.map(item => {
+    const formattedItems = orderItems.map((item, index) => {
       let unit = item.variation && (item.variation as string).startsWith('wv_') ? (item.variation as string).replace('wv_', '') : (item.variation || 'N/A');
       let variationMatched = false;
 
@@ -201,7 +201,7 @@ export const getOrderById = asyncHandler(
       }
 
       return {
-        srNo: item._id.toString().slice(-4), // Use last 4 chars of ID as srNo
+        srNo: index + 1,
         product: item.productName || 'Unknown Product',
         soldBy: (item.seller as any)?.storeName || 'N/A',
         unit: unit,
@@ -221,7 +221,7 @@ export const getOrderById = asyncHandler(
       orderDate: order.orderDate ? order.orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       deliveryDate: order.estimatedDeliveryDate ? order.estimatedDeliveryDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       timeSlot: order.timeSlot || 'N/A',
-      status: order.status === 'On the way' ? 'Out For Delivery' : order.status,
+      status: order.status === 'Out for Delivery' ? 'On the way' : order.status,
       customerName: (order.customer as any)?.name || order.customerName || '',
       customerEmail: (order.customer as any)?.email || order.customerEmail || '',
       customerPhone: (order.customer as any)?.phone || order.customerPhone || '',
@@ -231,6 +231,7 @@ export const getOrderById = asyncHandler(
       subtotal: order.subtotal || 0,
       tax: order.tax || 0,
       grandTotal: order.total || 0,
+      specialRequests: order.specialRequests || '',
       paymentMethod: order.paymentMethod || 'N/A',
       paymentStatus: order.paymentStatus || 'Pending',
       deliveryAddress: order.deliveryAddress || {},
@@ -261,7 +262,7 @@ export const updateOrderStatus = asyncHandler(
     const { status } = req.body;
 
     // Validate allowed status updates for seller
-    const allowedStatuses = ['Accepted', 'On the way', 'Delivered', 'Cancelled', 'Rejected'];
+    const allowedStatuses = ['Accepted', 'On the way', 'Out for Delivery', 'Delivered', 'Cancelled', 'Rejected'];
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -288,8 +289,10 @@ export const updateOrderStatus = asyncHandler(
       });
     }
 
+    const normalizedStatus = status === 'On the way' ? 'Out for Delivery' : status;
+
     // Check if status is already the same
-    if (order.status === status) {
+    if (order.status === normalizedStatus) {
       return res.status(400).json({
         success: false,
         message: `Order is already ${status}`,
@@ -297,11 +300,11 @@ export const updateOrderStatus = asyncHandler(
     }
 
     const previousStatus = order.status;
-    order.status = status;
+    order.status = normalizedStatus;
     await order.save();
 
     // Trigger delivery notification if seller accepts the order
-    if (status === 'Accepted' && previousStatus !== 'Accepted') {
+    if (normalizedStatus === 'Accepted' && previousStatus !== 'Accepted') {
       try {
         const io: SocketIOServer = (req.app.get("io") as SocketIOServer);
         if (io) {
@@ -331,7 +334,7 @@ export const updateOrderStatus = asyncHandler(
     }
 
     // If order is delivered, credit seller's balance
-    if (status === 'Delivered' && previousStatus !== 'Delivered') {
+    if (normalizedStatus === 'Delivered' && previousStatus !== 'Delivered') {
       const seller = await Seller.findById(sellerId);
       if (seller) {
         // Calculate net earning (sale amount - commission)

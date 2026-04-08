@@ -4,21 +4,39 @@ import DeliveryHeader from "../components/DeliveryHeader";
 import SummaryBar from "../components/SummaryBar";
 import DashboardCard from "../components/DashboardCard";
 import DeliveryBottomNav from "../components/DeliveryBottomNav";
-import { getDashboardStats } from "../../../services/api/delivery/deliveryService";
+import { getDashboardStats, getDeliveryProfile, getNotifications, markNotificationRead } from "../../../services/api/delivery/deliveryService";
 import { useDeliveryStatus } from "../context/DeliveryStatusContext";
+
+interface DeliveryNotificationItem {
+  _id: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  link?: string;
+}
 
 export default function DeliveryDashboard() {
   const navigate = useNavigate();
   const { isOnline, sellersInRangeCount, locationError } = useDeliveryStatus();
   const [stats, setStats] = useState<any>(null);
+  const [deliveryStatus, setDeliveryStatus] = useState<string>("Inactive");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [taskNotifications, setTaskNotifications] = useState<DeliveryNotificationItem[]>([]);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const data = await getDashboardStats();
         setStats(data);
+
+        try {
+          const profile = await getDeliveryProfile();
+          setDeliveryStatus(profile?.status || "Inactive");
+        } catch (profileErr) {
+          console.error("Failed to fetch delivery profile status:", profileErr);
+        }
       } catch (err: any) {
         setError(err.message || "Failed to load dashboard data");
       } finally {
@@ -28,6 +46,48 @@ export default function DeliveryDashboard() {
 
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    const fetchTaskNotifications = async () => {
+      try {
+        const data = await getNotifications();
+        const unreadTaskNotifications = (Array.isArray(data) ? data : [])
+          .filter((notification: any) => {
+            const title = String(notification?.title || '').toLowerCase();
+            const message = String(notification?.message || '').toLowerCase();
+            return !notification?.isRead && (title.includes('task') || title.includes('order') || message.includes('task') || message.includes('order'));
+          })
+          .slice(0, 3);
+
+        setTaskNotifications(unreadTaskNotifications);
+      } catch (notificationError) {
+        console.error('Failed to fetch delivery task notifications:', notificationError);
+      }
+    };
+
+    fetchTaskNotifications();
+    const intervalId = window.setInterval(fetchTaskNotifications, 30000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const handleOpenTaskNotification = async (notification: DeliveryNotificationItem) => {
+    try {
+      await markNotificationRead(notification._id);
+      setTaskNotifications((prev) => prev.filter((item) => item._id !== notification._id));
+    } catch (markError) {
+      console.error('Failed to mark task notification as read:', markError);
+    }
+
+    if (notification.link) {
+      navigate(notification.link);
+      return;
+    }
+
+    navigate('/delivery/notifications');
+  };
 
   // Icons for dashboard cards (Keep existing SVGs)
   const pendingOrderIcon = (
@@ -291,6 +351,49 @@ export default function DeliveryDashboard() {
       <DeliveryHeader />
 
       <div className="px-4 py-4 space-y-4">
+        {deliveryStatus !== "Active" && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold">
+                !
+              </div>
+              <div>
+                <p className="text-sm font-bold text-amber-900">Pending Admin Approval</p>
+                <p className="text-xs text-amber-800 mt-1">
+                  Your delivery partner account is under review. You will be notified once admin approves your account.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {taskNotifications.length > 0 && (
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-orange-900">New Task Request</h3>
+              <button
+                onClick={() => navigate('/delivery/notifications')}
+                className="text-xs font-semibold text-orange-700 hover:text-orange-900"
+              >
+                View all
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {taskNotifications.map((notification) => (
+                <button
+                  key={notification._id}
+                  onClick={() => handleOpenTaskNotification(notification)}
+                  className="w-full text-left bg-white border border-orange-100 hover:border-orange-300 rounded-xl p-3 transition-colors"
+                >
+                  <p className="text-sm font-semibold text-neutral-900">{notification.title}</p>
+                  <p className="text-xs text-neutral-600 mt-1 line-clamp-2">{notification.message}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Daily Collection & Cash Balance Bar */}
         <div className="bg-white rounded-2xl shadow-md p-4 border border-green-100">
           <div className="grid grid-cols-2 gap-4">

@@ -56,6 +56,7 @@ export interface IAppSettings extends Document {
   platformFee?: number;
   deliveryCharges: number;
   freeDeliveryThreshold?: number;
+  minimumOrderValue?: number;
   defaultCashLimit?: number;
   deliveryConfig?: {
     isDistanceBased: boolean;
@@ -267,6 +268,11 @@ const AppSettingsSchema = new Schema<IAppSettings>(
     freeDeliveryThreshold: {
       type: Number,
       min: [0, "Free delivery threshold cannot be negative"],
+    },
+    minimumOrderValue: {
+      type: Number,
+      default: 149,
+      min: [0, "Minimum order value cannot be negative"],
     },
     defaultCashLimit: {
       type: Number,

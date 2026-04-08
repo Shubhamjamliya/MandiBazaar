@@ -2,6 +2,7 @@ export interface AppConfig {
     appName: string;
     deliveryFee: number;
     freeDeliveryThreshold: number;
+    minimumOrderValue: number;
     platformFee: number;
     taxes: {
         gst: number;
@@ -14,6 +15,7 @@ const defaultConfig: AppConfig = {
     appName: 'Mandi Bazaar',
     deliveryFee: 40,
     freeDeliveryThreshold: 199,
+    minimumOrderValue: 149,
     platformFee: 2,
     taxes: {
         gst: 18

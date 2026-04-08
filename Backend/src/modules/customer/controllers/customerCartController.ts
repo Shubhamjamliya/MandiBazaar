@@ -66,11 +66,13 @@ const calculateDeliveryStuff = async (total: number, items: any[], userLat: numb
     let estimatedDeliveryFee = 0;
     let platformFee = 0;
     let freeDeliveryThreshold = 0;
+    let minimumOrderValue = 149;
 
     try {
         const settings = await AppSettings.getSettings();
         platformFee = settings.platformFee || 0;
         freeDeliveryThreshold = settings.freeDeliveryThreshold || 0;
+        minimumOrderValue = settings.minimumOrderValue || 149;
 
         // Check free delivery threshold
         if (freeDeliveryThreshold > 0 && total >= freeDeliveryThreshold) {
@@ -134,7 +136,8 @@ const calculateDeliveryStuff = async (total: number, items: any[], userLat: numb
     return {
         estimatedDeliveryFee,
         platformFee,
-        freeDeliveryThreshold
+        freeDeliveryThreshold,
+        minimumOrderValue
     };
 };
 

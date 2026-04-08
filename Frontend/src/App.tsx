@@ -252,6 +252,23 @@ function App() {
                             }
                           />
 
+                          <Route
+                            path="/privacy-policy"
+                            element={
+                              <Suspense fallback={<IconLoader forceShow />}>
+                                <PrivacyPolicy />
+                              </Suspense>
+                            }
+                          />
+                          <Route
+                            path="/terms-of-service"
+                            element={
+                              <Suspense fallback={<IconLoader forceShow />}>
+                                <PrivacyPolicy />
+                              </Suspense>
+                            }
+                          />
+
                           {/* Delivery App Routes */}
                           <Route
                             path="/delivery/*"
@@ -436,7 +453,6 @@ function App() {
                                     <Route path="/store/fashion-basics" element={<FashionStore />} />
                                     <Route path="/store/toy" element={<ToyStore />} />
                                     <Route path="/store/hobby" element={<HobbyStore />} />
-                                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                                     <Route
                                       path="/delete-account"
                                       element={

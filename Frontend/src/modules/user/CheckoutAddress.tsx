@@ -160,6 +160,7 @@ export default function CheckoutAddress() {
   const platformFee = appConfig.platformFee;
   const deliveryFee = cart.total >= appConfig.freeDeliveryThreshold ? 0 : appConfig.deliveryFee;
   const totalAmount = cart.total + platformFee + deliveryFee;
+  const summaryItems = (cart.items || []).filter((item: any) => item?.product);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof OrderAddress, string>> = {};
@@ -520,7 +521,10 @@ export default function CheckoutAddress() {
         <div className="bg-white rounded-lg border border-neutral-200 p-2.5">
           {/* Cart Items */}
           <div className="space-y-2 mb-3">
-            {cart.items.map((item) => {
+            {summaryItems.length === 0 && (
+              <div className="text-xs text-neutral-500">No items in cart yet.</div>
+            )}
+            {summaryItems.map((item) => {
               const { displayPrice } = calculateProductPrice(item.product);
               return (
                 <div key={item.id || `${item.product.id}-${(item.product as any).variantId || 'default'}`} className="flex items-center justify-between text-xs">

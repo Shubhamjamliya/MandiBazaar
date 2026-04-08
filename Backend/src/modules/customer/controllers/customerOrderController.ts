@@ -26,7 +26,7 @@ export const createOrder = async (req: Request, res: Response) => {
             session = null;
         }
 
-        const { items, address, paymentMethod, fees } = req.body;
+        const { items, address, paymentMethod, fees, specialRequests } = req.body;
         const userId = req.user!.userId;
 
         // Log incoming request for debugging
@@ -146,7 +146,8 @@ export const createOrder = async (req: Request, res: Response) => {
             platformFee: fees?.platformFee || 0,
             discount: 0,
             total: 0,
-            items: []
+            items: [],
+            specialRequests: specialRequests || ''
         });
 
         let calculatedSubtotal = 0;
@@ -410,19 +411,20 @@ export const createOrder = async (req: Request, res: Response) => {
         let platformFee = Number(fees?.platformFee) || 0;
         let deliveryFee = Number(fees?.deliveryFee) || 0;
         let deliveryDistanceKm = 0;
+        let appSettings: any = null;
 
         // --- Distance-Based Delivery Charge Calculation ---
         try {
-            const settings = await AppSettings.getSettings();
-            const freeDeliveryThreshold = settings?.freeDeliveryThreshold || 0;
+            appSettings = await AppSettings.getSettings();
+            const freeDeliveryThreshold = appSettings?.freeDeliveryThreshold || 0;
 
             // Check for Free Delivery eligibility first
             if (freeDeliveryThreshold > 0 && calculatedSubtotal >= freeDeliveryThreshold) {
                 deliveryFee = 0;
             }
             // Only recalculate if enabled in settings (and not free delivery)
-            else if (settings && settings.deliveryConfig?.isDistanceBased === true) {
-                const config = settings.deliveryConfig;
+            else if (appSettings && appSettings.deliveryConfig?.isDistanceBased === true) {
+                const config = appSettings.deliveryConfig;
 
                 // Collect seller locations
                 const sellerLocations: { lat: number; lng: number }[] = [];
@@ -469,6 +471,17 @@ export const createOrder = async (req: Request, res: Response) => {
         } catch (calcError) {
             console.error("Error calculating distance-based delivery fee:", calcError);
             // Fallback to provided fee or 0
+        }
+
+        const minimumOrderValue = appSettings?.minimumOrderValue || 149;
+        if (calculatedSubtotal < minimumOrderValue) {
+            if (session) await session.abortTransaction();
+            return res.status(400).json({
+                success: false,
+                message: `Please fulfill the minimum order limit of ₹${minimumOrderValue}.`,
+                minimumOrderValue,
+                currentSubtotal: Number(calculatedSubtotal.toFixed(2)),
+            });
         }
 
         const finalTotal = calculatedSubtotal + platformFee + deliveryFee;

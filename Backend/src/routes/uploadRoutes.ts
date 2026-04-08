@@ -17,15 +17,13 @@ import { asyncHandler } from "../utils/asyncHandler";
 
 const router = Router();
 
-// All upload routes require authentication
-router.use(authenticate);
-
 /**
  * POST /api/v1/upload/image
  * Upload a single image
  */
 router.post(
   "/image",
+  authenticate,
   requireUserType("Admin", "Seller"),
   uploadSingleImage.single("image"),
   handleUploadError,
@@ -56,6 +54,7 @@ router.post(
  */
 router.post(
   "/images",
+  authenticate,
   requireUserType("Admin", "Seller"),
   uploadMultipleImages.array("images", 10), // Max 10 images
   handleUploadError,
@@ -92,7 +91,6 @@ router.post(
  */
 router.post(
   "/document",
-  authenticate, // All authenticated users can upload documents
   uploadDocument.single("document"),
   handleUploadError,
   asyncHandler(async (req: Request, res: Response) => {
@@ -103,14 +101,17 @@ router.post(
       });
     }
 
-    // Determine folder based on user type
-    let folder: string = CLOUDINARY_FOLDERS.SELLER_DOCUMENTS;
+    // Determine folder based on user type (or requested folder for public signup uploads)
+    let folder: string = CLOUDINARY_FOLDERS.DELIVERY_DOCUMENTS;
     const userType = (req as any).user?.userType;
+    const requestedFolder = typeof req.body.folder === "string" ? req.body.folder.trim() : "";
 
     if (userType === "Delivery") {
       folder = CLOUDINARY_FOLDERS.DELIVERY_DOCUMENTS;
     } else if (userType === "Seller") {
       folder = CLOUDINARY_FOLDERS.SELLER_DOCUMENTS;
+    } else if (requestedFolder === CLOUDINARY_FOLDERS.DELIVERY_DOCUMENTS || requestedFolder === CLOUDINARY_FOLDERS.SELLER_DOCUMENTS) {
+      folder = requestedFolder;
     }
 
     // Check if it's an image or PDF
@@ -135,7 +136,6 @@ router.post(
  */
 router.post(
   "/documents",
-  authenticate,
   uploadMultipleDocuments.array("documents", 5), // Max 5 documents
   handleUploadError,
   asyncHandler(async (req: Request, res: Response) => {
@@ -146,14 +146,17 @@ router.post(
       });
     }
 
-    // Determine folder based on user type
-    let folder: string = CLOUDINARY_FOLDERS.SELLER_DOCUMENTS;
+    // Determine folder based on user type (or requested folder for public signup uploads)
+    let folder: string = CLOUDINARY_FOLDERS.DELIVERY_DOCUMENTS;
     const userType = (req as any).user?.userType;
+    const requestedFolder = typeof req.body.folder === "string" ? req.body.folder.trim() : "";
 
     if (userType === "Delivery") {
       folder = CLOUDINARY_FOLDERS.DELIVERY_DOCUMENTS;
     } else if (userType === "Seller") {
       folder = CLOUDINARY_FOLDERS.SELLER_DOCUMENTS;
+    } else if (requestedFolder === CLOUDINARY_FOLDERS.DELIVERY_DOCUMENTS || requestedFolder === CLOUDINARY_FOLDERS.SELLER_DOCUMENTS) {
+      folder = requestedFolder;
     }
 
     const files = (req as any).files as any[];

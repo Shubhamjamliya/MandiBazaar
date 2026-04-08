@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
-import DeliveryHeader from "../components/DeliveryHeader";
 import DeliveryBottomNav from "../components/DeliveryBottomNav";
 
 export default function DeliveryMenu() {
@@ -270,7 +269,6 @@ export default function DeliveryMenu() {
 
   return (
     <div className="min-h-screen bg-neutral-100 pb-20">
-      <DeliveryHeader />
       <div className="px-4 py-4">
         <h2 className="text-neutral-900 text-xl font-semibold mb-4">Menu</h2>
         {menuItems.length > 0 ? (

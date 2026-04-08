@@ -3,7 +3,6 @@ import {
   getNotifications,
   createNotification,
   deleteNotification,
-  testPushNotification,
   Notification as NotificationType,
   CreateNotificationData,
 } from '../../../services/api/admin/adminNotificationService';
@@ -15,14 +14,8 @@ export default function AdminNotification() {
     message: '',
   });
 
-  const [testData, setTestData] = useState({
-    recipientId: '',
-    recipientType: 'Admin' as 'Admin' | 'Seller' | 'Customer' | 'Delivery',
-  });
-
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [loading, setLoading] = useState(false);
-  const [testLoading, setTestLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -85,39 +78,6 @@ export default function AdminNotification() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleTestInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setTestData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSendTestPush = async () => {
-    setError('');
-    setSuccessMessage('');
-
-    if (!testData.recipientId.trim()) {
-      setError('Please enter a recipient ID for test push');
-      return;
-    }
-
-    setTestLoading(true);
-    try {
-      const response = await testPushNotification(
-        testData.recipientId.trim(),
-        testData.recipientType
-      );
-
-      if (response.success) {
-        setSuccessMessage('Test push notification sent successfully!');
-      } else {
-        setError(response.message || 'Failed to send test push');
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error sending test push');
-    } finally {
-      setTestLoading(false);
-    }
-  };
-
   const handleSendNotification = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -146,7 +106,8 @@ export default function AdminNotification() {
       const response = await createNotification(notificationData);
 
       if (response.success) {
-        setSuccessMessage('Notification sent successfully!');
+        const recipientLabel = formData.recipientType === 'All' ? 'all users' : `${formData.recipientType.toLowerCase()} users`;
+        setSuccessMessage(`Notification sent successfully to ${recipientLabel}.`);
         // Reset form
         setFormData({
           recipientType: 'All',
@@ -208,8 +169,9 @@ export default function AdminNotification() {
   let filteredNotifications = notifications;
 
   // Client-side search filter
-  if (searchTerm) {
-    const searchLower = searchTerm.toLowerCase();
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  if (normalizedSearchTerm) {
+    const searchLower = normalizedSearchTerm;
     filteredNotifications = filteredNotifications.filter((notification) =>
       notification.title.toLowerCase().includes(searchLower) ||
       notification.message.toLowerCase().includes(searchLower) ||
@@ -385,50 +347,6 @@ export default function AdminNotification() {
                 </div>
               </form>
 
-              {/* Test Push Section */}
-              <div className="mt-8 pt-8 border-t border-neutral-200">
-                <h3 className="text-md font-semibold text-neutral-800 mb-4">Send Test Push Notification</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Recipient ID (User ID)
-                    </label>
-                    <input
-                      type="text"
-                      name="recipientId"
-                      value={testData.recipientId}
-                      onChange={handleTestInputChange}
-                      placeholder="Enter MongoDB User ID"
-                      disabled={testLoading}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                      Recipient Type
-                    </label>
-                    <select
-                      name="recipientType"
-                      value={testData.recipientType}
-                      onChange={handleTestInputChange}
-                      disabled={testLoading}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                    >
-                      <option value="Admin">Admin</option>
-                      <option value="Seller">Seller</option>
-                      <option value="Customer">Customer</option>
-                      <option value="Delivery">Delivery Boy</option>
-                    </select>
-                  </div>
-                  <button
-                    onClick={handleSendTestPush}
-                    disabled={testLoading || !testData.recipientId}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded font-medium transition-colors"
-                  >
-                    {testLoading ? 'Sending Test...' : 'Send Test Notification'}
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
 

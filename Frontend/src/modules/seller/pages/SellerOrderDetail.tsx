@@ -428,6 +428,13 @@ export default function SellerOrderDetail() {
               Print Invoice
             </button>
           </div>
+
+          {orderDetail.specialRequests?.trim() && (
+            <div className="mt-4 bg-white border border-orange-200 rounded-lg p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 mb-1">Customer Special Request</p>
+              <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">{orderDetail.specialRequests}</p>
+            </div>
+          )}
         </div>
       </div>
 

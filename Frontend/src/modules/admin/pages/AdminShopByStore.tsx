@@ -152,10 +152,16 @@ export default function AdminShopByStore() {
   };
 
   const filteredStores = stores.filter(
-    (store) =>
-      store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (store.storeId && store.storeId.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (store._id && store._id.toLowerCase().includes(searchTerm.toLowerCase()))
+    (store) => {
+      const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+      if (!normalizedSearchTerm) return true;
+
+      return (
+        store.name.toLowerCase().includes(normalizedSearchTerm) ||
+        (store.storeId && store.storeId.toLowerCase().includes(normalizedSearchTerm)) ||
+        (store._id && store._id.toLowerCase().includes(normalizedSearchTerm))
+      );
+    }
   );
 
   // Sort stores
@@ -434,7 +440,48 @@ export default function AdminShopByStore() {
 
 
   const handleExport = () => {
-    setUploadError("Export functionality will be implemented soon.");
+    setUploadError("");
+
+    if (sortedStores.length === 0) {
+      setUploadError("No data available to export.");
+      return;
+    }
+
+    const escapeCsv = (value: string | number | null | undefined) => {
+      const text = String(value ?? "");
+      if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+        return `"${text.replace(/"/g, '""')}"`;
+      }
+      return text;
+    };
+
+    const rows = sortedStores.map((store, index) => [
+      index + 1,
+      store.storeId || store._id || "",
+      store.name || "",
+      store.products?.length || 0,
+      store.isActive ? "Active" : "Inactive",
+      store.order ?? 0,
+      store.createdAt ? new Date(store.createdAt).toISOString() : "",
+    ]);
+
+    const header = ["Sr No", "Store Id", "Store Name", "Products Count", "Status", "Order", "Created At"];
+    const csvData = [header, ...rows]
+      .map((row) => row.map((cell) => escapeCsv(cell as string | number)).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const dateSuffix = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.setAttribute("download", `shop-by-store-${dateSuffix}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setSuccessMessage("Shop by Store list exported successfully.");
   };
 
   return (

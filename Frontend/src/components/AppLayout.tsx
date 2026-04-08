@@ -207,6 +207,23 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const showHeader = isSearchPage && !isCheckoutPage && !isCartPage;
   const showSearchBar = isSearchPage && !isCheckoutPage && !isCartPage;
   const showFooter = !isCheckoutPage && !isProductDetailPage;
+  const locationAreaText = userLocation?.city || userLocation?.address?.split(',')[0]?.trim() || '';
+
+  useEffect(() => {
+    const shouldLockScroll = showLocationRequest || showLocationChangeModal;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+
+    if (shouldLockScroll) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, [showLocationRequest, showLocationChangeModal]);
 
   return (
     <div className="flex flex-col min-h-screen w-full overflow-x-hidden">
@@ -350,12 +367,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
                         <path d="M21 10C21 17 12 23 12 23C12 23 3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
-                    <span className="text-white font-bold truncate" title={userLocation?.address || ''}>
-                      {userLocation?.address
-                        ? userLocation.address.length > 40
-                          ? `${userLocation.address.substring(0, 40)}...`
-                          : userLocation.address
-                        : userLocation?.city || ''}
+                    <span className="text-white font-bold truncate" title={locationAreaText || userLocation?.address || ''}>
+                      {locationAreaText || userLocation?.address || ''}
                     </span>
                   </div>
                   <button
@@ -458,7 +471,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
           )}
 
           {/* Common Homster Header for Home and Order Again */}
-          {showHomsterHeader && <HomsterHeader onLocationClick={() => setShowLocationChangeModal(true)} />}
+          {showHomsterHeader && (
+            <HomsterHeader
+              onLocationClick={() => setShowLocationChangeModal(true)}
+              showSearch={!isOrderAgainPage}
+            />
+          )}
 
           {/* Scrollable Main Content */}
           <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide pb-24 md:pb-8">

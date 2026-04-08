@@ -5,6 +5,7 @@ import SalesLineChart from "../components/SalesLineChart";
 import GaugeChart from "../components/GaugeChart";
 import ErrorBoundary from "../../../components/ErrorBoundary";
 import { useAuth } from "../../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import {
   getDashboardStats,
   getSalesAnalytics,
@@ -23,6 +24,7 @@ import {
 
 export default function AdminDashboard() {
   const { isAuthenticated, token } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [newOrders, setNewOrders] = useState<RecentOrder[]>([]);
   const [topSellers, setTopSellers] = useState<TopSeller[]>([]);
@@ -358,10 +360,14 @@ export default function AdminDashboard() {
   const orderDataDec2025 = orderAnalyticsDaily?.thisPeriod || [];
   const orderData2025 = orderAnalytics?.thisPeriod || [];
 
-  const totalPagesNewOrders = Math.ceil(newOrders.length / entriesPerPage);
+  const actualNewOrders = newOrders.filter((order) =>
+    ["Pending", "Received", "Processed"].includes(order.status)
+  );
+
+  const totalPagesNewOrders = Math.ceil(actualNewOrders.length / entriesPerPage);
   const startIndexNewOrders = (currentPage - 1) * entriesPerPage;
   const endIndexNewOrders = startIndexNewOrders + entriesPerPage;
-  const displayedNewOrders = newOrders.slice(
+  const displayedNewOrders = actualNewOrders.slice(
     startIndexNewOrders,
     endIndexNewOrders
   );
@@ -449,60 +455,70 @@ export default function AdminDashboard() {
           title="Total User"
           value={stats.totalUser}
           accentColor="#3b82f6"
+          onClick={() => navigate("/admin/users")}
         />
         <DashboardCard
           icon={categoryIcon}
           title="Total Category"
           value={stats.totalCategory}
           accentColor="#eab308"
+          onClick={() => navigate("/admin/category")}
         />
         <DashboardCard
           icon={subcategoryIcon}
           title="Total Subcategory"
           value={stats.totalSubcategory ?? 0}
           accentColor="#ec4899"
+          onClick={() => navigate("/admin/subcategory")}
         />
         <DashboardCard
           icon={productIcon}
           title="Total Product"
           value={stats.totalProduct}
           accentColor="#ef4444"
+          onClick={() => navigate("/admin/product/list")}
         />
         <DashboardCard
           icon={ordersIcon}
           title="Total Orders"
           value={stats.totalOrders}
           accentColor="#3b82f6"
+          onClick={() => navigate("/admin/orders/all")}
         />
         <DashboardCard
           icon={completedOrdersIcon}
           title="Completed Orders"
           value={stats.completedOrders}
           accentColor="#16a34a"
+          onClick={() => navigate("/admin/orders/delivered")}
         />
         <DashboardCard
           icon={pendingOrdersIcon}
           title="Pending Orders"
           value={stats.pendingOrders}
           accentColor="#a855f7"
+          onClick={() => navigate("/admin/orders/pending")}
         />
         <DashboardCard
           icon={cancelledOrdersIcon}
           title="Cancelled Orders"
           value={stats.cancelledOrders}
           accentColor="#ef4444"
+          onClick={() => navigate("/admin/orders/cancelled")}
         />
         <DashboardCard
           icon={soldOutIcon}
           title="Product Sold Out"
           value={stats.soldOutProducts}
           accentColor="#ec4899"
+          onClick={() => navigate("/admin/product/list")}
         />
         <DashboardCard
           icon={lowStockIcon}
           title="Product low on Stock"
           value={stats.lowStockProducts}
           accentColor="#eab308"
+          onClick={() => navigate("/admin/product/list")}
         />
       </div>
 
@@ -747,6 +763,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 sm:px-6 py-3">
                         <button
+                          onClick={() => navigate(`/admin/orders/${order.id}`)}
                           className="bg-teal-600 hover:bg-teal-700 text-white p-2 rounded transition-colors"
                           aria-label="View order">
                           <svg
@@ -784,8 +801,8 @@ export default function AdminDashboard() {
           <div className="px-4 sm:px-6 py-3 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
             <div className="text-xs sm:text-sm text-neutral-700">
               Showing {startIndexNewOrders + 1} to{" "}
-              {Math.min(endIndexNewOrders, newOrders.length)} of{" "}
-              {newOrders.length} entries
+              {Math.min(endIndexNewOrders, actualNewOrders.length)} of{" "}
+              {actualNewOrders.length} entries
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -948,6 +965,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 sm:px-6 py-3">
                         <button
+                          onClick={() => navigate("/admin/manage-seller/list")}
                           className="bg-teal-600 hover:bg-teal-700 text-white p-2 rounded transition-colors"
                           aria-label="View seller">
                           <svg

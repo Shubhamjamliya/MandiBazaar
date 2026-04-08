@@ -177,17 +177,8 @@ export default function OrderAgain() {
                           </span>
                         </div>
                         <div className="text-[10px] text-neutral-500 mb-1">{formatDate(order.createdAt)}</div>
-                        <div className="flex items-center gap-1">
-                          {previewItems.filter(item => item?.product).map((item, idx) => (
-                            <div key={idx} className="w-6 h-6 bg-neutral-100 rounded flex items-center justify-center flex-shrink-0 overflow-hidden border border-neutral-200" style={{ marginLeft: idx > 0 ? '-4px' : '0' }}>
-                              <img src={item.product.imageUrl || (item.product as any).image} alt="" className="w-full h-full object-contain" />
-                            </div>
-                          ))}
-                          {order.items.length > 3 && (
-                            <div className="w-6 h-6 bg-neutral-200 rounded flex items-center justify-center text-[8px] font-medium text-neutral-600 border border-neutral-200 ml-[-4px]">
-                              +{order.items.length - 3}
-                            </div>
-                          )}
+                        <div className="text-[10px] text-neutral-500">
+                          {previewItems.map((item: any) => item?.product?.name).filter(Boolean).join(', ')}
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">

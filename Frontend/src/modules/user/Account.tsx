@@ -12,6 +12,7 @@ export default function Account() {
   const [error, setError] = useState('');
   const [showGstModal, setShowGstModal] = useState(false);
   const [gstNumber, setGstNumber] = useState('');
+  const [gstError, setGstError] = useState('');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -53,6 +54,17 @@ export default function Account() {
 
   const handleGstSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const normalizedGst = gstNumber.trim().toUpperCase();
+    const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
+
+    if (!gstRegex.test(normalizedGst)) {
+      setGstError('Enter a valid GST number format (e.g. 07AAAAA0000A1Z5)');
+      return;
+    }
+
+    setGstNumber(normalizedGst);
+    setGstError('');
     setShowGstModal(false);
   };
 
@@ -227,42 +239,6 @@ export default function Account() {
               label="GST Details"
               onClick={() => setShowGstModal(true)}
             />
-            <div className="px-6 py-4 bg-neutral-50/50">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Push Status</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${window.Notification?.permission === 'granted'
-                  ? 'bg-green-50 text-green-700 border-green-200'
-                  : window.Notification?.permission === 'denied'
-                    ? 'bg-red-50 text-red-700 border-red-200'
-                    : 'bg-amber-50 text-amber-700 border-amber-200'
-                  }`}>
-                  {window.Notification?.permission || 'Unsupported'}
-                </span>
-              </div>
-              <button
-                onClick={async () => {
-                  try {
-                    const { sendSelfTestNotification } = await import('../../services/api/notificationService');
-                    const res = await sendSelfTestNotification();
-                    if (res.success && res.details) {
-                      console.log(`✅ Test push sent to ${res.details.successCount} device(s)`);
-                      alert(`Request processed! Sent to ${res.details.successCount} device(s). Check your system notifications.`);
-                    } else {
-                      alert(`❌ Error: ${res.message}`);
-                    }
-                  } catch (err: any) {
-                    alert('Error sending test notification');
-                  }
-                }}
-                className="w-full py-2 bg-neutral-900 rounded-xl text-xs font-bold text-white hover:bg-black transition-colors flex items-center justify-center gap-2"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-                Send Test Notification
-              </button>
-            </div>
             <MenuLink
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>}
               label="About Us"
@@ -328,10 +304,17 @@ export default function Account() {
                     <input
                       type="text"
                       value={gstNumber}
-                      onChange={(e) => setGstNumber(e.target.value)}
+                      onChange={(e) => {
+                        setGstNumber(e.target.value.toUpperCase());
+                        if (gstError) setGstError('');
+                      }}
                       placeholder="e.g. 07AAAAA0000A1Z5"
+                      maxLength={15}
                       className="w-full bg-neutral-50 rounded-2xl border-none px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-emerald-500/10 focus:bg-white transition-all placeholder:text-neutral-300"
                     />
+                    {gstError && (
+                      <p className="text-xs text-red-600 mt-2 text-left">{gstError}</p>
+                    )}
                   </div>
                   <button
                     type="submit"

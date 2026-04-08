@@ -157,13 +157,16 @@ export default function AdminManageSellerList() {
         </span>
     );
 
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+
     // Filter sellers
     let filteredSellers = sellers.filter(seller =>
-        seller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        seller.storeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        seller.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        seller.phone.includes(searchTerm) ||
-        seller.mobile.includes(searchTerm)
+        !normalizedSearchTerm ||
+        seller.name.toLowerCase().includes(normalizedSearchTerm) ||
+        seller.storeName.toLowerCase().includes(normalizedSearchTerm) ||
+        seller.email.toLowerCase().includes(normalizedSearchTerm) ||
+        seller.phone.includes(normalizedSearchTerm) ||
+        seller.mobile.includes(normalizedSearchTerm)
     );
 
     // Sort sellers

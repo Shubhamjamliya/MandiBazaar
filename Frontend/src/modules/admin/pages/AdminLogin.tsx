@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendOTP, verifyOTP } from '../../../services/api/auth/adminAuthService';
 import OTPInput from '../../../components/OTPInput';
@@ -7,10 +7,28 @@ import { useAuth } from '../../../context/AuthContext';
 export default function AdminLogin() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const RESEND_OTP_COOLDOWN_SECONDS = 30;
   const [mobileNumber, setMobileNumber] = useState('');
   const [showOTP, setShowOTP] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!showOTP || resendCooldown <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [showOTP, resendCooldown]);
 
   const handleMobileLogin = async () => {
     if (mobileNumber.length !== 10) return;
@@ -21,6 +39,7 @@ export default function AdminLogin() {
     try {
       await sendOTP(mobileNumber);
       setShowOTP(true);
+      setResendCooldown(RESEND_OTP_COOLDOWN_SECONDS);
     } catch (err: any) {
       setError(
         err.response?.data?.message || "Failed to send OTP. Please try again."
@@ -186,18 +205,37 @@ export default function AdminLogin() {
                   Change Number
                 </button>
                 <button
-                  onClick={handleMobileLogin}
-                  disabled={loading}
+                  onClick={async () => {
+                    if (resendCooldown > 0) return;
+                    await handleMobileLogin();
+                  }}
+                  disabled={loading || resendCooldown > 0}
                   className="flex-1 py-2.5 rounded-lg font-semibold text-sm bg-teal-600 text-white hover:bg-teal-700 transition-colors">
-                  {loading ? "Verifying..." : "Resend OTP"}
+                  {loading ? "Sending..." : resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Resend OTP"}
                 </button>
               </div>
             </div>
           )}
 
-
-
-
+          {/* Privacy & Terms Agreement */}
+          <div className="w-full px-6 py-2 text-center animate-fade-in" style={{ animationDelay: '0.9s' }}>
+            <p className="text-[10px] text-neutral-500 leading-relaxed font-medium">
+              By continuing, you agree to our{' '}
+              <button
+                onClick={() => navigate('/privacy-policy')}
+                className="text-emerald-600 font-bold hover:underline"
+              >
+                Privacy Policy
+              </button>
+              {' '}and{' '}
+              <button 
+                onClick={() => navigate('/privacy-policy')}
+                className="text-emerald-600 font-bold hover:underline"
+              >
+                Terms of Service
+              </button>
+            </p>
+          </div>
         </div>
       </div>
 

@@ -278,17 +278,41 @@ export const updateDeliveryStatus = asyncHandler(
       });
     }
 
+    const existingDeliveryBoy = await Delivery.findById(id).select("status name");
+
+    if (!existingDeliveryBoy) {
+      return res.status(404).json({
+        success: false,
+        message: "Delivery boy not found",
+      });
+    }
+
+    const previousStatus = existingDeliveryBoy.status;
+
     const deliveryBoy = await Delivery.findByIdAndUpdate(
       id,
       { status },
       { new: true, runValidators: true }
     ).select("-password");
 
-    if (!deliveryBoy) {
-      return res.status(404).json({
-        success: false,
-        message: "Delivery boy not found",
-      });
+    if (deliveryBoy && previousStatus !== "Active" && status === "Active") {
+      try {
+        const { sendNotification } = await import("../../../services/notificationService");
+        await sendNotification(
+          "Delivery",
+          deliveryBoy._id.toString(),
+          "Account Approved",
+          "Congratulations! Your delivery partner account has been approved by admin.",
+          {
+            type: "Success",
+            link: "/delivery",
+            priority: "High",
+            data: { status: "Active" },
+          }
+        );
+      } catch (notifyError) {
+        console.error("Error sending delivery approval notification:", notifyError);
+      }
     }
 
     return res.status(200).json({

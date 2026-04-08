@@ -12,12 +12,15 @@ import OTPInput from "../../../components/OTPInput";
 
 export default function DeliverySignUp() {
   const navigate = useNavigate();
+  const maxDob = new Date(new Date().setFullYear(new Date().getFullYear() - 18))
+    .toISOString()
+    .split("T")[0];
+
   const [formData, setFormData] = useState({
     name: "",
     mobile: "",
     email: "",
     dateOfBirth: "",
-    password: "",
     address: "",
     city: "",
     pincode: "",
@@ -55,10 +58,31 @@ export default function DeliverySignUp() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+
     if (name === "mobile") {
       setFormData((prev) => ({
         ...prev,
         [name]: value.replace(/\D/g, "").slice(0, 10),
+      }));
+    } else if (name === "name" || name === "city" || name === "accountName" || name === "bankName") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value.replace(/[^a-zA-Z\s]/g, ""),
+      }));
+    } else if (name === "pincode") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value.replace(/\D/g, "").slice(0, 6),
+      }));
+    } else if (name === "accountNumber") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value.replace(/\D/g, "").slice(0, 15),
+      }));
+    } else if (name === "ifscCode") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11),
       }));
     } else {
       setFormData((prev) => ({
@@ -135,15 +159,18 @@ export default function DeliverySignUp() {
     e.preventDefault();
 
     // Validate required fields
-    if (
-      !formData.name ||
-      !formData.mobile ||
-      !formData.email ||
-      !formData.password ||
-      !formData.address ||
-      !formData.city
-    ) {
+    if (!formData.name || !formData.mobile || !formData.email || !formData.dateOfBirth || !formData.address || !formData.city || !formData.pincode) {
       setError("Please fill all required fields");
+      return;
+    }
+
+    if (!/^[A-Za-z ]{2,50}$/.test(formData.name.trim())) {
+      setError("Name should contain only alphabets");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      setError("Email should be in valid format (ex: aaa@gmail.com)");
       return;
     }
 
@@ -152,8 +179,46 @@ export default function DeliverySignUp() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (!/^[A-Za-z ]+$/.test(formData.city.trim())) {
+      setError("City should contain only alphabets");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(formData.pincode)) {
+      setError("Pin code should be a valid 6-digit number");
+      return;
+    }
+
+    if (formData.accountName && !/^[A-Za-z ]+$/.test(formData.accountName.trim())) {
+      setError("Account name should contain only alphabets");
+      return;
+    }
+
+    if (formData.bankName && !/^[A-Za-z ]+$/.test(formData.bankName.trim())) {
+      setError("Bank name should contain only alphabets");
+      return;
+    }
+
+    if (formData.accountNumber && !/^\d{9,15}$/.test(formData.accountNumber)) {
+      setError("Account number should be 9 to 15 digits");
+      return;
+    }
+
+    if (formData.ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifscCode)) {
+      setError("IFSC Code should be in format like HDFC0001015");
+      return;
+    }
+
+    const dobDate = new Date(formData.dateOfBirth);
+    const minAllowedDob = new Date();
+    minAllowedDob.setFullYear(minAllowedDob.getFullYear() - 18);
+    if (Number.isNaN(dobDate.getTime()) || dobDate > minAllowedDob) {
+      setError("Date of birth should be 18+ age");
+      return;
+    }
+
+    if (!drivingLicenseFile || !nationalIdentityCardFile) {
+      setError("Driving License and National Identity Card documents are mandatory");
       return;
     }
 
@@ -161,45 +226,38 @@ export default function DeliverySignUp() {
     setError("");
 
     try {
-      // Upload documents if provided
+      // Upload required documents
       let drivingLicenseUrl = formData.drivingLicenseUrl;
       let nationalIdentityCardUrl = formData.nationalIdentityCardUrl;
 
-      if (drivingLicenseFile || nationalIdentityCardFile) {
-        setUploadingDocs(true);
+      setUploadingDocs(true);
 
-        if (drivingLicenseFile) {
-          const drivingLicenseResult = await uploadDocument(
-            drivingLicenseFile,
-            "mandibazaar/delivery/documents"
-          );
-          drivingLicenseUrl = drivingLicenseResult.secureUrl;
-        }
+      const drivingLicenseResult = await uploadDocument(
+        drivingLicenseFile,
+        "mandibazaar/delivery/documents"
+      );
+      drivingLicenseUrl = drivingLicenseResult.secureUrl;
 
-        if (nationalIdentityCardFile) {
-          const nationalIdResult = await uploadDocument(
-            nationalIdentityCardFile,
-            "mandibazaar/delivery/documents"
-          );
-          nationalIdentityCardUrl = nationalIdResult.secureUrl;
-        }
+      const nationalIdResult = await uploadDocument(
+        nationalIdentityCardFile,
+        "mandibazaar/delivery/documents"
+      );
+      nationalIdentityCardUrl = nationalIdResult.secureUrl;
 
-        setUploadingDocs(false);
-      }
+      setUploadingDocs(false);
 
       const response = await register({
-        name: formData.name,
+        name: formData.name.trim(),
         mobile: formData.mobile,
-        email: formData.email,
+        email: formData.email.trim(),
         dateOfBirth: formData.dateOfBirth || undefined,
-        password: formData.password,
         address: formData.address,
-        city: formData.city,
-        pincode: formData.pincode || undefined,
+        city: formData.city.trim(),
+        pincode: formData.pincode,
         drivingLicense: drivingLicenseUrl || undefined,
         nationalIdentityCard: nationalIdentityCardUrl || undefined,
-        accountName: formData.accountName || undefined,
-        bankName: formData.bankName || undefined,
+        accountName: formData.accountName.trim() || undefined,
+        bankName: formData.bankName.trim() || undefined,
         accountNumber: formData.accountNumber || undefined,
         ifscCode: formData.ifscCode || undefined,
         bonusType: formData.bonusType || undefined,
@@ -377,23 +435,8 @@ export default function DeliverySignUp() {
                     name="dateOfBirth"
                     value={formData.dateOfBirth}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
-                    disabled={loading}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Password <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="Enter password (min 6 characters)"
                     required
-                    minLength={4}
+                    max={maxDob}
                     className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
                     disabled={loading}
                   />
@@ -451,14 +494,16 @@ export default function DeliverySignUp() {
 
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Pincode
+                    Pincode <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="pincode"
                     value={formData.pincode}
                     onChange={handleInputChange}
-                    placeholder="Enter pincode"
+                    placeholder="Enter 6-digit pincode"
+                    required
+                    maxLength={6}
                     className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
                     disabled={loading}
                   />
@@ -555,7 +600,7 @@ export default function DeliverySignUp() {
               {/* Documents Section */}
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="text-sm font-semibold text-neutral-700 border-b pb-2">
-                  Documents (Optional - Can be uploaded later)
+                  Documents (Mandatory)
                 </h3>
 
                 <div>
@@ -567,7 +612,9 @@ export default function DeliverySignUp() {
                       type="file"
                       name="drivingLicense"
                       onChange={handleFileChange}
-                      accept="image/*,.pdf"
+                      accept="image/*"
+                      capture="environment"
+                      required
                       className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
                       disabled={loading || uploadingDocs}
                     />
@@ -588,7 +635,9 @@ export default function DeliverySignUp() {
                       type="file"
                       name="nationalIdentityCard"
                       onChange={handleFileChange}
-                      accept="image/*,.pdf"
+                      accept="image/*"
+                      capture="environment"
+                      required
                       className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
                       disabled={loading || uploadingDocs}
                     />
@@ -691,7 +740,22 @@ export default function DeliverySignUp() {
 
       {/* Footer Text */}
       <p className="mt-6 text-xs text-neutral-500 text-center max-w-md">
-        By continuing, you agree to Mandi Bazaar's Terms of Service and Privacy Policy
+        By continuing, you agree to Mandi Bazaar's {" "}
+        <button
+          type="button"
+          onClick={() => navigate("/terms-of-service")}
+          className="text-teal-600 hover:text-teal-700 font-semibold"
+        >
+          Terms of Service
+        </button>
+        {" "}and{" "}
+        <button
+          type="button"
+          onClick={() => navigate("/privacy-policy")}
+          className="text-teal-600 hover:text-teal-700 font-semibold"
+        >
+          Privacy Policy
+        </button>
       </p>
     </div>
   );

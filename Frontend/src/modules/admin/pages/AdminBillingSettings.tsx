@@ -12,6 +12,7 @@ export default function AdminBillingSettings() {
     // Form State
     const [platformFee, setPlatformFee] = useState<number>(0);
     const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number>(0);
+    const [minimumOrderValue, setMinimumOrderValue] = useState<number>(149);
     const [deliveryCharges, setDeliveryCharges] = useState<number>(0);
     const [defaultCashLimit, setDefaultCashLimit] = useState<number>(2000);
     const [globalCommissionRate, setGlobalCommissionRate] = useState<number>(10);
@@ -39,6 +40,7 @@ export default function AdminBillingSettings() {
                 // Initialize State
                 setPlatformFee(data.platformFee || 0);
                 setFreeDeliveryThreshold(data.freeDeliveryThreshold || 0);
+                setMinimumOrderValue(data.minimumOrderValue || 149);
                 setDeliveryCharges(data.deliveryCharges || 0);
                 setDefaultCashLimit(data.defaultCashLimit || 2000);
                 setGlobalCommissionRate(data.globalCommissionRate || 10);
@@ -70,6 +72,7 @@ export default function AdminBillingSettings() {
             const updatePayload: any = {
                 platformFee,
                 freeDeliveryThreshold,
+                minimumOrderValue,
                 deliveryCharges,
                 defaultCashLimit,
                 globalCommissionRate,
@@ -172,6 +175,24 @@ export default function AdminBillingSettings() {
                                 />
                             </div>
                             <p className="mt-1 text-xs text-gray-500">Orders above this amount will have free delivery.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Minimum Order Value (₹)
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={minimumOrderValue}
+                                    onChange={(e) => setMinimumOrderValue(Number(e.target.value))}
+                                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                                    placeholder="e.g. 149"
+                                />
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">Orders below this value will be blocked at checkout.</p>
                         </div>
 
                         <div>

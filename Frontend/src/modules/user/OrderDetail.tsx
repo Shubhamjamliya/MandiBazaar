@@ -8,6 +8,7 @@ import GoogleMapsTracking from "../../components/GoogleMapsTracking";
 import { useDeliveryTracking } from "../../hooks/useDeliveryTracking";
 import DeliveryPartnerCard from "../../components/DeliveryPartnerCard";
 import { cancelOrder, updateOrderNotes, getSellerLocationsForOrder, refreshDeliveryOtp } from "../../services/api/customerOrderService";
+import HdfcCheckout from "../../components/HdfcCheckout";
 
 // Icon Components
 const ArrowLeftIcon = ({ className }: { className?: string }) => (
@@ -450,7 +451,7 @@ export default function OrderDetail() {
 
   const [showConfirmation, setShowConfirmation] = useState(confirmed);
   const [orderStatus, setOrderStatus] = useState<OrderStatus>(
-    order?.status || "Received"
+    order?.status || "Pending"
   );
   const [estimatedTime, setEstimatedTime] = useState(29);
   const [routeInfo, setRouteInfo] = useState<{
@@ -465,15 +466,37 @@ export default function OrderDetail() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   const [showItemsModal, setShowItemsModal] = useState(false);
-  const [showSpecialRequestsModal, setShowSpecialRequestsModal] =
-    useState(false);
 
   // Form states
   const [deliveryInstructions, setDeliveryInstructions] = useState("");
-  const [specialRequests, setSpecialRequests] = useState("");
   const [cancellationReason, setCancellationReason] = useState("");
   const [selectedTip, setSelectedTip] = useState<number | "other" | null>(null);
   const [customTip, setCustomTip] = useState("");
+  const [showHdfcCheckout, setShowHdfcCheckout] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
+
+  const openSupportPage = () => {
+    window.location.href = '/support';
+  };
+
+  const handleCallCustomer = () => {
+    const phone = order?.address?.phone;
+    if (!phone) return;
+    window.location.href = `tel:${phone}`;
+  };
+
+  const handleOpenDeliveryAddress = () => {
+    if (!order?.address) return;
+    const query = [
+      order.address.address,
+      order.address.city,
+      order.address.state,
+      order.address.pincode,
+    ].filter(Boolean).join(', ');
+
+    if (!query) return;
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+  };
 
   // Real-time delivery tracking via WebSocket
   const {
@@ -627,24 +650,50 @@ export default function OrderDetail() {
   };
 
   const handleShare = async () => {
+    const shareUrl = window.location.href;
     const shareData = {
       title: `Order #${order?.id?.split("-").slice(-1)[0]}`,
       text: `Track my Mandi Bazaar order: Order #${order?.id?.split("-").slice(-1)[0]
         }`,
-      url: window.location.href,
+      url: shareUrl,
     };
 
     try {
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        // Fallback: copy link to clipboard
-        await navigator.clipboard.writeText(window.location.href);
-        alert("Link copied to clipboard!");
+        setShowShareOptions(true);
       }
     } catch (error) {
-      console.error("Error sharing:", error);
+      if ((error as any)?.name !== 'AbortError') {
+        setShowShareOptions(true);
+      }
     }
+  };
+
+  const openShareChannel = async (channel: 'whatsapp' | 'telegram' | 'copy') => {
+    const shareUrl = window.location.href;
+    const shareText = `Track my Mandi Bazaar order: ${shareUrl}`;
+
+    if (channel === 'copy') {
+      await navigator.clipboard.writeText(shareUrl);
+      alert('Link copied to clipboard!');
+      setShowShareOptions(false);
+      return;
+    }
+
+    if (channel === 'whatsapp') {
+      window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
+      setShowShareOptions(false);
+      return;
+    }
+
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent('Track my Mandi Bazaar order')}`, '_blank');
+    setShowShareOptions(false);
+  };
+
+  const handlePayNow = () => {
+    setShowHdfcCheckout(true);
   };
 
   const handleCallStore = () => {
@@ -688,19 +737,6 @@ export default function OrderDetail() {
     }
   };
 
-  const handleSaveSpecialRequests = async () => {
-    try {
-      if (!id) return;
-      await updateOrderNotes(id, { specialRequests });
-      setShowSpecialRequestsModal(false);
-      // alert("Special requests saved!");
-      handleRefresh();
-    } catch (error) {
-      console.error("Failed to save special requests:", error);
-      alert("Failed to save special requests");
-    }
-  };
-
   if (loading && !order) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -732,8 +768,8 @@ export default function OrderDetail() {
     { title: string; subtitle: string; color: string }
   > = {
     Received: {
-      title: "Order received",
-      subtitle: "Order will reach you shortly",
+      title: "Order placed",
+      subtitle: "We are confirming your order",
       color: "bg-green-700",
     },
     Accepted: {
@@ -753,8 +789,8 @@ export default function OrderDetail() {
     },
     // Backend status mappings
     Pending: {
-      title: "Order pending",
-      subtitle: "Waiting for confirmation",
+      title: "Order placed",
+      subtitle: "We are confirming your order",
       color: "bg-yellow-600",
     },
     Processed: {
@@ -784,7 +820,7 @@ export default function OrderDetail() {
     },
   };
 
-  const currentStatus = statusConfig[orderStatus] || statusConfig["Received"];
+  const currentStatus = statusConfig[orderStatus] || statusConfig["Pending"];
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -979,14 +1015,14 @@ export default function OrderDetail() {
                 Pay now, or pay to the delivery partner using Cash/UPI
               </p>
             </div>
-            <Button className="bg-gray-900 hover:bg-gray-800 text-white rounded-full px-6">
+            <Button
+              className="bg-gray-900 hover:bg-gray-800 text-white rounded-full px-6"
+              onClick={handlePayNow}
+            >
               Pay now <ChevronRightIcon className="w-4 h-4 ml-1" />
             </Button>
           </div>
         </motion.div>
-
-        {/* Promo Carousel */}
-        <PromoCarousel />
 
         {/* Delivery Partner Assignment - Only show if no partner assigned yet */}
         {!order?.deliveryPartner && (
@@ -1017,7 +1053,8 @@ export default function OrderDetail() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          whileTap={{ scale: 0.99 }}>
+          whileTap={{ scale: 0.99 }}
+          onClick={openSupportPage}>
           <ShieldIcon className="w-6 h-6 text-gray-600" />
           <span className="flex-1 text-left font-medium text-gray-900">
             Learn about delivery partner safety
@@ -1047,6 +1084,7 @@ export default function OrderDetail() {
             title={`${order.address?.name || "Customer"}, ${order.address?.phone || "9XXXXXXXX"
               }`}
             subtitle="Delivery partner may call this number"
+            onClick={handleCallCustomer}
           />
           <SectionItem
             icon={HomeIcon}
@@ -1056,6 +1094,7 @@ export default function OrderDetail() {
                 ? `${order.address.address}, ${order.address.city}`
                 : "Add delivery address"
             }
+            onClick={handleOpenDeliveryAddress}
           />
           <SectionItem
             icon={MessageSquareIcon}
@@ -1120,12 +1159,6 @@ export default function OrderDetail() {
             </div>
           </div>
 
-          <SectionItem
-            icon={ChefHatIcon}
-            title="Add special requests"
-            subtitle=""
-            onClick={() => setShowSpecialRequestsModal(true)}
-          />
         </motion.div>
 
         {/* Help Section */}
@@ -1136,7 +1169,7 @@ export default function OrderDetail() {
           transition={{ delay: 0.8 }}>
           <div
             className="flex items-center gap-3 p-4 border-b border-dashed border-gray-200"
-            onClick={() => window.open('/help', '_blank')}
+            onClick={openSupportPage}
             style={{ cursor: "pointer" }}>
             <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
               <HelpCircleIcon className="w-5 h-5 text-red-600" />
@@ -1186,6 +1219,43 @@ export default function OrderDetail() {
           </Link>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {showShareOptions && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center p-4"
+            onClick={() => setShowShareOptions(false)}
+          >
+            <motion.div
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 30, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-md p-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-base font-bold text-gray-900 mb-3">Share Order</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <button className="py-2 px-3 rounded-lg bg-green-50 text-green-700 font-semibold text-sm" onClick={() => openShareChannel('whatsapp')}>WhatsApp</button>
+                <button className="py-2 px-3 rounded-lg bg-blue-50 text-blue-700 font-semibold text-sm" onClick={() => openShareChannel('telegram')}>Telegram</button>
+                <button className="py-2 px-3 rounded-lg bg-gray-100 text-gray-700 font-semibold text-sm" onClick={() => openShareChannel('copy')}>Copy</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {showHdfcCheckout && (
+        <HdfcCheckout
+          orderId={id || order?._id || order?.id}
+          onFailure={(error) => {
+            setShowHdfcCheckout(false);
+            alert(error || 'Failed to initialize payment');
+          }}
+        />
+      )}
 
       {/* Cancel Order Modal */}
       <AnimatePresence>
@@ -1349,55 +1419,6 @@ export default function OrderDetail() {
         )}
       </AnimatePresence>
 
-      {/* Special Requests Modal */}
-      <AnimatePresence>
-        {showSpecialRequestsModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-            onClick={() => setShowSpecialRequestsModal(false)}>
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl p-6 max-w-md w-full">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                Add Special Requests
-              </h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Let the store know if you have any special preferences
-              </p>
-              <textarea
-                className="w-full border border-gray-300 rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
-                rows={4}
-                maxLength={200}
-                placeholder="e.g., No onions, Extra napkins, etc."
-                value={specialRequests}
-                onChange={(e) => setSpecialRequests(e.target.value)}
-              />
-              <p className="text-xs text-gray-500 mb-4">
-                {specialRequests.length}/200
-              </p>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowSpecialRequestsModal(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                  onClick={handleSaveSpecialRequests}>
-                  Save
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

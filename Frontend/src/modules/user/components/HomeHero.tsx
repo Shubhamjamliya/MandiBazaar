@@ -49,17 +49,19 @@ export default function HomeHero({ activeTab = 'all', onTabChange }: HomeHeroPro
 
   // Format location display text - only show if user has provided location
   const locationDisplayText = useMemo(() => {
+    const locationPrefix = userLocation?.locationType ? `${userLocation.locationType}: ` : '';
+
     if (userLocation?.address) {
       // Use the full address if available
-      return userLocation.address;
+      return `${locationPrefix}${userLocation.address}`;
     }
     // Fallback to city, state format if available
     if (userLocation?.city && userLocation?.state) {
-      return `${userLocation.city}, ${userLocation.state}`;
+      return `${locationPrefix}${userLocation.city}, ${userLocation.state}`;
     }
     // Fallback to city only
     if (userLocation?.city) {
-      return userLocation.city;
+      return `${locationPrefix}${userLocation.city}`;
     }
     // No default - return empty string if no location provided
     return '';

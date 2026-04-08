@@ -11,6 +11,7 @@ import LocationPickerMap from '../../../components/LocationPickerMap';
 export default function SellerSignUp() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const RESEND_OTP_COOLDOWN_SECONDS = 30;
   const [formData, setFormData] = useState({
     sellerName: '',
     mobile: '',
@@ -37,6 +38,7 @@ export default function SellerSignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
     const fetchCats = async () => {
@@ -52,6 +54,22 @@ export default function SellerSignUp() {
     fetchCats();
   }, []);
 
+  useEffect(() => {
+    if (!showOTP || resendCooldown <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [showOTP, resendCooldown]);
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -59,6 +77,21 @@ export default function SellerSignUp() {
       setFormData(prev => ({
         ...prev,
         [name]: value.replace(/\D/g, '').slice(0, 10),
+      }));
+    } else if (name === 'panCard') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10),
+      }));
+    } else if (name === 'ifsc') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11),
+      }));
+    } else if (name === 'taxNumber') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20),
       }));
     } else if (name === 'serviceRadiusKm') {
       // Allow only numbers and a single decimal point
@@ -111,8 +144,24 @@ export default function SellerSignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const sellerName = formData.sellerName.trim();
+    const email = formData.email.trim();
+    const city = formData.city.trim();
+    const panCard = formData.panCard.trim().toUpperCase();
+    const taxName = formData.taxName.trim();
+    const taxNumber = formData.taxNumber.trim().toUpperCase();
+    const ifsc = formData.ifsc.trim().toUpperCase();
+
+    const sellerNameRegex = /^[A-Za-z][A-Za-z\s.'-]{1,49}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    const cityRegex = /^[A-Za-z][A-Za-z\s.'-]{1,49}$/;
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+    const taxNameRegex = /^[A-Za-z][A-Za-z\s.'-]{1,49}$/;
+    const taxNumberRegex = /^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{6,20}$/;
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+
     // Validate required fields (password removed - not needed during signup)
-    if (!formData.sellerName) {
+    if (!sellerName) {
       setError('Please enter your name');
       return;
     }
@@ -120,7 +169,7 @@ export default function SellerSignUp() {
       setError('Please enter your mobile number');
       return;
     }
-    if (!formData.email) {
+    if (!email) {
       setError('Please enter your email address');
       return;
     }
@@ -136,8 +185,43 @@ export default function SellerSignUp() {
       setError('Please select your store location');
       return;
     }
-    if (!formData.city) {
+    if (!city) {
       setError('Please enter your city');
+      return;
+    }
+
+    if (!sellerNameRegex.test(sellerName)) {
+      setError('Seller name should be in format');
+      return;
+    }
+
+    if (!emailRegex.test(email)) {
+      setError('Email should be in format(ex - aaa@gmail.com)');
+      return;
+    }
+
+    if (!cityRegex.test(city)) {
+      setError('City should be in format');
+      return;
+    }
+
+    if (panCard && !panRegex.test(panCard)) {
+      setError('Pan card should be in format( ex- ASDFR1234R)');
+      return;
+    }
+
+    if (taxName && !taxNameRegex.test(taxName)) {
+      setError('Tax name should be in format(ex- only contain alphabet)');
+      return;
+    }
+
+    if (taxNumber && !taxNumberRegex.test(taxNumber)) {
+      setError('Tax no. should be in format(ex- contains number + alphabet)');
+      return;
+    }
+
+    if (ifsc && !ifscRegex.test(ifsc)) {
+      setError('IFSC Code should be in format(ex- HDFC0001015)');
       return;
     }
 
@@ -164,14 +248,14 @@ export default function SellerSignUp() {
       }
 
       const response = await register({
-        sellerName: formData.sellerName,
+        sellerName,
         mobile: formData.mobile,
-        email: formData.email,
+        email,
         storeName: formData.storeName,
         category: formData.categories[0], // primary
         categories: formData.categories,
         address: formData.address || formData.searchLocation,
-        city: formData.city,
+        city,
         searchLocation: formData.searchLocation,
         latitude: formData.latitude,
         longitude: formData.longitude,
@@ -185,6 +269,7 @@ export default function SellerSignUp() {
         try {
           await sendOTP(formData.mobile);
           setShowOTP(true);
+          setResendCooldown(RESEND_OTP_COOLDOWN_SECONDS);
         } catch (otpErr: any) {
           setError(otpErr.response?.data?.message || 'Registration successful but failed to send OTP.');
         }
@@ -638,20 +723,22 @@ export default function SellerSignUp() {
                 </button>
                 <button
                   onClick={async () => {
+                    if (resendCooldown > 0) return;
                     setLoading(true);
                     setError('');
                     try {
                       await sendOTP(formData.mobile);
+                      setResendCooldown(RESEND_OTP_COOLDOWN_SECONDS);
                     } catch (err: any) {
                       setError(err.response?.data?.message || 'Failed to resend OTP.');
                     } finally {
                       setLoading(false);
                     }
                   }}
-                  disabled={loading}
+                  disabled={loading || resendCooldown > 0}
                   className="flex-1 py-2.5 rounded-lg font-semibold text-sm bg-teal-600 text-white hover:bg-teal-700 transition-colors"
                 >
-                  {loading ? 'Sending...' : 'Resend OTP'}
+                  {loading ? 'Sending...' : resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
                 </button>
               </div>
             </div>

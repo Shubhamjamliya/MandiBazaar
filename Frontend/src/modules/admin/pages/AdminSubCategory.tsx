@@ -371,8 +371,9 @@ export default function AdminSubCategory() {
   };
 
   // Filter categories sidebar
+  const normalizedCategorySearch = categorySearch.trim().toLowerCase();
   const filteredCategories = categories.filter(c =>
-    c.name.toLowerCase().includes(categorySearch.toLowerCase())
+    !normalizedCategorySearch || c.name.toLowerCase().includes(normalizedCategorySearch)
   );
 
   const selectedCategory = categories.find(c => c._id === selectedCategoryId);

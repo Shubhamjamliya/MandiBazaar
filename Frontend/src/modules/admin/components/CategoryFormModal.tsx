@@ -91,13 +91,26 @@ export default function CategoryFormModal({
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
 
+    let parsedValue: any = value;
+    if (type === "number") {
+      if (name === "order") {
+        const cleaned = value.replace(/^0+(?=\d)/, "");
+        parsedValue = cleaned === "" ? 0 : parseInt(cleaned, 10) || 0;
+      } else if (name === "commissionRate") {
+        const cleaned = value.replace(/^0+(?=\d)/, "");
+        parsedValue = cleaned === "" ? 0 : parseFloat(cleaned) || 0;
+      } else {
+        parsedValue = parseInt(value, 10) || 0;
+      }
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]:
         type === "checkbox"
           ? checked
           : type === "number"
-            ? parseInt(value) || 0
+            ? parsedValue
             : value,
     }));
 
@@ -183,6 +196,10 @@ export default function CategoryFormModal({
 
     if (formData.order < 0) {
       newErrors.order = "Display order must be a positive number";
+    }
+
+    if (mode === "create" && !imageFile && !formData.image && !imagePreview) {
+      newErrors.image = "Category image is required";
     }
 
     // Header category validation removed

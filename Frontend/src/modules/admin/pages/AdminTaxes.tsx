@@ -25,6 +25,7 @@ export default function AdminTaxes() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const normalizedSearchTerm = searchTerm.trim();
 
   // Fetch taxes on component mount
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function AdminTaxes() {
         setLoading(true);
         setError(null);
         const response = await getTaxes({
-          search: searchTerm,
+          search: normalizedSearchTerm,
           page: currentPage,
           limit: rowsPerPage,
           sortBy: sortColumn || undefined,
@@ -65,7 +66,7 @@ export default function AdminTaxes() {
   }, [
     isAuthenticated,
     token,
-    searchTerm,
+    normalizedSearchTerm,
     currentPage,
     rowsPerPage,
     sortColumn,

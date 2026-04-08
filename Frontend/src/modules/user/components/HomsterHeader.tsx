@@ -53,9 +53,10 @@ const SlidingPhrases = memo(() => {
 
 interface HomsterHeaderProps {
   onLocationClick?: () => void;
+  showSearch?: boolean;
 }
 
-function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
+function HomsterHeader({ onLocationClick, showSearch = true }: HomsterHeaderProps) {
   const navigate = useNavigate();
   const { location: userLocation } = useLocation();
   const [showAnimation, setShowAnimation] = useState(false);
@@ -66,9 +67,10 @@ function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
     return () => clearTimeout(timer);
   }, []);
 
-  const locationDisplayText = userLocation?.address ||
-    (userLocation?.city && userLocation?.state ? `${userLocation.city}, ${userLocation.state}` : '') ||
-    userLocation?.city || '';
+  const locationBaseText = userLocation?.city || userLocation?.address?.split(',')[0]?.trim() || '';
+  const locationDisplayText = userLocation?.locationType
+    ? `${userLocation.locationType}: ${locationBaseText}`
+    : locationBaseText;
 
   return (
     <>
@@ -198,23 +200,24 @@ function HomsterHeader({ onLocationClick }: HomsterHeaderProps) {
           </div>
         </div>
 
-        {/* Search Bar - Full Width below */}
-        <div className="px-4 pb-2 animate-fade-in-down" style={{ animationDelay: '0.2s' }}>
-          <div
-            onClick={() => navigate('/search')}
-            className="w-full bg-neutral-100/80 rounded-2xl px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-neutral-200/60 transition-all border border-emerald-500/30 group shadow-sm overflow-hidden"
-          >
-            <div className="flex-shrink-0 text-neutral-500 group-hover:text-emerald-600 transition-colors">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
-                <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
+        {showSearch && (
+          <div className="px-4 pb-2 animate-fade-in-down" style={{ animationDelay: '0.2s' }}>
+            <div
+              onClick={() => navigate('/search')}
+              className="w-full bg-neutral-100/80 rounded-2xl px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-neutral-200/60 transition-all border border-emerald-500/30 group shadow-sm overflow-hidden"
+            >
+              <div className="flex-shrink-0 text-neutral-500 group-hover:text-emerald-600 transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
+                  <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </div>
+              <span className="text-sm text-neutral-500 font-medium truncate">
+                Search fresh vegetables...
+              </span>
             </div>
-            <span className="text-sm text-neutral-500 font-medium truncate">
-              Search fresh vegetables...
-            </span>
           </div>
-        </div>
+        )}
       </div>
     </>
   );

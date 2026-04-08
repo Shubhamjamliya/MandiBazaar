@@ -67,9 +67,11 @@ function CatalogPanel<T extends { _id?: string; id?: string }>({
   onSearchChange,
   subtitle,
 }: CatalogPanelProps<T>) {
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredItems = items.filter((item) => {
+    if (!normalizedSearchQuery) return true;
     const str = JSON.stringify(item).toLowerCase();
-    return str.includes(searchQuery.toLowerCase());
+    return str.includes(normalizedSearchQuery);
   });
 
   return (

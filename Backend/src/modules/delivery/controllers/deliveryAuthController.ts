@@ -141,11 +141,34 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     bonusType,
   } = req.body;
 
+  const normalizedName = typeof name === "string" ? name.trim() : "";
+  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  const normalizedCity = typeof city === "string" ? city.trim() : "";
+  const normalizedPincode = typeof pincode === "string" ? pincode.trim() : "";
+  const normalizedAccountName = typeof accountName === "string" ? accountName.trim() : "";
+  const normalizedBankName = typeof bankName === "string" ? bankName.trim() : "";
+  const normalizedAccountNumber = typeof accountNumber === "string" ? accountNumber.trim() : "";
+  const normalizedIfscCode = typeof ifscCode === "string" ? ifscCode.trim().toUpperCase() : "";
+
   // Validation
-  if (!name || !mobile || !email || !password) {
+  if (!normalizedName || !mobile || !normalizedEmail || !dateOfBirth || !address || !normalizedCity || !normalizedPincode) {
     return res.status(400).json({
       success: false,
-      message: "Name, mobile, email, and password are required",
+      message: "Name, mobile, email, date of birth, address, city and pincode are required",
+    });
+  }
+
+  if (!/^[A-Za-z ]{2,50}$/.test(normalizedName)) {
+    return res.status(400).json({
+      success: false,
+      message: "Name should contain only alphabets",
+    });
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({
+      success: false,
+      message: "Email should be in valid format",
     });
   }
 
@@ -156,9 +179,68 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
+  if (!/^[A-Za-z ]+$/.test(normalizedCity)) {
+    return res.status(400).json({
+      success: false,
+      message: "City should contain only alphabets",
+    });
+  }
+
+  if (!/^\d{6}$/.test(normalizedPincode)) {
+    return res.status(400).json({
+      success: false,
+      message: "Pin code should be a valid 6-digit number",
+    });
+  }
+
+  const dob = new Date(dateOfBirth);
+  const minAllowedDob = new Date();
+  minAllowedDob.setFullYear(minAllowedDob.getFullYear() - 18);
+  if (Number.isNaN(dob.getTime()) || dob > minAllowedDob) {
+    return res.status(400).json({
+      success: false,
+      message: "Date of birth should be 18+ age",
+    });
+  }
+
+  if (!drivingLicense || !nationalIdentityCard) {
+    return res.status(400).json({
+      success: false,
+      message: "Driving License and National Identity Card documents are mandatory",
+    });
+  }
+
+  if (normalizedAccountName && !/^[A-Za-z ]+$/.test(normalizedAccountName)) {
+    return res.status(400).json({
+      success: false,
+      message: "Account name should contain only alphabets",
+    });
+  }
+
+  if (normalizedBankName && !/^[A-Za-z ]+$/.test(normalizedBankName)) {
+    return res.status(400).json({
+      success: false,
+      message: "Bank name should contain only alphabets",
+    });
+  }
+
+  if (normalizedAccountNumber && !/^\d{9,15}$/.test(normalizedAccountNumber)) {
+    return res.status(400).json({
+      success: false,
+      message: "Account number should be 9 to 15 digits",
+    });
+  }
+
+  if (normalizedIfscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(normalizedIfscCode)) {
+    return res.status(400).json({
+      success: false,
+      message: "IFSC Code should be in format like HDFC0001015",
+    });
+  }
+
   // Check if delivery partner already exists
   const existingDelivery = await Delivery.findOne({
-    $or: [{ mobile }, { email }],
+    $or: [{ mobile }, { email: normalizedEmail }],
   });
 
   if (existingDelivery) {
@@ -168,27 +250,31 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
+  const generatedPassword = password && String(password).trim().length >= 6
+    ? String(password).trim()
+    : `DP@${mobile}${Math.floor(100 + Math.random() * 900)}`;
+
   // Create new delivery partner
   await Delivery.create({
-    name,
+    name: normalizedName,
     mobile,
-    email,
-    dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
-    password,
+    email: normalizedEmail,
+    dateOfBirth: dob,
+    password: generatedPassword,
     location: {
       address,
-      city,
-      pincode,
+      city: normalizedCity,
+      pincode: normalizedPincode,
       type: 'Point',
       coordinates: [0, 0], // Will be updated when they go online/update location
       updatedAt: new Date()
     },
     drivingLicense,
     nationalIdentityCard,
-    accountName,
-    bankName,
-    accountNumber,
-    ifscCode,
+    accountName: normalizedAccountName || undefined,
+    bankName: normalizedBankName || undefined,
+    accountNumber: normalizedAccountNumber || undefined,
+    ifscCode: normalizedIfscCode || undefined,
     bonusType,
     status: "Inactive", // New delivery partners start as Inactive
     balance: 0,

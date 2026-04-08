@@ -21,6 +21,7 @@ import {
 } from "../../../services/api/categoryService";
 import { getActiveTaxes, Tax } from "../../../services/api/taxService";
 import { getBrands, Brand } from "../../../services/api/brandService";
+import { useAuth } from "../../../context/AuthContext";
 
 // ─── Weight Variant Presets ───────────────────────────────────────────────────
 const WEIGHT_PRESETS = [
@@ -55,6 +56,7 @@ function buildDefaultWeightVariants(pricePerKg: number): WeightVariant[] {
 export default function SellerAddProduct() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
 
   // ── Selling unit mode ──────────────────────────────────────────────────────
   const [sellingUnit, setSellingUnit] = useState<"weight" | "quantity">("quantity");
@@ -147,8 +149,8 @@ export default function SellerAddProduct() {
   const [variationForm, setVariationForm] = useState({
     title: "",
     price: "",
-    discPrice: "0",
-    stock: "0",
+    discPrice: "",
+    stock: "",
     status: "Available" as "Available" | "Sold out",
   });
 
@@ -287,6 +289,21 @@ export default function SellerAddProduct() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    if (name === "madeIn") {
+      const cleaned = value.replace(/[^A-Za-z\s]/g, "");
+      setFormData((prev) => ({ ...prev, [name]: cleaned }));
+      return;
+    }
+    if (name === "hsnCode") {
+      const cleaned = value.replace(/[^0-9\s]/g, "").replace(/\s+/g, " ").trimStart();
+      setFormData((prev) => ({ ...prev, [name]: cleaned }));
+      return;
+    }
+    if (name === "fssaiLicNo") {
+      const cleaned = value.replace(/[^0-9/]/g, "");
+      setFormData((prev) => ({ ...prev, [name]: cleaned }));
+      return;
+    }
     setFormData((prev) => {
       const updated = { ...prev, [name]: value };
       
@@ -331,11 +348,14 @@ export default function SellerAddProduct() {
   const addVariation = () => {
     if (!variationForm.title || !variationForm.price) { setUploadError("Fill in variation title and price"); return; }
     const price = parseFloat(variationForm.price);
-    const discPrice = parseFloat(variationForm.discPrice || "0");
-    const stock = parseInt(variationForm.stock || "0");
+    const discPrice = variationForm.discPrice === "" ? 0 : parseFloat(variationForm.discPrice);
+    const stock = variationForm.stock === "" ? 0 : parseInt(variationForm.stock);
+    if (isNaN(price) || price <= 0) { setUploadError("Sale price must be greater than 0"); return; }
+    if (isNaN(discPrice) || discPrice < 0) { setUploadError("MRP cannot be negative"); return; }
+    if (isNaN(stock) || stock < 0) { setUploadError("Stock cannot be negative"); return; }
     if (discPrice > price) { setUploadError("Discounted price cannot exceed sale price"); return; }
     setVariations([...variations, { title: variationForm.title, price, discPrice, stock, status: variationForm.status }]);
-    setVariationForm({ title: "", price: "", discPrice: "0", stock: "0", status: "Available" });
+    setVariationForm({ title: "", price: "", discPrice: "", stock: "", status: "Available" });
     setUploadError("");
   };
 
@@ -344,6 +364,29 @@ export default function SellerAddProduct() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError("");
+    const isSellerBlocked = user?.userType === "Seller" && user?.status !== "Approved";
+    if (isSellerBlocked) {
+      setUploadError("Your account is not approved by admin yet. You cannot add products.");
+      return;
+    }
+
+    const madeIn = formData.madeIn.trim();
+    const hsnCode = formData.hsnCode.trim();
+    const fssaiLicNo = formData.fssaiLicNo.trim();
+
+    if (madeIn && !/^[A-Za-z\s]+$/.test(madeIn)) {
+      setUploadError("Made In should contain only alphabets");
+      return;
+    }
+    if (hsnCode && !/^\d{4}(?:\s?\d{2}){0,2}$/.test(hsnCode)) {
+      setUploadError("HSN code should be in format (ex- 6109 10 00)");
+      return;
+    }
+    if (fssaiLicNo && !/^\d{2}\/\d{3}\/\d{8}$/.test(fssaiLicNo)) {
+      setUploadError("FSSAI lic no. should be in format (ex- 21/001/00012345)");
+      return;
+    }
+
     if (!formData.productName.trim()) { setUploadError("Please enter a product name."); return; }
     if (formData.isShopByStoreOnly !== "Yes" && !formData.category) { setUploadError("Please select a category."); return; }
     if (sellingUnit === "weight") {
@@ -385,17 +428,17 @@ export default function SellerAddProduct() {
         smallDescription: formData.smallDescription || undefined,
         tags: tagsArray,
         manufacturer: formData.manufacturer || undefined,
-        madeIn: formData.madeIn || undefined,
+        madeIn: madeIn || undefined,
         taxId: formData.tax || undefined,
         isReturnable: formData.isReturnable === "Yes",
         maxReturnDays: formData.maxReturnDays ? parseInt(formData.maxReturnDays) : undefined,
         totalAllowedQuantity: parseInt(formData.totalAllowedQuantity || "10"),
-        fssaiLicNo: formData.fssaiLicNo || undefined,
+        fssaiLicNo: fssaiLicNo || undefined,
         mainImageUrl: mainImageUrl || undefined,
         galleryImageUrls,
         isShopByStoreOnly: formData.isShopByStoreOnly === "Yes",
         shopId: formData.isShopByStoreOnly === "Yes" && formData.shopId ? formData.shopId : undefined,
-        hsnCode: formData.hsnCode || undefined,
+        hsnCode: hsnCode || undefined,
         gstPercentage: parseFloat(formData.gstPercentage) || 0,
         sellingUnit,
         ...(sellingUnit === "weight"
@@ -725,19 +768,19 @@ export default function SellerAddProduct() {
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-1.5">Sale Price (₹) <span className="text-red-500">*</span></label>
                       <input type="number" value={variationForm.price}
-                        onChange={(e) => setVariationForm({ ...variationForm, price: e.target.value })}
+                        onChange={(e) => setVariationForm({ ...variationForm, price: e.target.value.replace(/^0+(?=\d)/, "") })}
                         placeholder="100" className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-1.5">MRP (₹)</label>
                       <input type="number" value={variationForm.discPrice}
-                        onChange={(e) => setVariationForm({ ...variationForm, discPrice: e.target.value })}
+                        onChange={(e) => setVariationForm({ ...variationForm, discPrice: e.target.value.replace(/^0+(?=\d)/, "") })}
                         placeholder="120" className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-1.5">Stock</label>
                       <input type="number" value={variationForm.stock}
-                        onChange={(e) => setVariationForm({ ...variationForm, stock: e.target.value })}
+                        onChange={(e) => setVariationForm({ ...variationForm, stock: e.target.value.replace(/^0+(?=\d)/, "") })}
                         placeholder="0" className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     </div>
                     <div className="flex items-end">
@@ -765,7 +808,7 @@ export default function SellerAddProduct() {
                           <div className="font-semibold text-neutral-800">{v.title}</div>
                           <div className="font-bold text-teal-700">₹{v.price}</div>
                           <div className="text-neutral-400">{v.discPrice > 0 ? `₹${v.discPrice}` : "—"}</div>
-                          <div className="text-neutral-600">{v.stock === 0 ? "∞" : v.stock}</div>
+                          <div className="text-neutral-600">{v.stock}</div>
                           <div>
                             <button type="button" onClick={() => removeVariation(idx)}
                               className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 text-lg leading-none font-bold">
@@ -974,13 +1017,13 @@ export default function SellerAddProduct() {
           <div className="flex justify-end pb-8">
             <button
               type="submit"
-              disabled={uploading}
-              className={`px-10 py-3.5 rounded-xl font-bold text-base transition-all shadow-md ${uploading
+              disabled={uploading || (user?.userType === "Seller" && user?.status !== "Approved")}
+              className={`px-10 py-3.5 rounded-xl font-bold text-base transition-all shadow-md ${(uploading || (user?.userType === "Seller" && user?.status !== "Approved"))
                 ? "bg-neutral-300 cursor-not-allowed text-neutral-500"
                 : "bg-teal-600 hover:bg-teal-700 active:scale-[0.98] text-white"
                 }`}
             >
-              {uploading ? "⏳ Saving…" : id ? "✓ Update Product" : "✓ Add Product"}
+              {uploading ? "⏳ Saving…" : (user?.userType === "Seller" && user?.status !== "Approved") ? "Approval Pending" : id ? "✓ Update Product" : "✓ Add Product"}
             </button>
           </div>
         </form>

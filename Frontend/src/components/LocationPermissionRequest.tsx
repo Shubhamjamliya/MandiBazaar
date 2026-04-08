@@ -17,13 +17,15 @@ export default function LocationPermissionRequest({
   description = 'We need your location to show you products available near you and enable delivery services.',
   forceShow = false,
 }: LocationPermissionRequestProps) {
-  const { requestLocation, updateLocation, isLocationEnabled, isLocationLoading, locationError, locationPermissionStatus, clearLocation } = useLocation();
+  const { requestLocation, updateLocation, isLocationEnabled, isLocationLoading, locationError, locationPermissionStatus, clearLocation, location } = useLocation();
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualAddress, setManualAddress] = useState('');
   const [manualLat, setManualLat] = useState<number | null>(null);
   const [manualLng, setManualLng] = useState<number | null>(null);
   const [manualCity, setManualCity] = useState<string>('');
   const [manualState, setManualState] = useState<string>('');
+  const [manualLocationType, setManualLocationType] = useState<'Home' | 'Office'>('Home');
+  const [showSaveCurrentLocation, setShowSaveCurrentLocation] = useState(false);
 
   // Auto-grant if already enabled or session permission exists
   useEffect(() => {
@@ -44,6 +46,9 @@ export default function LocationPermissionRequest({
       // ONLY call location API when user explicitly clicks the button
       // This ensures we don't auto-request location on app load
       await requestLocation();
+      if (forceShow) {
+        setShowSaveCurrentLocation(true);
+      }
       // If requestLocation succeeds, locationError will be cleared in the context
       // and isLocationEnabled will be set to true, which will trigger onLocationGranted
     } catch (error) {
@@ -82,6 +87,7 @@ export default function LocationPermissionRequest({
         latitude: manualLat || 0,
         longitude: manualLng || 0,
         address: manualAddress,
+        locationType: manualLocationType,
         city: manualCity,
         state: manualState,
       });
@@ -168,6 +174,15 @@ export default function LocationPermissionRequest({
                 Enter Location Manually
               </button>
 
+              {forceShow && showSaveCurrentLocation && location && (
+                <button
+                  onClick={onLocationGranted}
+                  className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                >
+                  Save Current Location
+                </button>
+              )}
+
               {skipable && (
                 <button
                   onClick={onLocationGranted}
@@ -194,6 +209,34 @@ export default function LocationPermissionRequest({
           </>
         ) : (
           <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
+                Save location as
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setManualLocationType('Home')}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold ${manualLocationType === 'Home'
+                    ? 'bg-orange-50 text-orange-700 border-orange-400'
+                    : 'bg-white text-neutral-700 border-neutral-300'
+                    }`}
+                >
+                  Home
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManualLocationType('Office')}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold ${manualLocationType === 'Office'
+                    ? 'bg-orange-50 text-orange-700 border-orange-400'
+                    : 'bg-white text-neutral-700 border-neutral-300'
+                    }`}
+                >
+                  Office
+                </button>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Search and select your location

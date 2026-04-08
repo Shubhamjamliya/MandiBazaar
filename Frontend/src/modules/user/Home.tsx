@@ -15,6 +15,7 @@ import CategoryProductSlider from "./components/CategoryProductSlider";
 import { useLocation } from "../../hooks/useLocation";
 import { useLoading } from "../../context/LoadingContext";
 import PageLoader from "../../components/PageLoader";
+import { useAuth } from "../../context/AuthContext";
 
 import { useThemeContext } from "../../context/ThemeContext";
 import { useCart } from "../../context/CartContext";
@@ -24,6 +25,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export default function Home() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { location } = useLocation();
   const { activeCategory, setActiveCategory } = useThemeContext();
   const { cart, addToCart, updateQuantity } = useCart();
@@ -411,6 +413,20 @@ export default function Home() {
 
       {/* Spacer for fixed header */}
       <div className="h-[168px]"></div>
+
+      {/* Wallet Shortcut */}
+      <div className="px-4 pb-2">
+        <button
+          onClick={() => navigate('/profile')}
+          className="w-full bg-white border border-emerald-100 rounded-xl p-3 shadow-sm flex items-center justify-between hover:bg-emerald-50 transition-colors"
+        >
+          <div className="text-left">
+            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-wide">Wallet</p>
+            <p className="text-sm font-semibold text-neutral-900">₹{Number(user?.walletAmount || 0).toFixed(2)}</p>
+          </div>
+          <span className="text-xs font-semibold text-emerald-700">View</span>
+        </button>
+      </div>
 
       {/* Marquee Announcement Strip - Moved above banner */}
       {homeData.marqueeText && !activeInlineCategory && (

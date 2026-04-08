@@ -30,6 +30,7 @@ export interface CreateOrderData {
         [key: string]: any;
     };
     paymentMethod: string;
+    specialRequests?: string;
     fees?: {
         deliveryFee: number;
         platformFee: number;

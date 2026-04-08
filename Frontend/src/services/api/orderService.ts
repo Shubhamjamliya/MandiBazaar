@@ -59,6 +59,7 @@ export interface OrderDetail {
   subtotal: number;
   tax: number;
   grandTotal: number;
+  specialRequests?: string;
   paymentMethod: string;
   paymentStatus: string;
   deliveryAddress: DeliveryAddress;

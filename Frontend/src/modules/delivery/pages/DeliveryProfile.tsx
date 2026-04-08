@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DeliveryHeader from '../components/DeliveryHeader';
 import DeliveryBottomNav from '../components/DeliveryBottomNav';
 import { useDeliveryUser } from '../context/DeliveryUserContext';
 import { getDeliveryProfile, updateProfile } from '../../../services/api/delivery/deliveryService';
@@ -8,6 +7,7 @@ import { getDeliveryProfile, updateProfile } from '../../../services/api/deliver
 export default function DeliveryProfile() {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { userName, setUserName } = useDeliveryUser();
 
   const [profileData, setProfileData] = useState({
@@ -60,24 +60,64 @@ export default function DeliveryProfile() {
 
   const handleCancel = () => {
     setIsEditing(false);
+    setFieldErrors({});
     // Re-fetch or reset to previous state
   };
 
+  const validateProfile = () => {
+    const errors: Record<string, string> = {};
+
+    const normalizedEmail = profileData.email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      errors.email = 'Email should be in format (ex: aaa@gmail.com)';
+    }
+
+    const normalizedVehicle = profileData.vehicleNumber.trim().toUpperCase();
+    if (normalizedVehicle && !/^[A-Z]{2}[ -]?\d{1,2}[ -]?[A-Z]{1,3}[ -]?\d{4}$/.test(normalizedVehicle)) {
+      errors.vehicleNumber = 'Vehicle no. should be in valid format (ex: MP09AB1234)';
+    }
+
+    if (profileData.bankName.trim() && !/^[A-Za-z ]+$/.test(profileData.bankName.trim())) {
+      errors.bankName = 'Bank name should contain only alphabets';
+    }
+
+    if (profileData.accountName.trim() && !/^[A-Za-z ]+$/.test(profileData.accountName.trim())) {
+      errors.accountName = 'Account holder name should contain only alphabets';
+    }
+
+    if (profileData.accountNumber.trim() && !/^\d{9,15}$/.test(profileData.accountNumber.trim())) {
+      errors.accountNumber = 'Account no. should be 9 to 15 digits';
+    }
+
+    const normalizedIfsc = profileData.ifscCode.trim().toUpperCase();
+    if (normalizedIfsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(normalizedIfsc)) {
+      errors.ifscCode = 'IFSC Code should be in format (ex: HDFC0001015)';
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSave = async () => {
+    if (!validateProfile()) {
+      return;
+    }
+
     try {
       await updateProfile({
-        name: profileData.name,
-        email: profileData.email,
-        address: profileData.address,
-        vehicleNumber: profileData.vehicleNumber,
+        name: profileData.name.trim(),
+        email: profileData.email.trim(),
+        address: profileData.address.trim(),
+        vehicleNumber: profileData.vehicleNumber.trim().toUpperCase(),
         vehicleType: profileData.vehicleType,
-        accountName: profileData.accountName,
-        bankName: profileData.bankName,
-        accountNumber: profileData.accountNumber,
-        ifscCode: profileData.ifscCode,
+        accountName: profileData.accountName.trim(),
+        bankName: profileData.bankName.trim(),
+        accountNumber: profileData.accountNumber.trim(),
+        ifscCode: profileData.ifscCode.trim().toUpperCase(),
       });
-      setUserName(profileData.name);
+      setUserName(profileData.name.trim());
       setIsEditing(false);
+      setFieldErrors({});
       // You could add a toast notification here
     } catch (error) {
       console.error("Failed to update profile", error);
@@ -86,15 +126,36 @@ export default function DeliveryProfile() {
   };
 
   const handleInputChange = (field: string, value: string) => {
+    let nextValue = value;
+
+    if (field === 'bankName' || field === 'accountName') {
+      nextValue = value.replace(/[^A-Za-z ]/g, '');
+    }
+
+    if (field === 'accountNumber') {
+      nextValue = value.replace(/\D/g, '').slice(0, 15);
+    }
+
+    if (field === 'ifscCode') {
+      nextValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
+    }
+
+    if (field === 'vehicleNumber') {
+      nextValue = value.toUpperCase().replace(/[^A-Z0-9 -]/g, '').slice(0, 15);
+    }
+
     setProfileData((prev) => ({
       ...prev,
-      [field]: value,
+      [field]: nextValue,
     }));
+
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => ({ ...prev, [field]: '' }));
+    }
   };
 
   return (
     <div className="min-h-screen bg-neutral-100 pb-20">
-      <DeliveryHeader />
       <div className="px-4 py-4">
         <div className="flex items-center mb-4">
           <button
@@ -153,29 +214,6 @@ export default function DeliveryProfile() {
               <span className="text-neutral-900 font-semibold">{profileData.rating}</span>
             </div>
 
-            <button
-              onClick={async () => {
-                try {
-                  const { sendSelfTestNotification } = await import('../../../services/api/notificationService');
-                  const res = await sendSelfTestNotification();
-                  if (res.success && res.details) {
-                    console.log(`✅ Test push sent to ${res.details.successCount} device(s)`);
-                    alert(`✅ Request processed! Sent to ${res.details.successCount} device(s). Check your system notifications.`);
-                  } else {
-                    alert(`❌ Error: ${res.message}`);
-                  }
-                } catch (err: any) {
-                  alert('Error sending test notification');
-                }
-              }}
-              className="mt-4 px-6 py-2 bg-neutral-900 text-white rounded-lg text-xs font-bold flex items-center gap-2 active:scale-95 transition-all"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-              </svg>
-              Test Push
-            </button>
           </div>
         </div>
 
@@ -197,6 +235,7 @@ export default function DeliveryProfile() {
               ) : (
                 <p className="text-neutral-900 text-sm">{profileData.email}</p>
               )}
+              {isEditing && fieldErrors.email && <p className="text-red-600 text-xs mt-1">{fieldErrors.email}</p>}
             </div>
             <div className="p-4">
               <p className="text-neutral-500 text-xs mb-1">Address</p>
@@ -223,6 +262,7 @@ export default function DeliveryProfile() {
               ) : (
                 <p className="text-neutral-900 text-sm">{profileData.vehicleNumber}</p>
               )}
+              {isEditing && fieldErrors.vehicleNumber && <p className="text-red-600 text-xs mt-1">{fieldErrors.vehicleNumber}</p>}
             </div>
             <div className="p-4">
               <p className="text-neutral-500 text-xs mb-1">Vehicle Type</p>
@@ -263,6 +303,7 @@ export default function DeliveryProfile() {
               ) : (
                 <p className="text-neutral-900 text-sm">{profileData.accountName || 'Not Set'}</p>
               )}
+              {isEditing && fieldErrors.accountName && <p className="text-red-600 text-xs mt-1">{fieldErrors.accountName}</p>}
             </div>
             <div className="p-4">
               <p className="text-neutral-500 text-xs mb-1">Bank Name</p>
@@ -277,6 +318,7 @@ export default function DeliveryProfile() {
               ) : (
                 <p className="text-neutral-900 text-sm">{profileData.bankName || 'Not Set'}</p>
               )}
+              {isEditing && fieldErrors.bankName && <p className="text-red-600 text-xs mt-1">{fieldErrors.bankName}</p>}
             </div>
             <div className="p-4">
               <p className="text-neutral-500 text-xs mb-1">Account Number</p>
@@ -291,6 +333,7 @@ export default function DeliveryProfile() {
               ) : (
                 <p className="text-neutral-900 text-sm">{profileData.accountNumber ? `XXXX${profileData.accountNumber.slice(-4)}` : 'Not Set'}</p>
               )}
+              {isEditing && fieldErrors.accountNumber && <p className="text-red-600 text-xs mt-1">{fieldErrors.accountNumber}</p>}
             </div>
             <div className="p-4">
               <p className="text-neutral-500 text-xs mb-1">IFSC Code</p>
@@ -305,6 +348,7 @@ export default function DeliveryProfile() {
               ) : (
                 <p className="text-neutral-900 text-sm">{profileData.ifscCode || 'Not Set'}</p>
               )}
+              {isEditing && fieldErrors.ifscCode && <p className="text-red-600 text-xs mt-1">{fieldErrors.ifscCode}</p>}
             </div>
           </div>
         </div>
