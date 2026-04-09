@@ -99,6 +99,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             mrp: Number(item.product.mrp) || 0,
             discPrice: Number(item.product.discPrice) || 0,
             variations: item.product.variations,
+            sellingUnit: item.product.sellingUnit,
+            weightVariants: item.product.weightVariants,
             imageUrl: item.product.mainImage || item.product.imageUrl,
             pack: item.product.pack || '1 unit',
             categoryId: item.product.category || '',

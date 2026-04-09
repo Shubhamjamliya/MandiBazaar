@@ -13,22 +13,38 @@ import Seller from '../../../models/Seller';
 const calculateItemPrice = (product: any, variationSelector: any) => {
     let variation = null;
     let variationId = variationSelector;
+    let weightVariant = null;
+    let weightLabel: string | null = null;
 
     // Handle if variationSelector is an object (some implementations store it differently)
     if (variationSelector && typeof variationSelector === 'object' && variationSelector._id) {
         variationId = variationSelector._id;
     }
 
+    if (typeof variationId === 'string' && variationId.startsWith('wv_')) {
+        weightLabel = variationId.replace('wv_', '');
+    }
+
+    if (weightLabel && product.weightVariants?.length) {
+        weightVariant = product.weightVariants.find((v: any) => v.label === weightLabel);
+    }
+
     if (variationId && product.variations?.length) {
         variation = product.variations.find((v: any) =>
             (v._id && v._id.toString() === variationId.toString()) ||
-            (v.id && v.id === variationId)
+            (v.id && v.id === variationId) ||
+            v.value === variationId ||
+            v.title === variationId ||
+            v.pack === variationId
         );
     }
 
-    let finalPrice = variation?.price || product.price || 0;
+    let finalPrice = weightVariant?.price || variation?.price || product.price || 0;
 
-    // Priority: Variation Discount -> Product Discount -> Variation Price -> Product Price
+    // Priority: Weight Variant Price -> Variation Discount -> Product Discount -> Variation Price -> Product Price
+    if (weightVariant && weightVariant.price > 0) {
+        finalPrice = weightVariant.price;
+    }
     if (variation?.discPrice && variation.discPrice > 0) {
         finalPrice = variation.discPrice;
     } else if (product.discPrice && product.discPrice > 0) {
@@ -43,7 +59,7 @@ const calculateItemPrice = (product: any, variationSelector: any) => {
 const calculateCartTotal = async (cartId: any, nearbySellerIds: mongoose.Types.ObjectId[] = []) => {
     const items = await CartItem.find({ cart: cartId }).populate({
         path: 'product',
-        select: 'price discPrice variations seller status publish productName'
+        select: 'price discPrice variations weightVariants sellingUnit seller status publish productName'
     });
 
     let total = 0;
@@ -166,7 +182,7 @@ export const getCart = async (req: Request, res: Response) => {
             path: 'items',
             populate: {
                 path: 'product',
-                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations'
+                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations weightVariants sellingUnit'
             }
         });
 
@@ -306,7 +322,7 @@ export const addToCart = async (req: Request, res: Response) => {
             path: 'items',
             populate: {
                 path: 'product',
-                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations'
+                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations weightVariants sellingUnit'
             }
         });
 
@@ -396,7 +412,7 @@ export const updateCartItem = async (req: Request, res: Response) => {
             path: 'items',
             populate: {
                 path: 'product',
-                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations'
+                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations weightVariants sellingUnit'
             }
         });
 
@@ -461,7 +477,7 @@ export const removeFromCart = async (req: Request, res: Response) => {
             path: 'items',
             populate: {
                 path: 'product',
-                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations'
+                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations weightVariants sellingUnit'
             }
         });
 

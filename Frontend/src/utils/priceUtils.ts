@@ -18,10 +18,23 @@ export const calculateProductPrice = (product: any, variationSelector?: number |
   }
 
   let variation;
+  let selectedWeightVariant;
+
   if (typeof variationSelector === 'number') {
     variation = product.variations?.[variationSelector];
   } else if (typeof variationSelector === 'string') {
-    variation = product.variations?.find((v: any) => (v._id === variationSelector || v.id === variationSelector));
+    if (variationSelector.startsWith('wv_')) {
+      const weightLabel = variationSelector.replace('wv_', '');
+      selectedWeightVariant = product.weightVariants?.find((v: any) => v.label === weightLabel);
+    } else {
+      variation = product.variations?.find(
+        (v: any) =>
+          (v._id === variationSelector || v.id === variationSelector) ||
+          v.value === variationSelector ||
+          v.title === variationSelector ||
+          v.pack === variationSelector
+      );
+    }
   }
 
   // Fallback to first variation if no specific one selected/found but variations exist
@@ -31,13 +44,15 @@ export const calculateProductPrice = (product: any, variationSelector?: number |
     variation = product.variations[0];
   }
 
-  const displayPrice = (variation?.discPrice && variation.discPrice > 0)
+  const displayPrice = (selectedWeightVariant?.price && selectedWeightVariant.price > 0)
+    ? selectedWeightVariant.price
+    : (variation?.discPrice && variation.discPrice > 0)
     ? variation.discPrice
     : (product.discPrice && product.discPrice > 0)
       ? product.discPrice
       : (variation?.price || product.price || 0);
 
-  const mrp = variation?.price || product.mrp || product.compareAtPrice || product.price || 0;
+  const mrp = selectedWeightVariant?.mrp || selectedWeightVariant?.price || variation?.price || product.mrp || product.compareAtPrice || product.price || 0;
 
   const hasDiscount = mrp > displayPrice;
   const discount = hasDiscount ? Math.round(((mrp - displayPrice) / mrp) * 100) : 0;

@@ -31,6 +31,8 @@ export interface CreateOrderData {
     };
     paymentMethod: string;
     specialRequests?: string;
+    couponCode?: string;
+    giftPackaging?: boolean;
     fees?: {
         deliveryFee: number;
         platformFee: number;

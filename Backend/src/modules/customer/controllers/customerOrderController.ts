@@ -4,6 +4,7 @@ import Product from "../../../models/Product";
 import OrderItem from "../../../models/OrderItem";
 import Customer from "../../../models/Customer";
 import Seller from "../../../models/Seller";
+import Coupon from "../../../models/Coupon";
 import mongoose from "mongoose";
 import { calculateDistance } from "../../../utils/locationHelper";
 import { notifySellersOfOrderUpdate } from "../../../services/sellerNotificationService";
@@ -26,7 +27,7 @@ export const createOrder = async (req: Request, res: Response) => {
             session = null;
         }
 
-        const { items, address, paymentMethod, fees, specialRequests } = req.body;
+        const { items, address, paymentMethod, fees, specialRequests, couponCode, giftPackaging } = req.body;
         const userId = req.user!.userId;
 
         // Log incoming request for debugging
@@ -484,13 +485,79 @@ export const createOrder = async (req: Request, res: Response) => {
             });
         }
 
-        const finalTotal = calculatedSubtotal + platformFee + deliveryFee;
+        const subtotalBeforeCoupon = calculatedSubtotal + platformFee + deliveryFee;
+
+        // Gift packaging is optional and charged as a fixed fee.
+        const giftPackagingFee = giftPackaging ? 30 : 0;
+
+        // Validate and apply coupon on server so payment gateway amount always matches checkout display.
+        let appliedCouponCode: string | undefined;
+        let couponDiscount = 0;
+        if (couponCode && typeof couponCode === 'string' && couponCode.trim()) {
+            const normalizedCouponCode = couponCode.trim().toUpperCase();
+            const currentDate = new Date();
+
+            const coupon = await Coupon.findOne({
+                code: normalizedCouponCode,
+                isActive: true,
+            });
+
+            if (!coupon) {
+                if (session) await session.abortTransaction();
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid coupon code',
+                });
+            }
+
+            if (currentDate < coupon.startDate || currentDate > coupon.endDate) {
+                if (session) await session.abortTransaction();
+                return res.status(400).json({
+                    success: false,
+                    message: 'Coupon has expired',
+                });
+            }
+
+            if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
+                if (session) await session.abortTransaction();
+                return res.status(400).json({
+                    success: false,
+                    message: 'Coupon usage limit reached',
+                });
+            }
+
+            if (coupon.minimumPurchase && subtotalBeforeCoupon < coupon.minimumPurchase) {
+                if (session) await session.abortTransaction();
+                return res.status(400).json({
+                    success: false,
+                    message: `Minimum order value of Rs.${coupon.minimumPurchase} required`,
+                });
+            }
+
+            if (coupon.discountType === 'Percentage') {
+                couponDiscount = (subtotalBeforeCoupon * coupon.discountValue) / 100;
+                if (coupon.maximumDiscount && couponDiscount > coupon.maximumDiscount) {
+                    couponDiscount = coupon.maximumDiscount;
+                }
+            } else {
+                couponDiscount = coupon.discountValue;
+            }
+
+            couponDiscount = Math.max(0, Number(couponDiscount.toFixed(2)));
+            appliedCouponCode = normalizedCouponCode;
+        }
+
+        const finalTotal = Math.max(0, subtotalBeforeCoupon + giftPackagingFee - couponDiscount);
 
         // Update Order with calculated values and items
         newOrder.subtotal = Number(calculatedSubtotal.toFixed(2));
         newOrder.total = Number(finalTotal.toFixed(2));
         newOrder.items = orderItemIds;
         newOrder.shipping = deliveryFee; // Update with calculated fee
+        newOrder.discount = couponDiscount;
+        if (appliedCouponCode) {
+            newOrder.couponCode = appliedCouponCode;
+        }
         newOrder.deliveryDistanceKm = deliveryDistanceKm; // Store distance for commission calc
 
 

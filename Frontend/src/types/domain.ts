@@ -29,6 +29,16 @@ export interface Product {
     status?: string;
     _id?: { $oid: string } | string;
   }>;
+  sellingUnit?: string;
+  weightVariants?: Array<{
+    label: string;
+    grams?: number;
+    price: number;
+    mrp?: number;
+    stock?: number;
+    isEnabled?: boolean;
+    isDefault?: boolean;
+  }>;
   imageUrl?: string;
   mainImage?: string;
   categoryId: string;
