@@ -22,6 +22,7 @@ import {
 import { getActiveTaxes, Tax } from "../../../services/api/taxService";
 import { getBrands, Brand } from "../../../services/api/brandService";
 import { useAuth } from "../../../context/AuthContext";
+import { getSellerProfile } from "../../../services/api/auth/sellerAuthService";
 
 // ─── Weight Variant Presets ───────────────────────────────────────────────────
 const WEIGHT_PRESETS = [
@@ -56,7 +57,8 @@ function buildDefaultWeightVariants(pricePerKg: number): WeightVariant[] {
 export default function SellerAddProduct() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const [sellerStatus, setSellerStatus] = useState<string | undefined>(user?.status);
 
   // ── Selling unit mode ──────────────────────────────────────────────────────
   const [sellingUnit, setSellingUnit] = useState<"weight" | "quantity">("quantity");
@@ -68,6 +70,39 @@ export default function SellerAddProduct() {
   // Custom weight variant state
   const [customWeightLabel, setCustomWeightLabel] = useState("");
   const [customWeightGrams, setCustomWeightGrams] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    const syncSellerApprovalStatus = async () => {
+      if (user?.userType !== "Seller") return;
+
+      try {
+        const response = await getSellerProfile();
+        const latestStatus = response?.data?.status;
+
+        if (!mounted || !latestStatus) return;
+
+        setSellerStatus(latestStatus);
+
+        if (user?.status !== latestStatus) {
+          updateUser({ ...user, status: latestStatus });
+        }
+      } catch {
+        if (!mounted) return;
+        // Fallback to cached auth user status if profile sync fails.
+        setSellerStatus(user?.status);
+      }
+    };
+
+    syncSellerApprovalStatus();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id, user?.status, user?.userType, updateUser]);
+
+  const effectiveSellerStatus = sellerStatus ?? user?.status;
 
   const handleAddCustomWeightVariant = () => {
     if (!customWeightLabel || !customWeightGrams) return;
@@ -364,9 +399,9 @@ export default function SellerAddProduct() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError("");
-    const isSellerBlocked = user?.userType === "Seller" && user?.status !== "Approved";
+    const isSellerBlocked = user?.userType === "Seller" && effectiveSellerStatus !== "Approved";
     if (isSellerBlocked) {
-      setUploadError("Your account is not approved by admin yet. You cannot add products.");
+      setUploadError("You cannot add products right now.");
       return;
     }
 
@@ -1017,13 +1052,13 @@ export default function SellerAddProduct() {
           <div className="flex justify-end pb-8">
             <button
               type="submit"
-              disabled={uploading || (user?.userType === "Seller" && user?.status !== "Approved")}
-              className={`px-10 py-3.5 rounded-xl font-bold text-base transition-all shadow-md ${(uploading || (user?.userType === "Seller" && user?.status !== "Approved"))
+              disabled={uploading || (user?.userType === "Seller" && effectiveSellerStatus !== "Approved")}
+              className={`px-10 py-3.5 rounded-xl font-bold text-base transition-all shadow-md ${(uploading || (user?.userType === "Seller" && effectiveSellerStatus !== "Approved"))
                 ? "bg-neutral-300 cursor-not-allowed text-neutral-500"
                 : "bg-teal-600 hover:bg-teal-700 active:scale-[0.98] text-white"
                 }`}
             >
-              {uploading ? "⏳ Saving…" : (user?.userType === "Seller" && user?.status !== "Approved") ? "Approval Pending" : id ? "✓ Update Product" : "✓ Add Product"}
+              {uploading ? "⏳ Saving…" : (user?.userType === "Seller" && effectiveSellerStatus !== "Approved") ? "Temporarily Unavailable" : id ? "✓ Update Product" : "✓ Add Product"}
             </button>
           </div>
         </form>
