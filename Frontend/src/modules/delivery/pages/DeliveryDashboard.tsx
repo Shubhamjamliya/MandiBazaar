@@ -5,6 +5,7 @@ import SummaryBar from "../components/SummaryBar";
 import DashboardCard from "../components/DashboardCard";
 import DeliveryBottomNav from "../components/DeliveryBottomNav";
 import { getDashboardStats, getDeliveryProfile, getNotifications, markNotificationRead } from "../../../services/api/delivery/deliveryService";
+import { removeAuthToken } from "../../../services/api/config";
 import { useDeliveryStatus } from "../context/DeliveryStatusContext";
 
 interface DeliveryNotificationItem {
@@ -38,6 +39,11 @@ export default function DeliveryDashboard() {
           console.error("Failed to fetch delivery profile status:", profileErr);
         }
       } catch (err: any) {
+        if (err?.message === "Delivery partner not found") {
+          removeAuthToken();
+          navigate("/delivery/login", { replace: true });
+          return;
+        }
         setError(err.message || "Failed to load dashboard data");
       } finally {
         setLoading(false);
