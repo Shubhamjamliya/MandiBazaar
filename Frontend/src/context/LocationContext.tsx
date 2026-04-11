@@ -67,6 +67,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   // Constants for storage
   const SESSION_PERMISSION_KEY = 'location_permission_granted_session';
   const LOCATION_STORAGE_KEY = 'userLocation';
+  const LOCATION_DENIED_KEY = 'location_permission_denied_session';
 
   // Refs for request cancellation and preventing race conditions
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -78,7 +79,18 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       console.log('[LocationContext] Checking initial permission status...');
 
       try {
-        // 1. Check sessionStorage for session-level permission
+        // 1. Check if user explicitly denied permission in this session
+        const sessionDenied = sessionStorage.getItem(LOCATION_DENIED_KEY);
+        if (sessionDenied === 'true') {
+          console.log('[LocationContext] User denied location permission in this session.');
+          setLocation(null);
+          setIsLocationEnabled(false);
+          setLocationPermissionStatus('denied');
+          setIsLocationLoading(false);
+          return;
+        }
+
+        // 2. Check sessionStorage for session-level permission
         const sessionGranted = sessionStorage.getItem(SESSION_PERMISSION_KEY);
 
         if (sessionGranted === 'true') {
@@ -303,8 +315,14 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
           switch (error.code) {
             case error.PERMISSION_DENIED:
-              errorMessage = 'Location permission was denied. Please enable it in your browser settings to use this feature.';
+              errorMessage = 'Location permission was denied.';
               setLocationPermissionStatus('denied');
+              // Mark that user explicitly denied permission in this session
+              try {
+                sessionStorage.setItem(LOCATION_DENIED_KEY, 'true');
+              } catch (e) {
+                console.warn('[LocationContext] Failed to save denial to sessionStorage:', e);
+              }
               break;
             case error.POSITION_UNAVAILABLE:
               errorMessage = 'Location information unavailable. Please check your device location settings.';
@@ -655,7 +673,8 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     setLocationPermissionStatus('prompt');
     localStorage.removeItem(LOCATION_STORAGE_KEY);
     sessionStorage.removeItem(SESSION_PERMISSION_KEY);
-  }, [SESSION_PERMISSION_KEY, LOCATION_STORAGE_KEY]);
+    sessionStorage.removeItem(LOCATION_DENIED_KEY);
+  }, [SESSION_PERMISSION_KEY, LOCATION_STORAGE_KEY, LOCATION_DENIED_KEY]);
 
   // Cleanup on unmount
   useEffect(() => {

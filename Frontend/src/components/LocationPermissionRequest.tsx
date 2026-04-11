@@ -27,6 +27,17 @@ export default function LocationPermissionRequest({
   const [manualLocationType, setManualLocationType] = useState<'Home' | 'Office'>('Home');
   const [showSaveCurrentLocation, setShowSaveCurrentLocation] = useState(false);
 
+  // Handle denying location permission
+  const handleDenyLocation = () => {
+    console.log('[LocationPermissionRequest] User denied location permission');
+    try {
+      sessionStorage.setItem('location_permission_denied_session', 'true');
+    } catch (e) {
+      console.warn('Failed to save denial to sessionStorage:', e);
+    }
+    onLocationGranted(); // Close modal
+  };
+
   // Auto-grant if already enabled or session permission exists
   useEffect(() => {
     if (isLocationEnabled && !forceShow) {
@@ -106,7 +117,18 @@ export default function LocationPermissionRequest({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
+        {/* Close Button */}
+        <button
+          onClick={handleDenyLocation}
+          className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600 transition-colors"
+          aria-label="Close"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import FloatingCartPill from './FloatingCartPill';
 import { useLocation as useLocationContext } from '../hooks/useLocation';
 import LocationPermissionRequest from './LocationPermissionRequest';
+import LocationBanner from './LocationBanner';
 import { useThemeContext } from '../context/ThemeContext';
 import HomsterHeader from '../modules/user/components/HomsterHeader';
 
@@ -19,7 +20,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [categoriesRotation, setCategoriesRotation] = useState(0);
   const [prevCategoriesActive, setPrevCategoriesActive] = useState(false);
-  const { isLocationEnabled, isLocationLoading, location: userLocation } = useLocationContext();
+  const { isLocationEnabled, isLocationLoading, location: userLocation, locationPermissionStatus } = useLocationContext();
   const [showLocationRequest, setShowLocationRequest] = useState(false);
   const [showLocationChangeModal, setShowLocationChangeModal] = useState(false);
   const { currentTheme } = useThemeContext();
@@ -69,14 +70,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
       return;
     }
 
-    // If location is NOT enabled and route requires location, ALWAYS show modal
+    // If user explicitly denied permission, don't show modal - just let app open normally
+    if (locationPermissionStatus === 'denied') {
+      setShowLocationRequest(false);
+      return;
+    }
+
+    // If location is NOT enabled, permission not denied, and route requires location, show modal
     // This will trigger on every app open until user explicitly confirms location
     if (!isLocationEnabled && requiresLocation()) {
       setShowLocationRequest(true);
     } else {
       setShowLocationRequest(false);
     }
-  }, [isLocationLoading, isLocationEnabled, location.pathname]);
+  }, [isLocationLoading, isLocationEnabled, locationPermissionStatus, location.pathname]);
 
   // Update search query when URL params change
   useEffect(() => {
@@ -477,6 +484,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
               showSearch={!isOrderAgainPage}
             />
           )}
+
+          {/* Location Banner - Optional suggestion when location is not enabled */}
+          <LocationBanner onClickBanner={() => setShowLocationChangeModal(true)} />
 
           {/* Scrollable Main Content */}
           <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide pb-24 md:pb-8">
