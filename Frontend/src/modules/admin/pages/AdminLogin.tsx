@@ -103,6 +103,17 @@ export default function AdminLogin() {
         </svg>
       </button>
 
+      <button
+        onClick={() => navigate('/help-support')}
+        className="absolute top-4 right-4 z-10 px-3.5 h-10 rounded-full bg-white shadow-md flex items-center justify-center gap-1.5 hover:bg-neutral-50 transition-colors text-xs font-bold text-emerald-700"
+        aria-label="Support">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 17H12.01M8 9a4 4 0 118 0c0 2-2 3-2 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+        </svg>
+        Support
+      </button>
+
       {/* Login Card */}
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
         {/* Header Section */}

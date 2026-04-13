@@ -168,6 +168,18 @@ export default function Login() {
           </svg>
         </button>
 
+        <button
+          onClick={() => navigate('/help-support')}
+          className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10 px-3 py-2 rounded-full bg-white shadow-md flex items-center justify-center gap-1.5 hover:bg-neutral-50 transition-colors text-xs font-bold text-emerald-700"
+          aria-label="Support"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 17H12.01M8 9a4 4 0 118 0c0 2-2 3-2 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+          </svg>
+          Support
+        </button>
+
         {/* Background Section */}
         <div
           className="overflow-hidden relative flex-1 bg-gradient-to-br from-green-50 via-emerald-50 to-green-100"

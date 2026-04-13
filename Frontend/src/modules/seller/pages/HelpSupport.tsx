@@ -1,7 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 export default function HelpSupport() {
+    const navigate = useNavigate();
     const supportInfo = [
         {
             title: 'Mobile Support',
@@ -95,7 +97,10 @@ export default function HelpSupport() {
                         <h2 className="text-xl font-bold text-white mb-2">Frequently Asked Questions</h2>
                         <p className="text-neutral-400 text-sm">Find quick answers to common questions about managing your seller account.</p>
                     </div>
-                    <button className="px-8 py-3 bg-white text-neutral-900 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-neutral-100 transition-colors shadow-lg active:scale-95">
+                    <button
+                        onClick={() => navigate('/support')}
+                        className="px-8 py-3 bg-white text-neutral-900 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-neutral-100 transition-colors shadow-lg active:scale-95"
+                    >
                         Browse FAQs
                     </button>
                 </div>

@@ -170,6 +170,25 @@ function App() {
     });
   }, []);
 
+  // Preload support page chunk so it opens instantly from login screens.
+  useEffect(() => {
+    const preloadSupport = () => {
+      startTransition(() => {
+        import("./modules/seller/pages/HelpSupport").catch(() => {
+          // Ignore preload errors; route lazy load will still work.
+        });
+      });
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const idleId = (window as any).requestIdleCallback(preloadSupport);
+      return () => (window as any).cancelIdleCallback?.(idleId);
+    }
+
+    const timeoutId = window.setTimeout(preloadSupport, 700);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
   return (
     <ErrorBoundary>
       <LoadingProvider>
@@ -265,6 +284,14 @@ function App() {
                             element={
                               <Suspense fallback={<IconLoader forceShow />}>
                                 <PrivacyPolicy />
+                              </Suspense>
+                            }
+                          />
+                          <Route
+                            path="/help-support"
+                            element={
+                              <Suspense fallback={<IconLoader forceShow />}>
+                                <SellerHelp />
                               </Suspense>
                             }
                           />
