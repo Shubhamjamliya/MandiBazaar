@@ -80,17 +80,6 @@ export default function DeliveryLogin() {
       <div className="absolute top-20 left-10 w-72 h-72 bg-green-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
       <div className="absolute bottom-20 right-10 w-72 h-72 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
       
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="absolute top-6 left-6 z-10 w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-gray-50 transition-all active:scale-95"
-        aria-label="Back"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
       <button
         onClick={() => navigate('/help-support')}
         className="absolute top-6 right-6 z-10 px-4 h-11 rounded-full bg-white shadow-lg flex items-center justify-center gap-2 hover:bg-gray-50 transition-all active:scale-95 text-sm font-bold text-emerald-700"

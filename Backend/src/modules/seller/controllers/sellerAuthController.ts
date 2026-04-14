@@ -114,6 +114,14 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     mobile,
     email,
     storeName,
+    panCard,
+    taxName,
+    taxNumber,
+    accountName,
+    bankName,
+    branch,
+    accountNumber,
+    ifsc,
     category,
     address,
     city,
@@ -121,11 +129,14 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   } = req.body;
 
   // Validation (password removed - sellers don't need password during signup)
-  if (!sellerName || !mobile || !email || !storeName || !category) {
+  if (
+    !sellerName || !mobile || !email || !storeName || !category ||
+    !panCard || !taxName || !taxNumber || !accountName || !bankName || !branch || !accountNumber || !ifsc
+  ) {
     return res.status(400).json({
       success: false,
       message:
-        "Required fields (Name, Mobile, Email, Store Name, Category) must be provided",
+        "Required fields (seller details, KYC details, and bank details) must be provided",
     });
   }
 
@@ -134,6 +145,31 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       success: false,
       message: "Valid 10-digit mobile number is required",
     });
+  }
+
+  const normalizedPan = String(panCard).trim().toUpperCase();
+  const normalizedTaxName = String(taxName).trim();
+  const normalizedTaxNumber = String(taxNumber).trim().toUpperCase();
+  const normalizedAccountName = String(accountName).trim();
+  const normalizedBankName = String(bankName).trim();
+  const normalizedBranch = String(branch).trim();
+  const normalizedAccountNumber = String(accountNumber).trim();
+  const normalizedIfsc = String(ifsc).trim().toUpperCase();
+
+  if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(normalizedPan)) {
+    return res.status(400).json({ success: false, message: "Invalid PAN format" });
+  }
+  if (!/^[A-Za-z][A-Za-z\s.'-]{1,49}$/.test(normalizedTaxName)) {
+    return res.status(400).json({ success: false, message: "Invalid tax name format" });
+  }
+  if (!/^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{6,20}$/.test(normalizedTaxNumber)) {
+    return res.status(400).json({ success: false, message: "Invalid tax number format" });
+  }
+  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(normalizedIfsc)) {
+    return res.status(400).json({ success: false, message: "Invalid IFSC format" });
+  }
+  if (!/^[0-9]{8,20}$/.test(normalizedAccountNumber)) {
+    return res.status(400).json({ success: false, message: "Invalid account number" });
   }
 
   // Validate location is provided
@@ -210,11 +246,19 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     email,
     storeName,
     category,
+    panCard: normalizedPan,
+    taxName: normalizedTaxName,
+    taxNumber: normalizedTaxNumber,
+    accountName: normalizedAccountName,
+    bankName: normalizedBankName,
+    branch: normalizedBranch,
+    accountNumber: normalizedAccountNumber,
+    ifsc: normalizedIfsc,
     ...(serviceableArea && { serviceableArea }),
     location: locationObj, // Optimized location
     serviceRadiusKm,
     status: "Pending",
-    requireProductApproval: false,
+    requireProductApproval: true,
     viewCustomerDetails: false,
     commission: 0,
     balance: 0,

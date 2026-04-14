@@ -82,27 +82,6 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-green-50 flex flex-col items-center justify-center px-4 py-8">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="absolute top-4 left-4 z-10 w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center hover:bg-neutral-50 transition-colors"
-        aria-label="Back">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg">
-          <path
-            d="M15 18L9 12L15 6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
       <button
         onClick={() => navigate('/help-support')}
         className="absolute top-4 right-4 z-10 px-3.5 h-10 rounded-full bg-white shadow-md flex items-center justify-center gap-1.5 hover:bg-neutral-50 transition-colors text-xs font-bold text-emerald-700"
@@ -240,7 +219,7 @@ export default function AdminLogin() {
               </button>
               {' '}and{' '}
               <button 
-                onClick={() => navigate('/privacy-policy')}
+                onClick={() => navigate('/terms-of-service')}
                 className="text-emerald-600 font-bold hover:underline"
               >
                 Terms of Service
@@ -252,7 +231,22 @@ export default function AdminLogin() {
 
       {/* Footer Text */}
       <p className="mt-6 text-xs text-neutral-500 text-center max-w-md">
-        By continuing, you agree to Mandi Bazaar's Terms of Service and Privacy Policy
+        By continuing, you agree to Mandi Bazaar's{' '}
+        <button
+          type="button"
+          onClick={() => navigate('/terms-of-service')}
+          className="text-teal-600 hover:text-teal-700 font-semibold"
+        >
+          Terms of Service
+        </button>
+        {' '}and{' '}
+        <button
+          type="button"
+          onClick={() => navigate('/privacy-policy')}
+          className="text-teal-600 hover:text-teal-700 font-semibold"
+        >
+          Privacy Policy
+        </button>
       </p>
     </div>
   );

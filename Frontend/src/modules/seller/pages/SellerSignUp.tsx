@@ -141,6 +141,29 @@ export default function SellerSignUp() {
     });
   }, [setFormData]);
 
+  const resolveAreaName = useCallback(async (lat: number, lng: number): Promise<{ label: string; city?: string }> => {
+    try {
+      const googleMaps = (window as any)?.google?.maps;
+      if (googleMaps?.Geocoder) {
+        const geocoder = new googleMaps.Geocoder();
+        const result = await geocoder.geocode({ location: { lat, lng } });
+        const first = result?.results?.[0];
+
+        if (first) {
+          const cityComp = first.address_components?.find((c: any) =>
+            c.types?.includes('locality') || c.types?.includes('administrative_area_level_2')
+          );
+
+          return { label: first.formatted_address, city: cityComp?.long_name };
+        }
+      }
+    } catch {
+      // Ignore and fallback below.
+    }
+
+    return { label: 'Current Location' };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -205,22 +228,62 @@ export default function SellerSignUp() {
       return;
     }
 
-    if (panCard && !panRegex.test(panCard)) {
+    if (!panCard) {
+      setError('Please enter PAN card number');
+      return;
+    }
+
+    if (!panRegex.test(panCard)) {
       setError('Pan card should be in format( ex- ASDFR1234R)');
       return;
     }
 
-    if (taxName && !taxNameRegex.test(taxName)) {
+    if (!taxName) {
+      setError('Please enter tax name');
+      return;
+    }
+
+    if (!taxNameRegex.test(taxName)) {
       setError('Tax name should be in format(ex- only contain alphabet)');
       return;
     }
 
-    if (taxNumber && !taxNumberRegex.test(taxNumber)) {
+    if (!taxNumber) {
+      setError('Please enter tax number');
+      return;
+    }
+
+    if (!taxNumberRegex.test(taxNumber)) {
       setError('Tax no. should be in format(ex- contains number + alphabet)');
       return;
     }
 
-    if (ifsc && !ifscRegex.test(ifsc)) {
+    if (!formData.accountName.trim()) {
+      setError('Please enter account holder name');
+      return;
+    }
+
+    if (!formData.bankName.trim()) {
+      setError('Please enter bank name');
+      return;
+    }
+
+    if (!formData.branch.trim()) {
+      setError('Please enter branch name');
+      return;
+    }
+
+    if (!/^[0-9]{8,20}$/.test(formData.accountNumber.trim())) {
+      setError('Account number should be 8 to 20 digits');
+      return;
+    }
+
+    if (!ifsc) {
+      setError('Please enter IFSC code');
+      return;
+    }
+
+    if (!ifscRegex.test(ifsc)) {
       setError('IFSC Code should be in format(ex- HDFC0001015)');
       return;
     }
@@ -252,6 +315,14 @@ export default function SellerSignUp() {
         mobile: formData.mobile,
         email,
         storeName: formData.storeName,
+        panCard,
+        taxName,
+        taxNumber,
+        accountName: formData.accountName.trim(),
+        bankName: formData.bankName.trim(),
+        branch: formData.branch.trim(),
+        accountNumber: formData.accountNumber.trim(),
+        ifsc,
         category: formData.categories[0], // primary
         categories: formData.categories,
         address: formData.address || formData.searchLocation,
@@ -498,15 +569,16 @@ export default function SellerSignUp() {
                             (position) => {
                               const lat = position.coords.latitude;
                               const lng = position.coords.longitude;
-                              const locationStr = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-                              setFormData(prev => ({
+                              resolveAreaName(lat, lng).then(({ label, city }) => {
+                                setFormData(prev => ({
                                 ...prev,
                                 latitude: lat.toString(),
                                 longitude: lng.toString(),
-                                searchLocation: locationStr,
-                                address: prev.address || locationStr // Ensure address is not empty
+                                searchLocation: label,
+                                address: label,
+                                city: city || prev.city,
                               }));
-                              setLoading(false);
+                              }).finally(() => setLoading(false));
                             },
                             (error) => {
                               console.error(error);
@@ -540,7 +612,7 @@ export default function SellerSignUp() {
                         onLocationSelect={handleLocationSelect}
                       />
                       <p className="mt-1 text-xs text-neutral-500 text-center">
-                        Selected Coordinates: {formData.latitude}, {formData.longitude}
+                        Selected Area: {formData.searchLocation || formData.address || 'Current Location'}
                       </p>
                     </div>
                   ) : (
@@ -602,58 +674,118 @@ export default function SellerSignUp() {
 
               </div>
 
-              {/* Optional Fields Section */}
+              {/* Business & KYC Section */}
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold text-neutral-700 border-b pb-2">Optional Information</h3>
+                <h3 className="text-sm font-semibold text-neutral-700 border-b pb-2">Business & KYC Information</h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">PAN Card</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">PAN Card <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       name="panCard"
                       value={formData.panCard}
                       onChange={handleInputChange}
                       placeholder="PAN Card Number"
+                      required
                       className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
                       disabled={loading}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Tax Name</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Tax Name <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       name="taxName"
                       value={formData.taxName}
                       onChange={handleInputChange}
                       placeholder="Tax Name"
+                      required
                       className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
                       disabled={loading}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Tax Number</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Tax Number <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       name="taxNumber"
                       value={formData.taxNumber}
                       onChange={handleInputChange}
                       placeholder="Tax Number"
+                      required
                       className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
                       disabled={loading}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">IFSC Code</label>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Account Holder Name <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      name="accountName"
+                      value={formData.accountName}
+                      onChange={handleInputChange}
+                      placeholder="Account holder name"
+                      required
+                      className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Bank Name <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      name="bankName"
+                      value={formData.bankName}
+                      onChange={handleInputChange}
+                      placeholder="Bank name"
+                      required
+                      className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Branch <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      name="branch"
+                      value={formData.branch}
+                      onChange={handleInputChange}
+                      placeholder="Branch"
+                      required
+                      className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Account Number <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      name="accountNumber"
+                      value={formData.accountNumber}
+                      onChange={handleInputChange}
+                      placeholder="Account number"
+                      required
+                      className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">IFSC Code <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       name="ifsc"
                       value={formData.ifsc}
                       onChange={handleInputChange}
                       placeholder="IFSC Code"
+                      required
                       className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
                       disabled={loading}
                     />
@@ -748,7 +880,22 @@ export default function SellerSignUp() {
 
       {/* Footer Text */}
       <p className="mt-6 text-xs text-neutral-500 text-center max-w-md">
-        By continuing, you agree to Mandi Bazaar's Terms of Service and Privacy Policy
+        By continuing, you agree to Mandi Bazaar's{' '}
+        <button
+          type="button"
+          onClick={() => navigate('/terms-of-service')}
+          className="text-teal-600 hover:text-teal-700 font-semibold"
+        >
+          Terms of Service
+        </button>
+        {' '}and{' '}
+        <button
+          type="button"
+          onClick={() => navigate('/privacy-policy')}
+          className="text-teal-600 hover:text-teal-700 font-semibold"
+        >
+          Privacy Policy
+        </button>
       </p>
     </div>
   );

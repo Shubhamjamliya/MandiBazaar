@@ -90,17 +90,6 @@ export default function SellerLogin() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-teal-200/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
       </div>
 
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="absolute top-6 left-6 z-10 w-11 h-11 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white hover:scale-105 transition-all duration-200 border border-green-100"
-        aria-label="Back"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M15 18L9 12L15 6" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
       <button
         onClick={() => navigate('/help-support')}
         className="absolute top-6 right-6 z-10 px-4 h-11 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center gap-2 hover:bg-white hover:scale-105 transition-all duration-200 border border-green-100 text-sm font-bold text-emerald-700"
@@ -318,7 +307,7 @@ export default function SellerLogin() {
         <div className="mt-6 text-[11px] text-gray-500 text-center px-4 leading-relaxed">
           By continuing, you agree to Mandi Bazaar's{' '}
           <button 
-            onClick={() => navigate('/privacy-policy')}
+            onClick={() => navigate('/terms-of-service')}
             className="text-emerald-600 font-bold hover:underline"
           >
             Terms of Service

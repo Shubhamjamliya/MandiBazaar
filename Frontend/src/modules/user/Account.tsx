@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getProfile, CustomerProfile } from '../../services/api/customerService';
+import { getProfile, CustomerProfile, updateProfile } from '../../services/api/customerService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Account() {
@@ -11,8 +11,16 @@ export default function Account() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showGstModal, setShowGstModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [gstNumber, setGstNumber] = useState('');
   const [gstError, setGstError] = useState('');
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    dateOfBirth: '',
+  });
+  const [editError, setEditError] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -50,6 +58,58 @@ export default function Account() {
   const handleLogout = () => {
     authLogout();
     navigate('/login');
+  };
+
+  const openEditModal = () => {
+    const dateValue = profile?.dateOfBirth
+      ? new Date(profile.dateOfBirth).toISOString().split('T')[0]
+      : '';
+
+    setEditForm({
+      name: profile?.name || user?.name || '',
+      email: profile?.email || user?.email || '',
+      dateOfBirth: dateValue,
+    });
+    setEditError('');
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const name = editForm.name.trim();
+    const email = editForm.email.trim();
+
+    if (!name) {
+      setEditError('Please enter your name.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      setEditError('Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      setIsSavingProfile(true);
+      setEditError('');
+
+      const response = await updateProfile({
+        name,
+        email,
+        dateOfBirth: editForm.dateOfBirth || undefined,
+      });
+
+      if (response.success) {
+        setProfile(response.data);
+        setShowEditModal(false);
+      }
+    } catch (err: any) {
+      setEditError(err?.response?.data?.message || 'Failed to update profile. Please try again.');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleGstSubmit = (e: React.FormEvent) => {
@@ -162,7 +222,11 @@ export default function Account() {
                 {displayName.charAt(0)}
               </span>
             </div>
-            <button className="absolute bottom-1 right-1 w-8 h-8 bg-white rounded-full border-2 border-emerald-500 text-emerald-500 flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-90">
+            <button
+              onClick={openEditModal}
+              className="absolute bottom-1 right-1 w-8 h-8 bg-white rounded-full border-2 border-emerald-500 text-emerald-500 flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-90"
+              aria-label="Edit profile"
+            >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
             </button>
           </div>
@@ -322,6 +386,89 @@ export default function Account() {
                     className="w-full rounded-2xl bg-emerald-500 text-white font-bold py-4 hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20 active:scale-[0.98]"
                   >
                     Save Details
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showEditModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-neutral-900/40 backdrop-blur-md"
+              onClick={() => !isSavingProfile && setShowEditModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-[40px] shadow-2xl p-8 pt-12 overflow-hidden"
+            >
+              <button
+                onClick={() => setShowEditModal(false)}
+                disabled={isSavingProfile}
+                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-neutral-50 flex items-center justify-center text-neutral-400 hover:text-neutral-900 transition-colors disabled:opacity-50"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+
+              <div className="text-center relative">
+                <div className="mx-auto mb-6 w-20 h-20 rounded-3xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                </div>
+                <h3 className="text-2xl font-bold text-neutral-900 mb-2">Edit Profile</h3>
+                <p className="text-sm text-neutral-500 mb-8">Update your account details.</p>
+
+                <form onSubmit={handleEditSubmit} className="space-y-4 text-left">
+                  <div>
+                    <label className="text-xs font-semibold text-neutral-500">Full Name</label>
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                      className="mt-1 w-full bg-neutral-50 rounded-2xl border-none px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-emerald-500/10 focus:bg-white transition-all placeholder:text-neutral-300"
+                      placeholder="Enter your full name"
+                      disabled={isSavingProfile}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-neutral-500">Email</label>
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+                      className="mt-1 w-full bg-neutral-50 rounded-2xl border-none px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-emerald-500/10 focus:bg-white transition-all placeholder:text-neutral-300"
+                      placeholder="name@example.com"
+                      disabled={isSavingProfile}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-neutral-500">Date of Birth</label>
+                    <input
+                      type="date"
+                      value={editForm.dateOfBirth}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
+                      className="mt-1 w-full bg-neutral-50 rounded-2xl border-none px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-emerald-500/10 focus:bg-white transition-all"
+                      disabled={isSavingProfile}
+                    />
+                  </div>
+
+                  {editError && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{editError}</p>}
+
+                  <button
+                    type="submit"
+                    disabled={isSavingProfile}
+                    className="w-full rounded-2xl bg-emerald-500 text-white font-bold py-4 hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20 active:scale-[0.98] disabled:opacity-60"
+                  >
+                    {isSavingProfile ? 'Saving...' : 'Save Changes'}
                   </button>
                 </form>
               </div>

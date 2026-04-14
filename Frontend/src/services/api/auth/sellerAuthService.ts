@@ -29,6 +29,14 @@ export interface RegisterData {
   mobile: string;
   email: string;
   storeName: string;
+  panCard: string;
+  taxName: string;
+  taxNumber: string;
+  accountName: string;
+  bankName: string;
+  branch: string;
+  accountNumber: string;
+  ifsc: string;
   category?: string; // primary category (optional if categories array provided)
   categories: string[]; // multiple categories
   address: string;

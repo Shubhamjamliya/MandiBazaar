@@ -55,6 +55,7 @@ const ToyStore = lazy(() => import("./modules/user/ToyStore"));
 const HobbyStore = lazy(() => import("./modules/user/HobbyStore"));
 const StorePage = lazy(() => import("./modules/user/StorePage"));
 const PrivacyPolicy = lazy(() => import("./modules/user/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./modules/user/TermsOfService"));
 // Lazy load delivery routes
 const DeliveryLayout = lazy(() => import("./modules/delivery/components/DeliveryLayout"));
 const DeliveryDashboard = lazy(() => import("./modules/delivery/pages/DeliveryDashboard"));
@@ -283,7 +284,7 @@ function App() {
                             path="/terms-of-service"
                             element={
                               <Suspense fallback={<IconLoader forceShow />}>
-                                <PrivacyPolicy />
+                                <TermsOfService />
                               </Suspense>
                             }
                           />

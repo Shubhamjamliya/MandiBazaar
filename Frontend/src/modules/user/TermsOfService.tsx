@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getPublicSettings } from '../../services/api/customerHomeService';
 import ContentLoader from '../../components/loaders/ContentLoader';
 
-export default function PrivacyPolicy() {
+export default function TermsOfService() {
   const navigate = useNavigate();
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
@@ -13,10 +13,10 @@ export default function PrivacyPolicy() {
       try {
         const response = await getPublicSettings();
         if (response.success) {
-          setContent(response.data?.privacyPolicy || 'Privacy policy details...');
+          setContent(response.data?.customerAppPolicy || 'Terms of service details...');
         }
       } catch (error) {
-        console.error('Error fetching privacy policy:', error);
+        console.error('Error fetching terms of service:', error);
       } finally {
         setLoading(false);
       }
@@ -37,17 +37,17 @@ export default function PrivacyPolicy() {
           >
             ←
           </button>
-          <h1 className="text-lg font-black text-neutral-900 tracking-tight">Privacy Policy</h1>
+          <h1 className="text-lg font-black text-neutral-900 tracking-tight">Terms of Service</h1>
           <div className="w-10" />
         </div>
       </div>
 
       <div className="max-w-xl mx-auto px-4 py-8">
-        <div className="bg-emerald-600 rounded-[40px] p-8 text-white shadow-xl shadow-emerald-600/20 mb-8 overflow-hidden relative">
+        <div className="bg-teal-600 rounded-[40px] p-8 text-white shadow-xl shadow-teal-600/20 mb-8 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-          <h2 className="text-2xl font-black mb-2 tracking-tight">Your Privacy Matters</h2>
-          <p className="text-emerald-50 text-sm font-medium opacity-80 leading-relaxed">
-            This page explains how we collect, use, and protect your information.
+          <h2 className="text-2xl font-black mb-2 tracking-tight">Terms & Conditions</h2>
+          <p className="text-teal-50 text-sm font-medium opacity-80 leading-relaxed">
+            Please review the rules and conditions for using Mandi Bazaar services.
           </p>
         </div>
 

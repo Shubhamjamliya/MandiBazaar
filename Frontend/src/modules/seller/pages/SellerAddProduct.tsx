@@ -61,7 +61,7 @@ export default function SellerAddProduct() {
   const [sellerStatus, setSellerStatus] = useState<string | undefined>(user?.status);
 
   // ── Selling unit mode ──────────────────────────────────────────────────────
-  const [sellingUnit, setSellingUnit] = useState<"weight" | "quantity">("quantity");
+  const [sellingUnit, setSellingUnit] = useState<"weight" | "quantity">("weight");
   const [pricePerKg, setPricePerKg] = useState<string>("");
   const [weightVariants, setWeightVariants] = useState<WeightVariant[]>(
     buildDefaultWeightVariants(0)
@@ -259,8 +259,8 @@ export default function SellerAddProduct() {
               hsnCode: product.hsnCode || "",
               gstPercentage: (product.gstPercentage || 0).toString(),
             });
-            const su = (product as any).sellingUnit || "quantity";
-            setSellingUnit(su);
+            const su = (product as any).sellingUnit || "weight";
+            setSellingUnit(su === "weight" ? "weight" : "weight");
             if (su === "weight") {
               setPricePerKg(String((product as any).pricePerKg || ""));
 
@@ -428,7 +428,8 @@ export default function SellerAddProduct() {
       const enabled = weightVariants.filter((v) => v.isEnabled);
       if (!enabled.length) { setUploadError("Enable at least one weight variant."); return; }
     } else {
-      if (!variations.length) { setUploadError("Please add at least one product variation."); return; }
+      setUploadError("By quantity mode has been removed. Please use weight variants.");
+      return;
     }
 
     setUploading(true);
@@ -456,10 +457,6 @@ export default function SellerAddProduct() {
         publish: formData.publish === "Yes",
         popular: formData.popular === "Yes",
         dealOfDay: formData.dealOfDay === "Yes",
-        seoTitle: formData.seoTitle || undefined,
-        seoKeywords: formData.seoKeywords || undefined,
-        seoImageAlt: formData.seoImageAlt || undefined,
-        seoDescription: formData.seoDescription || undefined,
         smallDescription: formData.smallDescription || undefined,
         tags: tagsArray,
         manufacturer: formData.manufacturer || undefined,
@@ -467,7 +464,6 @@ export default function SellerAddProduct() {
         taxId: formData.tax || undefined,
         isReturnable: formData.isReturnable === "Yes",
         maxReturnDays: formData.maxReturnDays ? parseInt(formData.maxReturnDays) : undefined,
-        totalAllowedQuantity: parseInt(formData.totalAllowedQuantity || "10"),
         fssaiLicNo: fssaiLicNo || undefined,
         mainImageUrl: mainImageUrl || undefined,
         galleryImageUrls,
@@ -475,19 +471,10 @@ export default function SellerAddProduct() {
         shopId: formData.isShopByStoreOnly === "Yes" && formData.shopId ? formData.shopId : undefined,
         hsnCode: hsnCode || undefined,
         gstPercentage: parseFloat(formData.gstPercentage) || 0,
-        sellingUnit,
-        ...(sellingUnit === "weight"
-          ? {
-            pricePerKg: parseFloat(pricePerKg) || 0,
-            weightVariants: weightVariants.filter(v => v.isEnabled),
-            variations: []
-          }
-          : {
-            variations,
-            variationType: formData.variationType || undefined,
-            weightVariants: [],
-            pricePerKg: 0
-          }),
+        sellingUnit: "weight",
+        pricePerKg: parseFloat(pricePerKg) || 0,
+        weightVariants: weightVariants.filter(v => v.isEnabled),
+        variations: [],
       };
 
       const response = id ? await updateProduct(id, productData) : await createProduct(productData);
@@ -597,7 +584,6 @@ export default function SellerAddProduct() {
                 <div className="flex gap-3">
                   {[
                     { mode: "weight" as const, emoji: "⚖️", label: "By Weight", sub: "KG / GM variants" },
-                    { mode: "quantity" as const, emoji: "📦", label: "By Quantity", sub: "per unit / piece" },
                   ].map(({ mode, emoji, label, sub }) => (
                     <button
                       key={mode}
@@ -790,7 +776,7 @@ export default function SellerAddProduct() {
               )}
 
               {/* ── QUANTITY MODE ────────────────────────────────────────── */}
-              {sellingUnit === "quantity" && (
+              {false && sellingUnit === "quantity" && (
                 <div className="space-y-4">
                   {/* Add Variation Row */}
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
@@ -867,7 +853,7 @@ export default function SellerAddProduct() {
           </div>
 
           {/* ── SEO ────────────────────────────────────────────────── */}
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
+          {false && <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
             <div className={sectionHead}><h2 className="text-lg font-semibold">SEO Content</h2></div>
             <div className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -889,10 +875,10 @@ export default function SellerAddProduct() {
                 <textarea name="seoDescription" value={formData.seoDescription} onChange={handleChange} placeholder="Meta description" rows={3} className={`${inputCls} resize-none`} />
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* ── Other Details ─────────────────────────────────────── */}
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
+          {false && <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
             <div className={sectionHead}><h2 className="text-lg font-semibold">Other Details</h2></div>
             <div className="p-4 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -948,7 +934,7 @@ export default function SellerAddProduct() {
                 </div>
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* ── Images ──────────────────────────────────────────────── */}
           <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
