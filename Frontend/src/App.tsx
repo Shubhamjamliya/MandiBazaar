@@ -185,8 +185,8 @@ function App() {
       return () => (window as any).cancelIdleCallback?.(idleId);
     }
 
-    const timeoutId = window.setTimeout(preloadSupport, 700);
-    return () => window.clearTimeout(timeoutId);
+    const timeoutId = setTimeout(preloadSupport, 700);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   return (
