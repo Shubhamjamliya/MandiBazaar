@@ -51,11 +51,30 @@ export default function DeliveryDashboard() {
     };
 
     fetchStats();
-  }, []);
+    const intervalId = window.setInterval(fetchStats, 30000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchStats();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [navigate]);
 
   useEffect(() => {
     const fetchTaskNotifications = async () => {
       try {
+        if (deliveryStatus !== 'Active') {
+          setTaskNotifications([]);
+          return;
+        }
+
         const data = await getNotifications();
         const unreadTaskNotifications = (Array.isArray(data) ? data : [])
           .filter((notification: any) => {
@@ -77,7 +96,7 @@ export default function DeliveryDashboard() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, []);
+  }, [deliveryStatus]);
 
   const handleOpenTaskNotification = async (notification: DeliveryNotificationItem) => {
     try {
@@ -373,7 +392,7 @@ export default function DeliveryDashboard() {
           </div>
         )}
 
-        {taskNotifications.length > 0 && (
+        {deliveryStatus === "Active" && taskNotifications.length > 0 && (
           <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-orange-900">New Task Request</h3>

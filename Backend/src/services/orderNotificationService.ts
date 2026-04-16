@@ -68,6 +68,7 @@ export async function findAvailableDeliveryBoys(): Promise<mongoose.Types.Object
 
         const deliveryBoys = await Delivery.find({
             isOnline: true,
+            status: 'Active',
             // Check cash limit
             $expr: {
                 $lt: [

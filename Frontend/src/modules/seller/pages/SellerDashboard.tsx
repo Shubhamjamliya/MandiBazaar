@@ -433,7 +433,9 @@ export default function SellerDashboard() {
             <div key={order.id} className="p-4 active:bg-gray-50 transition-colors">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-gray-800">#{order.id}</span>
+                  <span className="text-sm font-bold text-gray-800">
+                    #{order.orderNumber || order.id}
+                  </span>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(order.status)}`}>
                     {order.status}
                   </span>

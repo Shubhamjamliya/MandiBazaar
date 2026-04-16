@@ -352,22 +352,26 @@ export default function Checkout() {
   const subtotalBeforeCoupon = discountedTotal + handlingCharge + deliveryCharge;
 
   // Local calculation for immediate feedback, relying on backend validation on Apply
-  let currentCouponDiscount = 0;
+  let localCouponDiscount = 0;
   if (selectedCoupon) {
     // Logic mirrors backend for UI update purposes
     if (selectedCoupon.minOrderValue && subtotalBeforeCoupon < selectedCoupon.minOrderValue) {
       // Invalid now
     } else {
       if (selectedCoupon.discountType === 'percentage') {
-        currentCouponDiscount = Math.round((subtotalBeforeCoupon * selectedCoupon.discountValue) / 100);
-        if (selectedCoupon.maxDiscountAmount && currentCouponDiscount > selectedCoupon.maxDiscountAmount) {
-          currentCouponDiscount = selectedCoupon.maxDiscountAmount;
+        localCouponDiscount = Math.round((subtotalBeforeCoupon * selectedCoupon.discountValue) / 100);
+        if (selectedCoupon.maxDiscountAmount && localCouponDiscount > selectedCoupon.maxDiscountAmount) {
+          localCouponDiscount = selectedCoupon.maxDiscountAmount;
         }
       } else {
-        currentCouponDiscount = selectedCoupon.discountValue;
+        localCouponDiscount = selectedCoupon.discountValue;
       }
     }
   }
+
+  const currentCouponDiscount = selectedCoupon
+    ? Math.max(0, Math.min(subtotalBeforeCoupon, validatedDiscount || localCouponDiscount))
+    : 0;
 
   const giftPackagingFee = giftPackaging ? 30 : 0;
   const grandTotal = Math.max(0, discountedTotal + handlingCharge + deliveryCharge + giftPackagingFee - currentCouponDiscount);

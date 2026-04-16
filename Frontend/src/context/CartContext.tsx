@@ -29,7 +29,7 @@ interface AddToCartEvent {
 interface CartContextType {
   cart: Cart;
   addToCart: (product: Product, sourceElement?: HTMLElement | null) => Promise<void>;
-  removeFromCart: (productId: string) => Promise<void>;
+  removeFromCart: (productId: string, variantId?: string, variantTitle?: string) => Promise<void>;
   updateQuantity: (productId: string, quantity: number, variantId?: string, variantTitle?: string) => Promise<void>;
   clearCart: () => Promise<void>;
   refreshCart: (latitude?: number, longitude?: number) => Promise<void>;
@@ -342,15 +342,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const removeFromCart = async (productId: string) => {
-    if (pendingOperationsRef.current.has(productId)) {
+  const removeFromCart = async (productId: string, variantId?: string, variantTitle?: string) => {
+    const operationKey = variantId ? `${productId}-${variantId}` : (variantTitle ? `${productId}-${variantTitle}` : productId);
+    if (pendingOperationsRef.current.has(operationKey)) {
       return;
     }
-    pendingOperationsRef.current.add(productId);
+    pendingOperationsRef.current.add(operationKey);
 
-    const itemToRemove = items.find(item => item?.product && (item.product.id === productId || item.product._id === productId));
+    const itemToRemove = items.find(item => {
+      if (!item?.product) return false;
+      const itemProductId = item.product.id || item.product._id;
+      if (itemProductId !== productId) return false;
+
+      if (variantId || variantTitle) {
+        const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
+        const itemVariantTitle = (item.product as any).variantTitle || (item.product as any).pack;
+        return itemVariantId === variantId || itemVariantTitle === variantTitle || item.variant === variantId;
+      }
+
+      return true;
+    });
     const previousItems = [...items];
-    setItems((prevItems) => prevItems.filter((item) => item?.product && item.product.id !== productId && item.product._id !== productId));
+    setItems((prevItems) => prevItems.filter((item) => {
+      if (!item?.product) return false;
+      const itemProductId = item.product.id || item.product._id;
+      if (itemProductId !== productId) return true;
+
+      if (variantId || variantTitle) {
+        const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
+        const itemVariantTitle = (item.product as any).variantTitle || (item.product as any).pack;
+        return !(itemVariantId === variantId || itemVariantTitle === variantTitle || item.variant === variantId);
+      }
+
+      return false;
+    }));
 
     if (isAuthenticated && user?.userType === 'Customer' && itemToRemove?.id) {
       try {
@@ -370,10 +395,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         console.error("Remove from cart failed", error);
         setItems(previousItems);
       } finally {
-        pendingOperationsRef.current.delete(productId);
+        pendingOperationsRef.current.delete(operationKey);
       }
     } else {
-      pendingOperationsRef.current.delete(productId);
+      pendingOperationsRef.current.delete(operationKey);
     }
   };
 
@@ -381,7 +406,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const sanitizedQty = Math.max(parseInt(String(quantity), 10) || 0, 0);
 
     if (sanitizedQty <= 0) {
-      removeFromCart(productId);
+      removeFromCart(productId, variantId, variantTitle);
       return;
     }
 

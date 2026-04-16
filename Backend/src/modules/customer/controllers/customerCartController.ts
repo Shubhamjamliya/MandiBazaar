@@ -39,17 +39,15 @@ const calculateItemPrice = (product: any, variationSelector: any) => {
         );
     }
 
-    let finalPrice = weightVariant?.price || variation?.price || product.price || 0;
-
+    // Keep price precedence consistent with frontend and order creation.
     // Priority: Weight Variant Price -> Variation Discount -> Product Discount -> Variation Price -> Product Price
-    if (weightVariant && weightVariant.price > 0) {
-        finalPrice = weightVariant.price;
-    }
-    if (variation?.discPrice && variation.discPrice > 0) {
-        finalPrice = variation.discPrice;
-    } else if (product.discPrice && product.discPrice > 0) {
-        finalPrice = product.discPrice;
-    }
+    const finalPrice = (weightVariant?.price && weightVariant.price > 0)
+        ? weightVariant.price
+        : (variation?.discPrice && variation.discPrice > 0)
+            ? variation.discPrice
+            : (product.discPrice && product.discPrice > 0)
+                ? product.discPrice
+                : (variation?.price || product.price || 0);
 
     console.log(`[DEBUG Price] VarId: ${variationId}, Found: ${!!variation}, ProdDisc: ${product.discPrice}, Final: ${finalPrice}`);
     return finalPrice;
@@ -63,11 +61,12 @@ const calculateCartTotal = async (cartId: any, nearbySellerIds: mongoose.Types.O
     });
 
     let total = 0;
+    const shouldApplyLocationFilter = nearbySellerIds.length > 0;
     for (const item of items) {
         const product = item.product as any;
         if (product && product.status === 'Active' && product.publish) {
-            // Check if seller is in range
-            const isAvailable = nearbySellerIds.some(id => id.toString() === product.seller.toString());
+            // If location is available, include only nearby sellers; otherwise include all active items.
+            const isAvailable = !shouldApplyLocationFilter || nearbySellerIds.some(id => id.toString() === product.seller.toString());
             if (isAvailable) {
                 const price = calculateItemPrice(product, item.variation);
                 total += price * item.quantity;
@@ -368,15 +367,12 @@ export const updateCartItem = async (req: Request, res: Response) => {
         // Parse location
         const userLat = latitude ? parseFloat(latitude as string) : null;
         const userLng = longitude ? parseFloat(longitude as string) : null;
+        const hasValidLocation = userLat !== null && userLng !== null && !isNaN(userLat) && !isNaN(userLng);
 
-        if (userLat === null || userLng === null || isNaN(userLat) || isNaN(userLng)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Location is required to update cart'
-            });
+        let nearbySellerIds: mongoose.Types.ObjectId[] = [];
+        if (hasValidLocation) {
+            nearbySellerIds = await findSellersWithinRange(userLat, userLng);
         }
-
-        const nearbySellerIds = await findSellersWithinRange(userLat, userLng);
 
         const cart = await Cart.findOne({ customer: userId });
         if (!cart) {
@@ -390,7 +386,7 @@ export const updateCartItem = async (req: Request, res: Response) => {
 
         // Verify item is still available at location
         const product = cartItem.product as any;
-        const isAvailable = product && nearbySellerIds.some(id => id.toString() === product.seller.toString());
+        const isAvailable = product && (!hasValidLocation || nearbySellerIds.some(id => id.toString() === product.seller.toString()));
 
         if (!isAvailable) {
             return res.status(403).json({
@@ -418,7 +414,9 @@ export const updateCartItem = async (req: Request, res: Response) => {
 
         const filteredItems = (updatedCart?.items as any[] || []).filter(item => {
             const prod = item.product;
-            return prod && nearbySellerIds.some(id => id.toString() === (prod.seller?._id || prod.seller).toString());
+            if (!prod) return false;
+            if (!hasValidLocation) return true;
+            return nearbySellerIds.some(id => id.toString() === (prod.seller?._id || prod.seller).toString());
         });
 
         // Calculate fees

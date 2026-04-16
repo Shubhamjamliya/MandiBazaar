@@ -8,6 +8,17 @@ export default function Cart() {
   const { cart, updateQuantity, removeFromCart, clearCart } = useCart();
   const navigate = useNavigate();
 
+  const getVariantLabel = (item: any) => {
+    const selectedVariant = item?.variant || (item?.product as any)?.variantId || (item?.product as any)?.variantTitle;
+    if (typeof selectedVariant === 'string' && selectedVariant.startsWith('wv_')) {
+      return selectedVariant.replace('wv_', '');
+    }
+    if (typeof selectedVariant === 'string' && selectedVariant.trim()) {
+      return selectedVariant;
+    }
+    return item?.product?.pack || '';
+  };
+
   const deliveryFee = cart.total >= appConfig.freeDeliveryThreshold ? 0 : appConfig.deliveryFee;
   const platformFee = appConfig.platformFee;
   const totalAmount = cart.total + deliveryFee + platformFee;
@@ -54,6 +65,7 @@ export default function Cart() {
         {cart.items.map((item, index) => {
           const { displayPrice, mrp, hasDiscount } = calculateProductPrice(item.product, item.variant);
           const variantKey = item.variant || (item.product as any).variantId || (item.product as any).variantTitle || 'default';
+          const variantLabel = getVariantLabel(item);
           return (
             <div
               key={`${item.product.id || item.product._id}-${variantKey}-${index}`}
@@ -80,7 +92,9 @@ export default function Cart() {
                   <h3 className="font-semibold text-neutral-900 mb-1 md:mb-2 line-clamp-2 md:text-lg">
                     {item.product.name}
                   </h3>
-                  <p className="text-xs md:text-sm text-neutral-500 mb-2">{item.product.pack}</p>
+                  {variantLabel && (
+                    <p className="text-xs md:text-sm text-neutral-500 mb-2">Variant: {variantLabel}</p>
+                  )}
                   <div className="flex items-center gap-2 mb-3 md:mb-4">
                     <span className="text-base md:text-lg font-bold text-neutral-900">
                       ₹{displayPrice.toLocaleString('en-IN')}
@@ -123,7 +137,7 @@ export default function Cart() {
 
                 {/* Remove Button */}
                 <button
-                  onClick={() => removeFromCart(item.product.id)}
+                  onClick={() => removeFromCart(item.product.id, item.variant, (item.product as any).variantTitle || (item.product as any).pack)}
                   className="text-neutral-400 hover:text-red-600 transition-colors self-start"
                   aria-label="Remove item"
                 >
