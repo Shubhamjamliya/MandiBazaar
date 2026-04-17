@@ -48,6 +48,11 @@ export default function Account() {
     fetchProfile();
   }, [user]);
 
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Not set';
     const date = new Date(dateString);
@@ -289,7 +294,21 @@ export default function Account() {
             <MenuLink
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>}
               label="Legal & Policies"
-              onClick={() => navigate('/privacy-policy')}
+              onClick={() => navigate('/privacy-policy', { state: { from: '/account' } })}
+              helper={
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate('/support');
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded-full border border-emerald-200 hover:bg-emerald-100 transition-all"
+                  title="Need Help?"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-600">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </button>
+              }
             />
           </div>
         </div>
@@ -496,7 +515,7 @@ const SectionHeader = ({ title }: { title: string }) => (
   <h2 className="px-2 text-xs font-bold text-neutral-400 uppercase tracking-[0.15em]">{title}</h2>
 );
 
-const MenuLink = ({ icon, label, onClick, danger }: any) => (
+const MenuLink = ({ icon, label, onClick, danger, helper }: any) => (
   <button
     onClick={onClick}
     className="w-full flex items-center justify-between px-6 py-5 group hover:bg-neutral-50/50 transition-colors"
@@ -507,6 +526,9 @@ const MenuLink = ({ icon, label, onClick, danger }: any) => (
       </div>
       <span className={`text-[15px] font-bold ${danger ? 'text-red-500' : 'text-neutral-800'}`}>{label}</span>
     </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-200 group-hover:text-neutral-400 group-hover:translate-x-1 transition-all"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    <div className="flex items-center gap-2">
+      {helper}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-200 group-hover:text-neutral-400 group-hover:translate-x-1 transition-all"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </div>
   </button>
 );

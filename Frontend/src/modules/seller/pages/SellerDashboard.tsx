@@ -292,13 +292,29 @@ export default function SellerDashboard() {
             </div>
           </div>
           
-          {/* Notification Icon */}
-          <button className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+          {/* Location and Notification Buttons */}
+          <div className="flex items-center justify-between gap-3">
+            <button
+              onClick={() => navigate('/seller/account-settings?tab=store')}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all border border-white/20">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="12" cy="10" r="3" stroke="white" strokeWidth="2"/>
+              </svg>
+              <span className="text-xs font-semibold text-white truncate max-w-[120px]">{stats?.city || 'Set Location'}</span>
+            </button>
+            
+            {/* Notification Icon */}
+            <button 
+              onClick={() => navigate('/seller/notifications')}
+              className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-all relative"
+              title="View Notifications">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
         
         {/* 24/7 Support Badge and Shop Toggle */}
@@ -337,40 +353,52 @@ export default function SellerDashboard() {
       {/* Quick Stats Grid - Mobile App Style */}
       <div className="grid grid-cols-2 gap-3">
         {/* Products Card */}
-        <div className="bg-white rounded-2xl shadow-md p-4 active:scale-95 transition-transform">
+        <button 
+          onClick={() => navigate('/seller/product/list')}
+          className="bg-white rounded-2xl shadow-md p-4 active:scale-95 transition-transform hover:shadow-lg cursor-pointer text-left"
+        >
           <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center text-white shadow-lg mb-3">
             {productIcon}
           </div>
           <div className="text-2xl font-bold text-gray-800 mb-1">{stats.totalProduct}</div>
           <div className="text-xs text-gray-600 font-medium">Total Products</div>
-        </div>
+        </button>
 
         {/* Orders Card */}
-        <div className="bg-white rounded-2xl shadow-md p-4 active:scale-95 transition-transform">
+        <button 
+          onClick={() => navigate('/seller/orders')}
+          className="bg-white rounded-2xl shadow-md p-4 active:scale-95 transition-transform hover:shadow-lg cursor-pointer text-left"
+        >
           <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg mb-3">
             {ordersIcon}
           </div>
           <div className="text-2xl font-bold text-gray-800 mb-1">{stats.totalOrders}</div>
           <div className="text-xs text-gray-600 font-medium">Total Orders</div>
-        </div>
+        </button>
 
         {/* Completed Card */}
-        <div className="bg-white rounded-2xl shadow-md p-4 active:scale-95 transition-transform">
+        <button 
+          onClick={() => navigate('/seller/orders')}
+          className="bg-white rounded-2xl shadow-md p-4 active:scale-95 transition-transform hover:shadow-lg cursor-pointer text-left"
+        >
           <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center text-white shadow-lg mb-3">
             {completedOrdersIcon}
           </div>
           <div className="text-2xl font-bold text-gray-800 mb-1">{stats.completedOrders}</div>
           <div className="text-xs text-gray-600 font-medium">Completed</div>
-        </div>
+        </button>
 
         {/* Pending Card */}
-        <div className="bg-white rounded-2xl shadow-md p-4 active:scale-95 transition-transform">
+        <button 
+          onClick={() => navigate('/seller/orders')}
+          className="bg-white rounded-2xl shadow-md p-4 active:scale-95 transition-transform hover:shadow-lg cursor-pointer text-left"
+        >
           <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg mb-3">
             {pendingOrdersIcon}
           </div>
           <div className="text-2xl font-bold text-gray-800 mb-1">{stats.pendingOrders}</div>
           <div className="text-xs text-gray-600 font-medium">Pending</div>
-        </div>
+        </button>
       </div>
 
       {/* Charts - Mobile Optimized */}
@@ -396,22 +424,28 @@ export default function SellerDashboard() {
       {/* Inventory Alerts - Mobile App Style */}
       <div className="grid grid-cols-2 gap-3">
         {/* Sold Out Alert */}
-        <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl shadow-md border border-pink-200 p-4 active:scale-95 transition-transform">
+        <button 
+          onClick={() => navigate('/seller/product/stock')}
+          className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl shadow-md border border-pink-200 p-4 active:scale-95 transition-transform hover:shadow-lg cursor-pointer text-left"
+        >
           <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-rose-500 rounded-xl flex items-center justify-center text-white shadow-lg mb-2">
             {soldOutIcon}
           </div>
           <div className="text-2xl font-bold text-pink-900 mb-1">{stats.soldOutProducts}</div>
           <div className="text-xs font-medium text-pink-700">Sold Out</div>
-        </div>
+        </button>
 
         {/* Low Stock Alert */}
-        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-2xl shadow-md border border-yellow-200 p-4 active:scale-95 transition-transform">
+        <button 
+          onClick={() => navigate('/seller/product/stock')}
+          className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-2xl shadow-md border border-yellow-200 p-4 active:scale-95 transition-transform hover:shadow-lg cursor-pointer text-left"
+        >
           <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg mb-2">
             {lowStockIcon}
           </div>
           <div className="text-2xl font-bold text-yellow-900 mb-1">{stats.lowStockProducts}</div>
           <div className="text-xs font-medium text-yellow-700">Low Stock</div>
-        </div>
+        </button>
       </div>
 
       {/* Recent Orders - Mobile App Style */}
@@ -498,11 +532,7 @@ export default function SellerDashboard() {
       {/* Mobile Toast Notification */}
       {showToast && (
         <div className="fixed top-4 left-4 right-4 z-50 animate-slide-down">
-          <div className={`${
-            toastType === 'success' 
-              ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
-              : 'bg-gradient-to-r from-red-500 to-rose-600'
-          } text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3`}>
+          <div className={`${toastType === 'success' ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-red-500 to-rose-600'} text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3`}>
             <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
               {toastType === 'success' ? (
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

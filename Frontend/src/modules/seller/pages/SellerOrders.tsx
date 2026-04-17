@@ -15,6 +15,7 @@ export default function SellerOrders() {
   const [status, setStatus] = useState('All Status');
   const [entriesPerPage, setEntriesPerPage] = useState('10');
   const [searchQuery, setSearchQuery] = useState('');
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -46,9 +47,9 @@ export default function SellerOrders() {
           params.status = status;
         }
 
-        // Add search
+        // Add search (ignore spaces)
         if (searchQuery) {
-          params.search = searchQuery;
+          params.search = searchQuery.replace(/\s+/g, '');
         }
 
         const response = await getOrders(params);
@@ -81,26 +82,37 @@ export default function SellerOrders() {
     }
   };
 
-  const handleExport = () => {
-    // Create CSV content
-    const headers = ['Order ID', 'Delivery Date', 'Order Date', 'Status', 'Amount'];
-    const csvContent = [
-      headers.join(','),
-      ...orders.map(order =>
-        [order.orderId, order.deliveryDate, order.orderDate, order.status, order.amount].join(',')
-      )
-    ].join('\n');
-
-    // Create blob and download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `orders_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExport = (type: 'csv' | 'json') => {
+    if (type === 'csv') {
+      const headers = ['Order ID', 'Delivery Date', 'Order Date', 'Status', 'Amount'];
+      const csvContent = [
+        headers.join(','),
+        ...orders.map(order =>
+          [order.orderId, order.deliveryDate, order.orderDate, order.status, order.amount].join(',')
+        )
+      ].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `orders_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else if (type === 'json') {
+      const jsonContent = JSON.stringify(orders, null, 2);
+      const blob = new Blob([jsonContent], { type: 'application/json' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `orders_${new Date().toISOString().split('T')[0]}.json`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    setExportDropdownOpen(false);
   };
 
   // Pagination (client-side for now, can be moved to backend later)
@@ -248,6 +260,7 @@ export default function SellerOrders() {
                 </select>
               </div>
 
+
               {/* Search Bar */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto sm:flex-1">
                 <label className="text-xs sm:text-sm font-medium text-neutral-700 whitespace-nowrap">
@@ -257,7 +270,8 @@ export default function SellerOrders() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => {
-                    setSearchQuery(e.target.value);
+                    // Ignore spaces as characters
+                    setSearchQuery(e.target.value.replace(/\s+/g, ''));
                     setCurrentPage(1);
                   }}
                   className="flex-1 w-full sm:w-auto px-3 py-2 border border-neutral-300 rounded text-xs sm:text-sm text-neutral-900 bg-white focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
@@ -265,10 +279,10 @@ export default function SellerOrders() {
                 />
               </div>
 
-              {/* Export Button */}
-              <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+              {/* Export Dropdown */}
+              <div className="relative flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
                 <button
-                  onClick={handleExport}
+                  onClick={() => setExportDropdownOpen((v) => !v)}
                   className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto"
                 >
                   <svg
@@ -305,6 +319,22 @@ export default function SellerOrders() {
                     />
                   </svg>
                 </button>
+                {exportDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-36 bg-white border border-neutral-200 rounded shadow-lg z-10">
+                    <button
+                      onClick={() => handleExport('csv')}
+                      className="block w-full text-left px-4 py-2 text-xs text-neutral-700 hover:bg-neutral-100"
+                    >
+                      Export as CSV
+                    </button>
+                    <button
+                      onClick={() => handleExport('json')}
+                      className="block w-full text-left px-4 py-2 text-xs text-neutral-700 hover:bg-neutral-100"
+                    >
+                      Export as JSON
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -332,15 +362,14 @@ export default function SellerOrders() {
                         onClick={() => handleSort('orderId')}
                         className="flex items-center gap-2 hover:text-neutral-900 transition-colors"
                       >
-                        O. Id
+                        Order ID
                         <svg
                           width="12"
                           height="12"
                           viewBox="0 0 24 24"
                           fill="none"
                           xmlns="http://www.w3.org/2000/svg"
-                          className={`cursor-pointer ${sortField === 'orderId' ? 'text-green-600' : 'text-neutral-400'
-                            }`}
+                          className={`cursor-pointer ${sortField === 'orderId' ? 'text-green-600' : 'text-neutral-400'}`}
                         >
                           <path
                             d={sortField === 'orderId' && sortDirection === 'asc'
@@ -361,15 +390,14 @@ export default function SellerOrders() {
                         onClick={() => handleSort('deliveryDate')}
                         className="flex items-center gap-2 hover:text-neutral-900 transition-colors"
                       >
-                        D. Date
+                        Delivery Date
                         <svg
                           width="12"
                           height="12"
                           viewBox="0 0 24 24"
                           fill="none"
                           xmlns="http://www.w3.org/2000/svg"
-                          className={`cursor-pointer ${sortField === 'deliveryDate' ? 'text-green-600' : 'text-neutral-400'
-                            }`}
+                          className={`cursor-pointer ${sortField === 'deliveryDate' ? 'text-green-600' : 'text-neutral-400'}`}
                         >
                           <path
                             d={sortField === 'deliveryDate' && sortDirection === 'asc'
@@ -390,15 +418,14 @@ export default function SellerOrders() {
                         onClick={() => handleSort('orderDate')}
                         className="flex items-center gap-2 hover:text-neutral-900 transition-colors"
                       >
-                        O. Date
+                        Order Date
                         <svg
                           width="12"
                           height="12"
                           viewBox="0 0 24 24"
                           fill="none"
                           xmlns="http://www.w3.org/2000/svg"
-                          className={`cursor-pointer ${sortField === 'orderDate' ? 'text-green-600' : 'text-neutral-400'
-                            }`}
+                          className={`cursor-pointer ${sortField === 'orderDate' ? 'text-green-600' : 'text-neutral-400'}`}
                         >
                           <path
                             d={sortField === 'orderDate' && sortDirection === 'asc'
@@ -488,13 +515,21 @@ export default function SellerOrders() {
                     paginatedOrders.map((order) => (
                       <tr key={order.id} className="hover:bg-neutral-50 transition-colors">
                         <td className="px-3 sm:px-4 md:px-6 py-3 text-xs sm:text-sm text-neutral-900">
-                          {order.orderId}
+                          {/* Show only 5-8 digits for orderId, pad if needed */}
+                          {order.orderId && order.orderId.length >= 5 && order.orderId.length <= 8
+                            ? order.orderId
+                            : order.orderId && order.orderId.length < 5
+                              ? order.orderId.padStart(5, '0')
+                              : order.orderId && order.orderId.length > 8
+                                ? order.orderId.slice(-8)
+                                : order.orderId}
                         </td>
                         <td className="px-3 sm:px-4 md:px-6 py-3 text-xs sm:text-sm text-neutral-700">
-                          {order.deliveryDate}
+                          {/* Always show delivery date, fallback to '-' if missing */}
+                          {order.deliveryDate || '-'}
                         </td>
                         <td className="px-3 sm:px-4 md:px-6 py-3 text-xs sm:text-sm text-neutral-700">
-                          {order.orderDate}
+                          {order.orderDate || '-'}
                         </td>
                         <td className="px-3 sm:px-4 md:px-6 py-3">
                           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
@@ -584,7 +619,7 @@ export default function SellerOrders() {
       {/* Footer */}
       <footer className="px-3 sm:px-4 md:px-6 text-center py-4 sm:py-6">
         <p className="text-xs sm:text-sm text-neutral-600">
-          Copyright Â© 2025. Developed By{' '}
+          Copyright 2025. Developed By{' '}
           <Link to="/seller" className="text-blue-600 hover:text-blue-700">
             Mandi Bazaar
           </Link>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   getAllOrders,
   type Order,
@@ -19,6 +19,7 @@ type SortDirection = "asc" | "desc";
 
 export default function AdminAllOrders() {
   const { isAuthenticated, token } = useAuth();
+  const location = useLocation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [dateRange, setDateRange] = useState("");
   const [seller, setSeller] = useState("All Sellers");
@@ -30,6 +31,16 @@ export default function AdminAllOrders() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const incomingSearch = params.get("search") || "";
+    if (incomingSearch && incomingSearch !== searchQuery) {
+      setSearchQuery(incomingSearch);
+      setCurrentPage(1);
+    }
+  }, [location.search, searchQuery]);
 
   // Fetch orders on component mount
   useEffect(() => {
@@ -52,8 +63,9 @@ export default function AdminAllOrders() {
           params.status = status;
         }
 
-        if (searchQuery) {
-          params.search = searchQuery;
+        const normalizedSearch = searchQuery.replace(/\s+/g, "").trim();
+        if (normalizedSearch) {
+          params.search = normalizedSearch;
         }
 
         // Parse date range if provided
@@ -113,13 +125,13 @@ export default function AdminAllOrders() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = (format: "csv" | "excel") => {
     const headers = [
-      "O. Id",
+      "Order Id",
       "Customer Details",
       "Address",
-      "D. Date",
-      "O. Date",
+      "Delivery Date",
+      "Order Date",
       "Status",
       "Delivery Boy Assign Status",
       "Amount",
@@ -140,18 +152,29 @@ export default function AdminAllOrders() {
       ),
     ].join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const contentType =
+      format === "excel"
+        ? "application/vnd.ms-excel;charset=utf-8;"
+        : "text/csv;charset=utf-8;";
+    const extension = format === "excel" ? "xls" : "csv";
+    const blob = new Blob([csvContent], { type: contentType });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
     link.setAttribute(
       "download",
-      `all_orders_${new Date().toISOString().split("T")[0]}.csv`
+      `all_orders_${new Date().toISOString().split("T")[0]}.${extension}`
     );
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const formatOrderId = (orderNumber?: string | number) => {
+    if (orderNumber === null || orderNumber === undefined) return "";
+    const value = String(orderNumber);
+    return value.length > 6 ? value.slice(-6) : value;
   };
 
   const filteredAndSortedOrders = useMemo(() => {
@@ -403,7 +426,7 @@ export default function AdminAllOrders() {
               <div className="flex items-center gap-2 w-full lg:w-auto lg:ml-auto">
                 <div className="relative">
                   <button
-                    onClick={handleExport}
+                    onClick={() => setShowExportMenu((prev) => !prev)}
                     className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto">
                     <svg
                       width="16"
@@ -436,6 +459,26 @@ export default function AdminAllOrders() {
                       />
                     </svg>
                   </button>
+                  {showExportMenu && (
+                    <div className="absolute right-0 mt-2 w-40 bg-white border border-neutral-200 rounded shadow-md z-10">
+                      <button
+                        onClick={() => {
+                          handleExport("csv");
+                          setShowExportMenu(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs sm:text-sm text-neutral-700 hover:bg-neutral-50">
+                        Export CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleExport("excel");
+                          setShowExportMenu(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs sm:text-sm text-neutral-700 hover:bg-neutral-50">
+                        Export Excel
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -467,7 +510,7 @@ export default function AdminAllOrders() {
                     onClick={() => handleSort("orderId")}
                     className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider cursor-pointer hover:bg-neutral-100">
                     <div className="flex items-center gap-1">
-                      O. Id
+                      Order Id
                       {sortField === "orderId" && (
                         <svg
                           width="12"
@@ -566,7 +609,7 @@ export default function AdminAllOrders() {
                     onClick={() => handleSort("deliveryDate")}
                     className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider cursor-pointer hover:bg-neutral-100">
                     <div className="flex items-center gap-1">
-                      D. Date
+                      Delivery Date
                       {sortField === "deliveryDate" && (
                         <svg
                           width="12"
@@ -599,7 +642,7 @@ export default function AdminAllOrders() {
                     onClick={() => handleSort("orderDate")}
                     className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider cursor-pointer hover:bg-neutral-100">
                     <div className="flex items-center gap-1">
-                      O. Date
+                      Order Date
                       {sortField === "orderDate" && (
                         <svg
                           width="12"
@@ -761,7 +804,7 @@ export default function AdminAllOrders() {
                   paginatedOrders.map((order) => (
                     <tr key={order._id} className="hover:bg-neutral-50">
                       <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900">
-                        {order.orderNumber}
+                        {formatOrderId(order.orderNumber)}
                       </td>
                       <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
                         {order.customerName ||
@@ -897,7 +940,7 @@ export default function AdminAllOrders() {
 
       {/* Footer */}
       <div className="text-center py-4 text-xs sm:text-sm text-neutral-600">
-        Copyright Â© 2025. Developed By{" "}
+        Copyright 2025. Developed By{" "}
         <Link to="/" className="text-blue-600 hover:text-blue-700">
           Mandi Bazaar - 20 Minute App
         </Link>

@@ -4,7 +4,7 @@ import DeliveryHeader from "../components/DeliveryHeader";
 import SummaryBar from "../components/SummaryBar";
 import DashboardCard from "../components/DashboardCard";
 import DeliveryBottomNav from "../components/DeliveryBottomNav";
-import { getDashboardStats, getDeliveryProfile, getNotifications, markNotificationRead } from "../../../services/api/delivery/deliveryService";
+import { getDashboardStats, getDeliveryProfile, getNotifications, markNotificationRead, updateGeneralLocation } from "../../../services/api/delivery/deliveryService";
 import { removeAuthToken } from "../../../services/api/config";
 import { useDeliveryStatus } from "../context/DeliveryStatusContext";
 
@@ -19,12 +19,15 @@ interface DeliveryNotificationItem {
 
 export default function DeliveryDashboard() {
   const navigate = useNavigate();
-  const { isOnline, sellersInRangeCount, locationError } = useDeliveryStatus();
+  const { isOnline, sellersInRangeCount, locationError, currentLocation } = useDeliveryStatus();
   const [stats, setStats] = useState<any>(null);
   const [deliveryStatus, setDeliveryStatus] = useState<string>("Inactive");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [taskNotifications, setTaskNotifications] = useState<DeliveryNotificationItem[]>([]);
+  const [locationLabel, setLocationLabel] = useState('');
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationLabelError, setLocationLabelError] = useState('');
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -113,6 +116,84 @@ export default function DeliveryDashboard() {
 
     navigate('/delivery/notifications');
   };
+
+  const reverseGeocode = async (latitude: number, longitude: number) => {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      throw new Error('Google Maps API key is missing');
+    }
+
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`
+    );
+    const data = await response.json();
+
+    if (data.status !== 'OK' || !data.results?.length) {
+      throw new Error('Unable to fetch location details');
+    }
+
+    const components = data.results[0].address_components || [];
+    const areaComponent = components.find((c: any) =>
+      c.types.includes('sublocality') ||
+      c.types.includes('neighborhood') ||
+      c.types.includes('sublocality_level_1') ||
+      c.types.includes('route')
+    );
+    const cityComponent = components.find((c: any) =>
+      c.types.includes('locality') || c.types.includes('administrative_area_level_2')
+    );
+
+    const area = areaComponent?.long_name || '';
+    const city = cityComponent?.long_name || '';
+    const label = area && city ? `${area}, ${city}` : (area || city);
+
+    return label || 'Location unavailable';
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationLabelError('Geolocation is not supported');
+      return;
+    }
+
+    setLocationLoading(true);
+    setLocationLabelError('');
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        try {
+          await updateGeneralLocation(latitude, longitude);
+        } catch (err) {
+          console.error('Failed to update location in backend:', err);
+        }
+
+        try {
+          const label = await reverseGeocode(latitude, longitude);
+          setLocationLabel(label);
+        } catch (err: any) {
+          setLocationLabelError(err.message || 'Unable to fetch location');
+        } finally {
+          setLocationLoading(false);
+        }
+      },
+      (err) => {
+        setLocationLabelError('Location permission denied');
+        setLocationLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  };
+
+  useEffect(() => {
+    if (!currentLocation) return;
+    if (locationLabel || locationLoading) return;
+
+    reverseGeocode(currentLocation.latitude, currentLocation.longitude)
+      .then((label) => setLocationLabel(label))
+      .catch((err: any) => setLocationLabelError(err.message || 'Unable to fetch location'));
+  }, [currentLocation, locationLabel, locationLoading]);
 
   // Icons for dashboard cards (Keep existing SVGs)
   const pendingOrderIcon = (
@@ -373,7 +454,12 @@ export default function DeliveryDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-green-100 pb-20">
       {/* Header */}
-      <DeliveryHeader />
+      <DeliveryHeader
+        locationLabel={locationLabel || 'Tap to detect location'}
+        locationLoading={locationLoading}
+        locationError={locationLabelError || locationError}
+        onUseCurrentLocation={handleUseCurrentLocation}
+      />
 
       <div className="px-4 py-4 space-y-4">
         {deliveryStatus !== "Active" && (

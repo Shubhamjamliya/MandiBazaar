@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import React, { useRef, useEffect, useState, memo } from 'react';
 import { Product } from '../../../types/domain';
@@ -47,6 +47,7 @@ function ProductCard({
   const imageRef = useRef<HTMLImageElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Use the optimized useWishlist hook
   const { isWishlisted, toggleWishlist } = useWishlist(((product as any).id || product._id) as string);
@@ -139,12 +140,36 @@ function ProductCard({
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        await navigator.clipboard.writeText(shareUrl);
-        showToast('Product link copied');
+        setShowShareModal(true);
       }
-    } catch {
-      // User cancelled share dialog or share failed silently.
+    } catch (error) {
+      if ((error as any)?.name !== 'AbortError') {
+        setShowShareModal(true);
+      }
     }
+  };
+
+  const openShareChannel = async (channel: 'whatsapp' | 'telegram' | 'copy') => {
+    const productId = ((product as any).id || product._id) as string;
+    const shareUrl = `${window.location.origin}/product/${productId}`;
+    const productName = product.name || product.productName || 'Product';
+    const shareText = `Check this on Mandi Bazaar: ${productName} - ${shareUrl}`;
+
+    if (channel === 'copy') {
+      await navigator.clipboard.writeText(shareUrl);
+      showToast('Product link copied');
+      setShowShareModal(false);
+      return;
+    }
+
+    if (channel === 'whatsapp') {
+      window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
+      setShowShareModal(false);
+      return;
+    }
+
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(productName)}`, '_blank');
+    setShowShareModal(false);
   };
 
   const handleAdd = async (e: React.MouseEvent) => {
@@ -432,6 +457,48 @@ function ProductCard({
         onClose={() => setIsVariantModalOpen(false)}
         product={product}
       />
+
+      <AnimatePresence>
+        {showShareModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center p-4"
+            onClick={() => setShowShareModal(false)}
+          >
+            <motion.div
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 30, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-md p-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-base font-bold text-gray-900 mb-3">Share Product</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  className="py-2 px-3 rounded-lg bg-green-50 text-green-700 font-semibold text-sm hover:bg-green-100 transition-colors"
+                  onClick={() => openShareChannel('whatsapp')}
+                >
+                  WhatsApp
+                </button>
+                <button
+                  className="py-2 px-3 rounded-lg bg-blue-50 text-blue-700 font-semibold text-sm hover:bg-blue-100 transition-colors"
+                  onClick={() => openShareChannel('telegram')}
+                >
+                  Telegram
+                </button>
+                <button
+                  className="py-2 px-3 rounded-lg bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors"
+                  onClick={() => openShareChannel('copy')}
+                >
+                  Copy
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div >
   );
 }

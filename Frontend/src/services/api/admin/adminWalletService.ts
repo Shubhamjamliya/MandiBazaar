@@ -118,6 +118,23 @@ export const processWithdrawal = async (
   return response.data;
 };
 
+/**
+ * Admin fund transfer (credit/debit)
+ */
+export const createFundTransfer = async (data: {
+  userType: 'SELLER' | 'DELIVERY_BOY';
+  userId: string;
+  amount: number;
+  type: 'Credit' | 'Debit';
+  description?: string;
+}): Promise<ApiResponse<any>> => {
+  const response = await api.post<ApiResponse<any>>(
+    "/admin/wallet/transfer",
+    data
+  );
+  return response.data;
+};
+
 // Legacy / Other Helpers
 export const getSellerTransactions = async (
   sellerId: string,

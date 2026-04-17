@@ -10,30 +10,49 @@ export default function SellerOrderDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [orderStatus, setOrderStatus] = useState<string>('Out For Delivery');
+  const [showRejectModal, setShowRejectModal] = useState(false);
+
+  const fetchOrderDetail = async (silent = false) => {
+    if (!id) return;
+
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
+
+    try {
+      const response = await getOrderById(id);
+      if (response.success && response.data) {
+        setOrderDetail(response.data);
+        setOrderStatus(response.data.status);
+      } else if (!silent) {
+        setError(response.message || 'Failed to fetch order details');
+      }
+    } catch (err: any) {
+      if (!silent) {
+        setError(err.response?.data?.message || err.message || 'Failed to fetch order details');
+      }
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  };
 
   // Fetch order detail from API
   useEffect(() => {
-    const fetchOrderDetail = async () => {
-      if (!id) return;
-
-      setLoading(true);
-      setError('');
-      try {
-        const response = await getOrderById(id);
-        if (response.success && response.data) {
-          setOrderDetail(response.data);
-          setOrderStatus(response.data.status);
-        } else {
-          setError(response.message || 'Failed to fetch order details');
-        }
-      } catch (err: any) {
-        setError(err.response?.data?.message || err.message || 'Failed to fetch order details');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrderDetail();
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    const intervalId = window.setInterval(() => {
+      fetchOrderDetail(true);
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, [id]);
 
   // Handle status update
@@ -309,7 +328,7 @@ export default function SellerOrderDetail() {
     yPos += 8;
 
     doc.setFontSize(8);
-    doc.text('Copyright Â© 2025. Developed By Mandi Bazaar - 20 MIN App', pageWidth / 2, yPos, { align: 'center' });
+    doc.text('Copyright 2025. Developed By Mandi Bazaar - 20 MIN App', pageWidth / 2, yPos, { align: 'center' });
 
     // Save the PDF
     const fileName = `Invoice_${orderDetail.invoiceNumber}_${orderDetail.id}.pdf`;
@@ -378,11 +397,7 @@ export default function SellerOrderDetail() {
                     Accept Order
                   </button>
                   <button
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to reject this order? This cannot be undone.')) {
-                        handleStatusUpdate('Rejected');
-                      }
-                    }}
+                    onClick={() => setShowRejectModal(true)}
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors font-medium shadow-sm"
                   >
                     Reject Order
@@ -550,10 +565,52 @@ export default function SellerOrderDetail() {
       {/* Footer */}
       <footer className="mt-6 px-4 sm:px-6 text-center py-4 bg-neutral-100 rounded-lg">
         <p className="text-xs sm:text-sm text-neutral-600">
-          Copyright Â© 2025. Developed By{' '}
+          Copyright 2025. Developed By{' '}
           <span className="font-semibold text-teal-600">Mandi Bazaar - 20 MIN App</span>
         </p>
       </footer>
+
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-lg">
+            <div className="border-b border-neutral-200 px-4 py-3">
+              <h3 className="text-sm font-semibold text-neutral-900">Reject Order</h3>
+            </div>
+            <div className="px-4 py-4 space-y-3">
+              <p className="text-sm text-neutral-700">
+                Are you sure you want to reject this order? This cannot be undone.
+              </p>
+              {orderDetail.specialRequests?.trim() && (
+                <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 mb-1">
+                    Customer Special Request
+                  </p>
+                  <p className="text-sm text-orange-800 whitespace-pre-wrap">
+                    {orderDetail.specialRequests}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-neutral-200 px-4 py-3">
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="px-4 py-2 text-sm text-neutral-700 hover:text-neutral-900"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowRejectModal(false);
+                  handleStatusUpdate('Rejected');
+                }}
+                className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-md"
+              >
+                Reject Order
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

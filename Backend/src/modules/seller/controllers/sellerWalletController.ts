@@ -5,6 +5,8 @@ import {
     createWithdrawalRequest,
     getWithdrawalRequests,
 } from '../../../services/walletManagementService';
+import WithdrawRequest from '../../../models/WithdrawRequest';
+import mongoose from 'mongoose';
 import { getCommissionSummary } from '../../../services/commissionService';
 
 /**
@@ -14,10 +16,28 @@ export const getBalance = async (req: Request, res: Response) => {
     try {
         const sellerId = req.user!.userId;
         const balance = await getWalletBalance(sellerId, 'SELLER');
+        const pendingWithdrawals = await WithdrawRequest.aggregate([
+            {
+                $match: {
+                    userId: new mongoose.Types.ObjectId(sellerId),
+                    userType: 'SELLER',
+                    status: { $in: ['Pending', 'Approved'] },
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: '$amount' },
+                },
+            },
+        ]);
+
+        const pendingAmount = pendingWithdrawals[0]?.total || 0;
+        const availableBalance = Math.max(0, balance - pendingAmount);
 
         return res.status(200).json({
             success: true,
-            data: { balance },
+            data: { balance: availableBalance },
         });
     } catch (error: any) {
         console.error('Error getting wallet balance:', error);

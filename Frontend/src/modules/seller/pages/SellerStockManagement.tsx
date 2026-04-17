@@ -316,6 +316,7 @@ export default function SellerStockManagement() {
                             </select>
                         </div>
                         <button
+                            disabled={filteredItems.length === 0}
                             onClick={() => {
                                 const headers = ['Variation Id', 'Product Id', 'Product Name', 'Seller Name', 'Variation', 'Current Stock', 'Status', 'Category'];
                                 const csvContent = [
@@ -341,7 +342,7 @@ export default function SellerStockManagement() {
                                 link.click();
                                 document.body.removeChild(link);
                             }}
-                            className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1 transition-colors"
+                            className={`${filteredItems.length === 0 ? 'bg-neutral-300 cursor-not-allowed' : 'bg-teal-600 hover:bg-teal-700'} text-white px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1 transition-colors`}
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -359,7 +360,7 @@ export default function SellerStockManagement() {
                                 type="text"
                                 className="pl-14 pr-3 py-1.5 bg-neutral-100 border-none rounded text-sm focus:ring-1 focus:ring-teal-500 w-48"
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => setSearchTerm(e.target.value.replace(/\s+/g, ''))}
                                 placeholder=""
                             />
                         </div>

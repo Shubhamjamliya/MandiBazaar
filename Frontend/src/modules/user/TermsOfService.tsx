@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getPublicSettings } from '../../services/api/customerHomeService';
 import ContentLoader from '../../components/loaders/ContentLoader';
 
 export default function TermsOfService() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -25,6 +26,15 @@ export default function TermsOfService() {
     fetchSettings();
   }, []);
 
+  const handleBack = () => {
+    // If we have a state with referrer, use that. Otherwise use browser back
+    if (location.state?.from) {
+      navigate(location.state.from);
+    } else {
+      navigate(-1);
+    }
+  };
+
   if (loading) return <ContentLoader />;
 
   return (
@@ -32,7 +42,7 @@ export default function TermsOfService() {
       <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-neutral-100">
         <div className="max-w-xl mx-auto px-4 h-16 flex items-center justify-between">
           <button
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="w-10 h-10 rounded-full bg-neutral-50 flex items-center justify-center text-neutral-600 hover:bg-neutral-100 transition-colors"
           >
             ←

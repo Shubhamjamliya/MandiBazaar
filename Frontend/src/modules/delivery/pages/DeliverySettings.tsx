@@ -6,12 +6,9 @@ import { updateSettings, getDeliveryProfile } from '../../../services/api/delive
 export default function DeliverySettings() {
   const navigate = useNavigate();
   const SETTINGS_STORAGE_KEY = 'delivery-local-settings';
-  const LANGUAGE_STORAGE_KEY = 'delivery-language';
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
-  const [showLanguageSheet, setShowLanguageSheet] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -27,10 +24,7 @@ export default function DeliverySettings() {
         }
       }
 
-      const cachedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-      if (cachedLanguage) {
-        setSelectedLanguage(cachedLanguage);
-      }
+
 
       try {
         const profile = await getDeliveryProfile();
@@ -78,11 +72,7 @@ export default function DeliverySettings() {
     }
   };
 
-  const handleSelectLanguage = (language: string) => {
-    setSelectedLanguage(language);
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-    setShowLanguageSheet(false);
-  };
+
 
   const settingsOptions = [
     {
@@ -163,26 +153,7 @@ export default function DeliverySettings() {
           </div>
           <div className="divide-y divide-neutral-200">
             <button
-              onClick={() => setShowLanguageSheet(true)}
-              className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors"
-            >
-              <div className="flex-1 text-left">
-                <p className="text-neutral-900 text-sm font-medium">Language</p>
-                <p className="text-neutral-500 text-xs mt-1">{selectedLanguage}</p>
-              </div>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M9 18L15 12L9 6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-neutral-400"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={() => navigate('/privacy-policy')}
+              onClick={() => navigate('/privacy-policy', { state: { from: '/delivery/settings' } })}
               className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors"
             >
               <div className="flex-1 text-left">
@@ -200,7 +171,7 @@ export default function DeliverySettings() {
               </svg>
             </button>
             <button
-              onClick={() => navigate('/terms-of-service')}
+              onClick={() => navigate('/terms-of-service', { state: { from: '/delivery/settings' } })}
               className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors"
             >
               <div className="flex-1 text-left">
@@ -224,28 +195,6 @@ export default function DeliverySettings() {
         <div className="mt-4 text-center">
           <p className="text-neutral-400 text-xs">App Version 1.0.0</p>
         </div>
-
-        {showLanguageSheet && (
-          <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={() => setShowLanguageSheet(false)}>
-            <div className="w-full bg-white rounded-t-2xl p-4" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-neutral-900 text-base font-semibold mb-3">Select Language</h3>
-              <div className="space-y-2">
-                {['English', 'Hindi'].map((lang) => (
-                  <button
-                    key={lang}
-                    onClick={() => handleSelectLanguage(lang)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg border ${selectedLanguage === lang
-                      ? 'border-orange-500 bg-orange-50 text-orange-700'
-                      : 'border-neutral-200 text-neutral-700'
-                      }`}
-                  >
-                    {lang}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
       <DeliveryBottomNav />
     </div>

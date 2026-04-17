@@ -3,9 +3,19 @@ import { useDeliveryUser } from '../context/DeliveryUserContext';
 
 interface DeliveryHeaderProps {
   userName?: string;
+  locationLabel?: string;
+  locationLoading?: boolean;
+  locationError?: string;
+  onUseCurrentLocation?: () => void;
 }
 
-export default function DeliveryHeader({ userName }: DeliveryHeaderProps) {
+export default function DeliveryHeader({
+  userName,
+  locationLabel,
+  locationLoading,
+  locationError,
+  onUseCurrentLocation,
+}: DeliveryHeaderProps) {
   const { isOnline, setIsOnline } = useDeliveryStatus();
   const { userName: contextUserName } = useDeliveryUser();
   const displayName = userName || contextUserName;
@@ -58,6 +68,33 @@ export default function DeliveryHeader({ userName }: DeliveryHeaderProps) {
                 isOnline ? 'translate-x-6' : 'translate-x-0'
               }`}
             />
+          </button>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-green-100 bg-green-50 px-3 py-2">
+          <div className="flex items-start gap-2">
+            <div className="mt-0.5 text-green-700">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-green-700">Current Location</p>
+              <p className="text-xs font-semibold text-green-900 truncate max-w-[180px]">
+                {locationLabel || 'Tap to detect location'}
+              </p>
+              {locationError && (
+                <p className="text-[10px] text-red-600 mt-0.5">{locationError}</p>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={onUseCurrentLocation}
+            disabled={locationLoading}
+            className="px-3 py-2 rounded-lg text-[10px] font-semibold bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"
+          >
+            {locationLoading ? 'Detecting...' : 'Use Current Location'}
           </button>
         </div>
       </div>

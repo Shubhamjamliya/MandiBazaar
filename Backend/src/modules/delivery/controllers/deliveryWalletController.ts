@@ -9,6 +9,8 @@ import { getCommissionSummary } from '../../../services/commissionService';
 import Delivery from '../../../models/Delivery';
 import AppSettings from '../../../models/AppSettings';
 import CashCollection from '../../../models/CashCollection';
+import WithdrawRequest from '../../../models/WithdrawRequest';
+import mongoose from 'mongoose';
 import { createHdfcOrder } from '../../../services/paymentService';
 import { decrypt } from '../../../utils/hdfcCrypto';
 import { fetchHdfcTransactionStatus } from '../../../services/hdfcStatusApi';
@@ -22,6 +24,25 @@ export const getBalance = async (req: Request, res: Response) => {
         const deliveryBoyId = req.user!.userId;
         const balance = await getWalletBalance(deliveryBoyId, 'DELIVERY_BOY');
 
+        const pendingWithdrawals = await WithdrawRequest.aggregate([
+            {
+                $match: {
+                    userId: new mongoose.Types.ObjectId(deliveryBoyId),
+                    userType: 'DELIVERY_BOY',
+                    status: { $in: ['Pending', 'Approved'] },
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: '$amount' },
+                },
+            },
+        ]);
+
+        const pendingAmount = pendingWithdrawals[0]?.total || 0;
+        const availableBalance = Math.max(0, balance - pendingAmount);
+
         const deliveryBoy = await Delivery.findById(deliveryBoyId);
         const settings = await AppSettings.findOne();
 
@@ -32,7 +53,7 @@ export const getBalance = async (req: Request, res: Response) => {
         return res.status(200).json({
             success: true,
             data: {
-                balance,
+                balance: availableBalance,
                 cashCollected,
                 cashLimit,
                 profile: {

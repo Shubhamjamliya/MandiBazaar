@@ -131,6 +131,17 @@ const SellerNotificationAlert: React.FC<SellerNotificationAlertProps> = ({ notif
             </div>
           </section>
 
+          {notification.specialRequests?.trim() && (
+            <section className="mb-6">
+              <h3 className="text-sm font-semibold text-neutral-500 uppercase tracking-wider mb-3">Special Request</h3>
+              <div className="bg-orange-50 border border-orange-100 rounded-lg p-4">
+                <p className="text-sm text-orange-800 whitespace-pre-wrap">
+                  {notification.specialRequests}
+                </p>
+              </div>
+            </section>
+          )}
+
           {/* Order Details */}
           <section>
             <h3 className="text-sm font-semibold text-neutral-500 uppercase tracking-wider mb-3">Order Details</h3>

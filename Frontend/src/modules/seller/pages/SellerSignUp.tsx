@@ -891,7 +891,7 @@ export default function SellerSignUp() {
         {' '}and{' '}
         <button
           type="button"
-          onClick={() => navigate('/privacy-policy')}
+          onClick={() => navigate('/privacy-policy', { state: { from: '/seller/signup' } })}
           className="text-teal-600 hover:text-teal-700 font-semibold"
         >
           Privacy Policy

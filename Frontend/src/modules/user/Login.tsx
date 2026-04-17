@@ -346,7 +346,14 @@ export default function Login() {
                   <input
                     type="tel"
                     value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, ''); // Remove all non-digits
+                      // If starts with 91 (country code), remove it
+                      if (value.startsWith('91') && value.length > 10) {
+                        value = value.slice(2);
+                      }
+                      setMobileNumber(value.slice(0, 10));
+                    }}
                     placeholder="98765 43210"
                     className="flex-1 px-4 h-full text-base font-medium text-neutral-900 placeholder:text-neutral-400 focus:outline-none bg-transparent"
                     maxLength={10}
@@ -428,14 +435,14 @@ export default function Login() {
             <p className="text-[10px] text-neutral-500 leading-relaxed font-medium">
               By continuing, you agree to our{' '}
               <button
-                onClick={() => navigate('/privacy-policy')}
+                onClick={() => navigate('/privacy-policy', { state: { from: '/login' } })}
                 className="text-emerald-600 font-bold hover:underline"
               >
                 Privacy Policy
               </button>
               {' '}and{' '}
               <button 
-                onClick={() => navigate('/privacy-policy')}
+                onClick={() => navigate('/terms-of-service', { state: { from: '/login' } })}
                 className="text-emerald-600 font-bold hover:underline"
               >
                 Terms of Service

@@ -5,6 +5,7 @@ import WalletTransaction from '../../../models/WalletTransaction';
 import WithdrawRequest from '../../../models/WithdrawRequest';
 import { asyncHandler } from '../../../utils/asyncHandler';
 import { approveWithdrawal, rejectWithdrawal, completeWithdrawal } from './adminWithdrawalController';
+import { creditWallet, debitWallet } from '../../../services/walletManagementService';
 
 /**
  * Get Financial Dashboard Stats
@@ -18,7 +19,7 @@ export const getFinancialDashboard = asyncHandler(async (_req: Request, res: Res
     // Excluding Cancelled/Rejected/Returned for net GMV? User didn't specify, but usually GMV excludes cancelled.
     // User said "add 100rs... to total plateform earning" for a new order. So implies all new orders count.
     const totalGMVResult = await mongoose.model('Order').aggregate([
-        { $match: { status: { $ne: 'Cancelled' }, paymentStatus: 'Paid' } },
+        { $match: { status: { $nin: ['Cancelled', 'Rejected', 'Returned'] }, paymentStatus: 'Paid' } },
         { $group: { _id: null, total: { $sum: '$total' } } }
     ]);
     const totalGMV = totalGMVResult.length > 0 ? totalGMVResult[0].total : 0;
@@ -42,7 +43,7 @@ export const getFinancialDashboard = asyncHandler(async (_req: Request, res: Res
 
     // C. Order Fees (Platform Fee + Shipping Charge)
     const orderFeesResult = await mongoose.model('Order').aggregate([
-        { $match: { status: { $ne: 'Cancelled' }, paymentStatus: 'Paid' } },
+        { $match: { status: { $nin: ['Cancelled', 'Rejected', 'Returned'] }, paymentStatus: 'Paid' } },
         { $group: { _id: null, total: { $sum: { $add: ['$platformFee', '$shipping'] } } } }
     ]);
     const orderFees = orderFeesResult.length > 0 ? orderFeesResult[0].total : 0;
@@ -61,19 +62,19 @@ export const getFinancialDashboard = asyncHandler(async (_req: Request, res: Res
     // Current Platform Balance = Total Inflow (GMV) - Total Outflow (Withdrawals)
     const currentAccountBalance = totalGMV - totalWithdrawals;
 
-    // 3. Total Seller Wallet Pending Payouts -> Sum of Seller Balances
-    const sellerBalanceResult = await mongoose.model('Seller').aggregate([
-        { $match: {} }, // All sellers
-        { $group: { _id: null, total: { $sum: '$balance' } } }
+    // 3. Seller Pending Payouts -> Sum of pending/approved withdrawal requests
+    const sellerPendingResult = await WithdrawRequest.aggregate([
+        { $match: { userType: 'SELLER', status: { $in: ['Pending', 'Approved'] } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
-    const sellerPendingPayouts = sellerBalanceResult.length > 0 ? sellerBalanceResult[0].total : 0;
+    const sellerPendingPayouts = sellerPendingResult.length > 0 ? sellerPendingResult[0].total : 0;
 
-    // 4. Total Delivery Boy Wallet Pending Payouts -> Sum of Delivery Balances
-    const deliveryBalanceResult = await mongoose.model('Delivery').aggregate([
-        { $match: {} }, // All delivery boys
-        { $group: { _id: null, total: { $sum: '$balance' } } }
+    // 4. Delivery Pending Payouts -> Sum of pending/approved withdrawal requests
+    const deliveryPendingResult = await WithdrawRequest.aggregate([
+        { $match: { userType: 'DELIVERY_BOY', status: { $in: ['Pending', 'Approved'] } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
-    const deliveryPendingPayouts = deliveryBalanceResult.length > 0 ? deliveryBalanceResult[0].total : 0;
+    const deliveryPendingPayouts = deliveryPendingResult.length > 0 ? deliveryPendingResult[0].total : 0;
 
     return res.status(200).json({
         success: true,
@@ -213,6 +214,39 @@ export const getWalletTransactions = asyncHandler(async (req: Request, res: Resp
 });
 
 /**
+ * Get wallet transactions for a specific seller
+ */
+export const getSellerTransactions = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { page = 1, limit = 50 } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const transactions = await WalletTransaction.find({
+        userId: new mongoose.Types.ObjectId(id),
+        userType: 'SELLER'
+    })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit));
+
+    const formatted = transactions.map((t: any) => ({
+        id: t._id.toString(),
+        amount: t.amount,
+        transactionType: t.type,
+        date: t.createdAt,
+        type: t.type,
+        status: t.status,
+        description: t.description,
+    }));
+
+    return res.status(200).json({
+        success: true,
+        data: formatted,
+    });
+});
+
+/**
  * Process Withdrawal Wrapper (to match frontend service expectation)
  */
 export const processWithdrawalWrapper = asyncHandler(async (req: Request, res: Response) => {
@@ -248,4 +282,55 @@ export const processWithdrawalWrapper = asyncHandler(async (req: Request, res: R
             message: 'Invalid action. Must be "Approve", "Reject", or "Complete"'
         });
     }
+});
+
+/**
+ * Create admin fund transfer (credit/debit) for seller or delivery boy
+ */
+export const createFundTransfer = asyncHandler(async (req: Request, res: Response) => {
+    const { userType, userId, amount, type, description } = req.body;
+
+    if (!userType || !userId || !amount || !type) {
+        return res.status(400).json({
+            success: false,
+            message: 'userType, userId, amount, and type are required',
+        });
+    }
+
+    if (!['SELLER', 'DELIVERY_BOY'].includes(userType)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid userType',
+        });
+    }
+
+    if (!['Credit', 'Debit'].includes(type)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid transfer type',
+        });
+    }
+
+    const transferAmount = Number(amount);
+    if (!Number.isFinite(transferAmount) || transferAmount <= 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid amount',
+        });
+    }
+
+    const note = description || 'Admin fund transfer';
+    const result = type === 'Credit'
+        ? await creditWallet(userId, userType, transferAmount, note)
+        : await debitWallet(userId, userType, transferAmount, note);
+
+    if (!result.success) {
+        return res.status(400).json(result);
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: 'Fund transfer completed',
+        data: result.data,
+    });
 });

@@ -45,6 +45,25 @@ export default function DeliveryWallet() {
     checkPaymentStatus();
   }, []);
 
+  useEffect(() => {
+    const shouldLockScroll = showWithdrawModal || showSettleModal || !!hdfcPaymentData;
+    const bodyStyle = document.body.style;
+    const htmlStyle = document.documentElement.style;
+
+    if (shouldLockScroll) {
+      bodyStyle.overflow = 'hidden';
+      htmlStyle.overflow = 'hidden';
+    } else {
+      bodyStyle.overflow = '';
+      htmlStyle.overflow = '';
+    }
+
+    return () => {
+      bodyStyle.overflow = '';
+      htmlStyle.overflow = '';
+    };
+  }, [showWithdrawModal, showSettleModal, hdfcPaymentData]);
+
   const checkPaymentStatus = () => {
     const params = new URLSearchParams(window.location.search);
     const payment = params.get('payment');
@@ -78,8 +97,13 @@ export default function DeliveryWallet() {
         setCashLimit(balanceRes.data.cashLimit || 0);
         setProfile(balanceRes.data.profile);
       }
-      if (transactionsRes.success)
-        setTransactions(transactionsRes.data.transactions || []);
+      if (transactionsRes.success) {
+        const txns =
+          transactionsRes.data?.transactions ||
+          (transactionsRes as any).transactions ||
+          [];
+        setTransactions(txns);
+      }
       if (withdrawalsRes.success) setWithdrawals(withdrawalsRes.data || []);
       if (commissionsRes.success) setCommissions(commissionsRes.data);
     } catch (error: any) {

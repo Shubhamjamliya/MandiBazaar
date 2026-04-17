@@ -3,6 +3,7 @@ import { asyncHandler } from "../../../utils/asyncHandler";
 import Delivery from "../../../models/Delivery";
 import Order from "../../../models/Order";
 import mongoose from "mongoose";
+import WalletTransaction from "../../../models/WalletTransaction";
 
 /**
  * Get Dashboard Stats
@@ -156,14 +157,14 @@ export const getDashboardStats = asyncHandler(
       totalDeliveredCount: 0,
     };
 
-    // Calculate Earnings (Real Logic from Commission Collection)
-    const { default: Commission } = await import("../../../models/Commission");
-
-    const earningStats = await Commission.aggregate([
+    // Calculate Earnings from wallet transactions (more reliable than commissions)
+    const earningStats = await WalletTransaction.aggregate([
       {
         $match: {
-          deliveryBoy: objectId,
-          type: "DELIVERY_BOY",
+          userId: objectId,
+          userType: "DELIVERY_BOY",
+          type: "Credit",
+          status: "Completed",
         },
       },
       {
@@ -177,7 +178,7 @@ export const getDashboardStats = asyncHandler(
             {
               $group: {
                 _id: null,
-                total: { $sum: "$commissionAmount" },
+                total: { $sum: "$amount" },
               },
             },
           ],
@@ -185,7 +186,7 @@ export const getDashboardStats = asyncHandler(
             {
               $group: {
                 _id: null,
-                total: { $sum: "$commissionAmount" },
+                total: { $sum: "$amount" },
               },
             },
           ],
@@ -195,6 +196,27 @@ export const getDashboardStats = asyncHandler(
 
     const todayEarning = earningStats[0]?.today[0]?.total || 0;
     const totalEarning = earningStats[0]?.total[0]?.total || 0;
+
+    // Calculate Daily Collection from cash-collection transactions
+    const cashCollectionStats = await WalletTransaction.aggregate([
+      {
+        $match: {
+          userId: objectId,
+          userType: "DELIVERY_BOY",
+          type: "Cash_Collected",
+          status: "Completed",
+          createdAt: { $gte: todayStart, $lte: todayEnd },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amount" },
+        },
+      },
+    ]);
+
+    const dailyCollectionFromWallet = cashCollectionStats[0]?.total || 0;
 
     // Fetch list of Pending Orders for the "Today's Pending Order" section
     const pendingOrdersList = await Order.find({
@@ -245,7 +267,7 @@ export const getDashboardStats = asyncHandler(
     return res.status(200).json({
       success: true,
       data: {
-        dailyCollection: result.dailyCollection,
+        dailyCollection: dailyCollectionFromWallet || result.dailyCollection,
         cashBalance: deliveryPartner.cashCollected, // This field stores total cash holding
         pendingOrders: result.pendingOrders,
         allOrders: result.allOrdersToday,

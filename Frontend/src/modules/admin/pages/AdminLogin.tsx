@@ -135,11 +135,14 @@ export default function AdminLogin() {
                   <input
                     type="tel"
                     value={mobileNumber}
-                    onChange={(e) =>
-                      setMobileNumber(
-                        e.target.value.replace(/\D/g, "").slice(0, 10)
-                      )
-                    }
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, ''); // Remove all non-digits
+                      // If starts with 91 (country code), remove it
+                      if (value.startsWith('91') && value.length > 10) {
+                        value = value.slice(2);
+                      }
+                      setMobileNumber(value.slice(0, 10));
+                    }}
                     placeholder="Enter mobile number"
                     className="flex-1 px-3 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none"
                     maxLength={10}
@@ -212,14 +215,14 @@ export default function AdminLogin() {
             <p className="text-[10px] text-neutral-500 leading-relaxed font-medium">
               By continuing, you agree to our{' '}
               <button
-                onClick={() => navigate('/privacy-policy')}
+                onClick={() => navigate('/privacy-policy', { state: { from: '/admin/login' } })}
                 className="text-emerald-600 font-bold hover:underline"
               >
                 Privacy Policy
               </button>
               {' '}and{' '}
               <button 
-                onClick={() => navigate('/terms-of-service')}
+                onClick={() => navigate('/terms-of-service', { state: { from: '/admin/login' } })}
                 className="text-emerald-600 font-bold hover:underline"
               >
                 Terms of Service
@@ -234,7 +237,7 @@ export default function AdminLogin() {
         By continuing, you agree to Mandi Bazaar's{' '}
         <button
           type="button"
-          onClick={() => navigate('/terms-of-service')}
+          onClick={() => navigate('/terms-of-service', { state: { from: '/admin/login' } })}
           className="text-teal-600 hover:text-teal-700 font-semibold"
         >
           Terms of Service
@@ -242,7 +245,7 @@ export default function AdminLogin() {
         {' '}and{' '}
         <button
           type="button"
-          onClick={() => navigate('/privacy-policy')}
+          onClick={() => navigate('/privacy-policy', { state: { from: '/admin/login' } })}
           className="text-teal-600 hover:text-teal-700 font-semibold"
         >
           Privacy Policy

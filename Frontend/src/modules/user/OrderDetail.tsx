@@ -774,7 +774,7 @@ export default function OrderDetail() {
     },
     Accepted: {
       title: "Preparing your order",
-      subtitle: `Arriving in ${estimatedTime} mins`,
+      subtitle: "Accepted by seller",
       color: "bg-green-700",
     },
     "On the way": {
@@ -813,6 +813,11 @@ export default function OrderDetail() {
       subtitle: "This order has been cancelled",
       color: "bg-red-600",
     },
+    Rejected: {
+      title: "Order rejected",
+      subtitle: "Seller rejected this order",
+      color: "bg-red-600",
+    },
     Returned: {
       title: "Order returned",
       subtitle: "This order has been returned",
@@ -821,6 +826,16 @@ export default function OrderDetail() {
   };
 
   const currentStatus = statusConfig[orderStatus] || statusConfig["Pending"];
+
+  const canCancelOrder = ![
+    'Accepted',
+    'On the way',
+    'Out for Delivery',
+    'Delivered',
+    'Cancelled',
+    'Rejected',
+    'Returned',
+  ].includes(order?.status || orderStatus);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -1182,12 +1197,14 @@ export default function OrderDetail() {
             </div>
             <ChevronRightIcon className="w-5 h-5 text-gray-400" />
           </div>
-          <SectionItem
-            icon={CircleSlashIcon}
-            title="Cancel order"
-            subtitle=""
-            onClick={() => setShowCancelModal(true)}
-          />
+          {canCancelOrder && (
+            <SectionItem
+              icon={CircleSlashIcon}
+              title="Cancel order"
+              subtitle=""
+              onClick={() => setShowCancelModal(true)}
+            />
+          )}
         </motion.div>
 
         {/* Quick Actions */}

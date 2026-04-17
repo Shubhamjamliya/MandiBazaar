@@ -162,6 +162,43 @@ const SellerAccountSettings = () => {
                 return;
             }
 
+            // Validate Bank Details
+            if (sellerData.accountName && !/^[a-zA-Z\s]+$/.test(sellerData.accountName)) {
+                setError('Account Holder Name should only contain alphabets');
+                setSaveLoading(false);
+                return;
+            }
+
+            if (sellerData.bankName && !/^[a-zA-Z\s]+$/.test(sellerData.bankName)) {
+                setError('Bank Name should only contain alphabets');
+                setSaveLoading(false);
+                return;
+            }
+
+            if (sellerData.accountNumber && !/^\d{9,15}$/.test(sellerData.accountNumber.replace(/\s/g, ''))) {
+                setError('Account Number should be 9-15 digits');
+                setSaveLoading(false);
+                return;
+            }
+
+            if (sellerData.ifsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(sellerData.ifsc)) {
+                setError('IFSC Code should be in format (ex - HDFC0001015)');
+                setSaveLoading(false);
+                return;
+            }
+
+            if (sellerData.panCard && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(sellerData.panCard)) {
+                setError('PAN Card Number should be in format (ex - ADRFD1234D)');
+                setSaveLoading(false);
+                return;
+            }
+
+            if (sellerData.taxNumber && !/^\d{9,15}$/.test(sellerData.taxNumber.replace(/\s/g, ''))) {
+                setError('Tax Number should be 9-15 digits');
+                setSaveLoading(false);
+                return;
+            }
+
             const updateData: any = {
                 sellerName: sellerData.sellerName,
                 storeName: sellerData.storeName,
@@ -680,7 +717,29 @@ const SellerAccountSettings = () => {
                                                     </div>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-50/50 p-6 rounded-xl border border-gray-100">
                                                         <InputGroup label="PAN Card Number" name="panCard" value={sellerData.panCard} onChange={handleInputChange} disabled={!isEditing} />
-                                                        <InputGroup label="Tax Type (e.g. GST)" name="taxName" value={sellerData.taxName} onChange={handleInputChange} disabled={!isEditing} />
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-sm font-semibold text-gray-700 ml-1">Tax Type</label>
+                                                            <div className="relative">
+                                                                <select
+                                                                    name="taxName"
+                                                                    value={sellerData.taxName}
+                                                                    onChange={handleInputChange}
+                                                                    disabled={!isEditing}
+                                                                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none disabled:bg-gray-50/50 disabled:text-gray-500 transition-all appearance-none bg-white"
+                                                                >
+                                                                    <option value="">Select Tax Type</option>
+                                                                    <option value="GST">GST (Goods and Services Tax)</option>
+                                                                    <option value="IGST">IGST (Integrated GST)</option>
+                                                                    <option value="CGST">CGST (Central GST)</option>
+                                                                    <option value="SGST">SGST (State GST)</option>
+                                                                    <option value="VAT">VAT (Value Added Tax)</option>
+                                                                    <option value="Other">Other</option>
+                                                                </select>
+                                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                         <InputGroup label="Tax Number (GSTIN)" name="taxNumber" value={sellerData.taxNumber} onChange={handleInputChange} disabled={!isEditing} />
                                                         <InputGroup label="FSSAI License No." name="fssaiLicNo" value={sellerData.fssaiLicNo} onChange={handleInputChange} disabled={!isEditing} />
                                                     </div>
@@ -690,6 +749,28 @@ const SellerAccountSettings = () => {
 
                                         {activeTab === 'security' && (
                                             <div className="space-y-10 p-4">
+                                                <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
+                                                    <div className="flex items-start gap-4">
+                                                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shrink-0">
+                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <h4 className="text-lg font-bold text-blue-900 mb-1">Help & Support</h4>
+                                                            <p className="text-sm text-blue-700 leading-relaxed mb-6">
+                                                                Browse our FAQ section for answers to common questions and helpful resources about managing your store.
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => navigate('/seller/help-support')}
+                                                                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                                                            >
+                                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3" /></svg>
+                                                                Browse FAQ
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
                                                 <div className="bg-red-50 rounded-2xl p-6 border border-red-100">
                                                     <div className="flex items-start gap-4">
                                                         <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 shrink-0">

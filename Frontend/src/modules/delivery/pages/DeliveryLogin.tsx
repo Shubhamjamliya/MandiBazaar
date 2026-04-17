@@ -144,7 +144,14 @@ export default function DeliveryLogin() {
                   <input
                     type="tel"
                     value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, ''); // Remove all non-digits
+                      // If starts with 91 (country code), remove it
+                      if (value.startsWith('91') && value.length > 10) {
+                        value = value.slice(2);
+                      }
+                      setMobileNumber(value.slice(0, 10));
+                    }}
                     placeholder="Enter 10-digit mobile number"
                     className="w-full pl-12 pr-4 py-3.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all"
                     maxLength={10}
@@ -270,14 +277,14 @@ export default function DeliveryLogin() {
       <div className="mt-8 text-xs text-gray-500 text-center max-w-md px-4 leading-relaxed">
         By continuing, you agree to Mandi Bazaar's{' '}
         <button 
-          onClick={() => navigate('/terms-of-service')}
+          onClick={() => navigate('/terms-of-service', { state: { from: '/delivery/login' } })}
           className="text-emerald-600 font-bold hover:underline"
         >
           Terms of Service
         </button>
         {' '}and{' '}
         <button 
-          onClick={() => navigate('/privacy-policy')}
+          onClick={() => navigate('/privacy-policy', { state: { from: '/delivery/login' } })}
           className="text-emerald-600 font-bold hover:underline"
         >
           Privacy Policy

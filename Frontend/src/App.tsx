@@ -45,6 +45,7 @@ const FAQ = lazy(() => import("./modules/user/FAQ"));
 const Wishlist = lazy(() => import("./modules/user/Wishlist"));
 const Addresses = lazy(() => import("./modules/user/Addresses"));
 const AddressBook = lazy(() => import("./modules/user/AddressBook"));
+const Wallet = lazy(() => import("./modules/user/Wallet"));
 const SpiritualStore = lazy(() => import("./modules/user/SpiritualStore"));
 const PharmaStore = lazy(() => import("./modules/user/PharmaStore"));
 const EGiftStore = lazy(() => import("./modules/user/EGiftStore"));
@@ -123,7 +124,6 @@ const AdminPaymentList = lazy(() => import("./modules/admin/pages/AdminPaymentLi
 const AdminSmsGateway = lazy(() => import("./modules/admin/pages/AdminSmsGateway"));
 const AdminSystemUser = lazy(() => import("./modules/admin/pages/AdminSystemUser"));
 const AdminUsers = lazy(() => import("./modules/admin/pages/AdminUsers"));
-const AdminFAQ = lazy(() => import("./modules/admin/pages/AdminFAQ"));
 // AdminHomeSection removed - replaced by Category hierarchy
 const AdminBestsellerCards = lazy(() => import("./modules/admin/pages/AdminBestsellerCards"));
 const AdminBanners = lazy(() => import("./modules/admin/pages/AdminBanners"));
@@ -404,7 +404,6 @@ function App() {
                                         <Route path="shipping-policy" element={<AdminShippingPolicy />} />
                                         <Route path="refund-return-policy" element={<AdminRefundReturnPolicy />} />
                                         <Route path="users" element={<AdminUsers />} />
-                                        <Route path="faq" element={<AdminFAQ />} />
                                         {/* home-section route removed - Home Sections feature removed */}
                                         <Route path="bestseller-cards" element={<AdminBestsellerCards />} />
                                         <Route path="banners" element={<AdminBanners />} />
@@ -446,6 +445,14 @@ function App() {
                                     <Route path="/orders/:id" element={<OrderDetail />} />
                                     <Route path="/order-again" element={<OrderAgain />} />
                                     <Route path="/account" element={<Account />} />
+                                    <Route
+                                      path="/wallet"
+                                      element={
+                                        <ProtectedRoute requiredUserType="Customer" redirectTo="/login">
+                                          <Wallet />
+                                        </ProtectedRoute>
+                                      }
+                                    />
                                     <Route path="/about-us" element={<AboutUs />} />
                                     <Route path="/support" element={<FAQ />} />
                                     <Route path="/wishlist" element={<Wishlist />} />

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   getSellerTransactions,
+  createFundTransfer,
   type SellerTransaction,
 } from "../../../services/api/admin/adminWalletService";
 import { getAllSellers as getSellers } from "../../../services/api/sellerService";
@@ -43,6 +44,12 @@ export default function AdminSellerTransaction() {
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferSellerId, setTransferSellerId] = useState("all");
+  const [transferType, setTransferType] = useState<"Credit" | "Debit">("Credit");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferRemark, setTransferRemark] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch sellers on component mount
   useEffect(() => {
@@ -259,7 +266,13 @@ export default function AdminSellerTransaction() {
         <h1 className="text-white text-xl sm:text-2xl font-semibold">
           View Seller List
         </h1>
-        <button className="bg-white text-teal-600 border-2 border-teal-600 hover:bg-teal-50 px-4 py-2 rounded text-sm font-medium flex items-center gap-2 transition-colors">
+        <button
+          onClick={() => {
+            setTransferSellerId(selectedSeller !== 'all' ? selectedSeller : (sellers[0]?._id || 'all'));
+            setShowTransferModal(true);
+          }}
+          className="bg-white text-teal-600 border-2 border-teal-600 hover:bg-teal-50 px-4 py-2 rounded text-sm font-medium flex items-center gap-2 transition-colors w-full sm:w-auto justify-center"
+        >
           <svg
             width="16"
             height="16"
@@ -280,11 +293,11 @@ export default function AdminSellerTransaction() {
       <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
         {/* Filters */}
         <div className="p-4 sm:p-6 border-b border-neutral-200">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-4 items-stretch sm:items-center flex-wrap w-full">
             {/* Left Side Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 flex-1 flex-wrap">
+            <div className="flex flex-col sm:flex-row gap-3 flex-1 flex-wrap w-full lg:w-auto">
               {/* From - To Date */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mb-3">
                 <label className="text-sm text-neutral-700 whitespace-nowrap">
                   From - To Date:
                 </label>
@@ -359,7 +372,7 @@ export default function AdminSellerTransaction() {
               </div>
 
               {/* Filter by Seller */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mb-3">
                 <label className="text-sm text-neutral-700 whitespace-nowrap">
                   Filter by Seller:
                 </label>
@@ -370,7 +383,7 @@ export default function AdminSellerTransaction() {
                     setCurrentPage(1);
                   }}
                   disabled={loading}
-                  className="px-3 py-2 border border-neutral-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 min-w-[130px] disabled:bg-neutral-100 disabled:cursor-not-allowed">
+                  className="px-3 py-2 border border-neutral-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 w-full sm:min-w-[130px] disabled:bg-neutral-100 disabled:cursor-not-allowed">
                   <option value="all">All Sellers</option>
                   {sellers.map((seller) => (
                     <option key={seller._id} value={seller._id}>
@@ -381,7 +394,7 @@ export default function AdminSellerTransaction() {
               </div>
 
               {/* Filter by Method */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mb-3">
                 <label className="text-sm text-neutral-700 whitespace-nowrap">
                   Filter by Method:
                 </label>
@@ -391,7 +404,7 @@ export default function AdminSellerTransaction() {
                     setSelectedMethod(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="px-3 py-2 border border-neutral-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 min-w-[100px]">
+                  className="px-3 py-2 border border-neutral-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 w-full sm:min-w-[100px]">
                   {methods.map((method) => (
                     <option
                       key={method}
@@ -404,7 +417,7 @@ export default function AdminSellerTransaction() {
             </div>
 
             {/* Right Side Controls */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full lg:w-auto mt-2 sm:mt-0">
               {/* Per Page */}
               <div className="flex items-center gap-2">
                 <span className="text-sm text-neutral-700">Per Page:</span>
@@ -425,7 +438,7 @@ export default function AdminSellerTransaction() {
               {/* Export Button */}
               <button
                 onClick={handleExport}
-                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded text-sm font-medium flex items-center gap-2 transition-colors">
+                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors w-full sm:w-auto">
                 <svg
                   width="16"
                   height="16"
@@ -464,15 +477,56 @@ export default function AdminSellerTransaction() {
                     setCurrentPage(1);
                   }}
                   placeholder="Search:"
-                  className="px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 min-w-[150px]"
+                  className="px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 w-full sm:min-w-[150px]"
                 />
               </div>
             </div>
           </div>
         </div>
 
+        {/* Mobile Cards */}
+        <div className="sm:hidden p-4 space-y-3">
+          {loading ? (
+            <div className="text-center text-sm text-neutral-500 py-6">Loading transactions...</div>
+          ) : error ? (
+            <div className="text-center text-sm text-red-600 py-6">{error}</div>
+          ) : displayedTransactions.length === 0 ? (
+            <div className="text-center text-sm text-neutral-500 py-6">No transactions found</div>
+          ) : (
+            displayedTransactions.map((transaction) => (
+              <div
+                key={transaction.id}
+                className="border border-neutral-100 rounded-xl p-4 bg-white shadow-md flex flex-col gap-1"
+                style={{ boxShadow: '0 2px 8px 0 rgba(0,0,0,0.04)' }}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-xs font-semibold text-neutral-700">#{transaction.id.slice(-6)}</div>
+                  <div className="text-xs text-neutral-400">{new Date(transaction.date).toLocaleDateString()}</div>
+                </div>
+                <div className="text-sm font-semibold text-neutral-900 truncate">{transaction.sellerName}</div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${transaction.flag === "credit"
+                    ? "bg-green-100 text-green-700"
+                    : transaction.flag === "debit"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-yellow-100 text-yellow-700"
+                    }`}>
+                    {transaction.flag.charAt(0).toUpperCase() + transaction.flag.slice(1)}
+                  </span>
+                  <span className="text-base font-bold text-teal-700">₹{transaction.amount.toFixed(2)}</span>
+                </div>
+                {transaction.remark && (
+                  <div className="text-xs text-neutral-500 mt-1 truncate" title={transaction.remark}>
+                    {transaction.remark.length > 40 ? transaction.remark.slice(0, 40) + '…' : transaction.remark}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
         {/* Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto hidden sm:block">
           <table className="w-full min-w-[1400px]">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
@@ -502,90 +556,6 @@ export default function AdminSellerTransaction() {
                   onClick={() => handleSort("sellerName")}>
                   <div className="flex items-center gap-2">
                     Seller Name
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("orderId")}>
-                  <div className="flex items-center gap-2">
-                    Order Id
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("orderItemId")}>
-                  <div className="flex items-center gap-2">
-                    Order Item Id
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("productName")}>
-                  <div className="flex items-center gap-2">
-                    Product Name
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </th>
-                <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("variation")}>
-                  <div className="flex items-center gap-2">
-                    Variation
                     <svg
                       width="12"
                       height="12"
@@ -691,7 +661,7 @@ export default function AdminSellerTransaction() {
             <tbody className="bg-white divide-y divide-neutral-200">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="px-4 sm:px-6 py-8 text-center">
+                  <td colSpan={6} className="px-4 sm:px-6 py-8 text-center">
                     <div className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600 mr-2"></div>
                       Loading transactions...
@@ -701,7 +671,7 @@ export default function AdminSellerTransaction() {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={6}
                     className="px-4 sm:px-6 py-8 text-center text-red-600">
                     {error}
                   </td>
@@ -709,7 +679,7 @@ export default function AdminSellerTransaction() {
               ) : displayedTransactions.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={6}
                     className="px-4 sm:px-6 py-8 text-center text-sm text-neutral-500">
                     No transactions found
                   </td>
@@ -722,18 +692,6 @@ export default function AdminSellerTransaction() {
                     </td>
                     <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900 font-medium">
                       {transaction.sellerName}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {transaction.orderId || "-"}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {transaction.orderItemId || "-"}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {transaction.productName || transaction.type}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
-                      {transaction.variation || "-"}
                     </td>
                     <td className="px-4 sm:px-6 py-3">
                       <span
@@ -823,9 +781,103 @@ export default function AdminSellerTransaction() {
         </div>
       </div>
 
+      {showTransferModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">Add Fund Transfer</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">Seller</label>
+                <select
+                  value={transferSellerId}
+                  onChange={(e) => setTransferSellerId(e.target.value)}
+                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                >
+                  {sellers.map((seller) => (
+                    <option key={seller._id} value={seller._id}>
+                      {seller.sellerName || seller.storeName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">Type</label>
+                <select
+                  value={transferType}
+                  onChange={(e) => setTransferType(e.target.value as "Credit" | "Debit")}
+                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="Credit">Credit</option>
+                  <option value="Debit">Debit</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">Amount</label>
+                <input
+                  type="number"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  placeholder="Enter amount"
+                  min="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">Remark</label>
+                <input
+                  type="text"
+                  value={transferRemark}
+                  onChange={(e) => setTransferRemark(e.target.value)}
+                  className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm"
+                  placeholder="Optional note"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowTransferModal(false)}
+                className="flex-1 border border-neutral-300 rounded-lg py-2.5 text-sm font-semibold"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!transferSellerId || transferSellerId === 'all') return;
+                  const amount = Number(transferAmount);
+                  if (!amount || amount <= 0) return;
+                  setIsSubmitting(true);
+                  try {
+                    const res = await createFundTransfer({
+                      userType: 'SELLER',
+                      userId: transferSellerId,
+                      amount,
+                      type: transferType,
+                      description: transferRemark || 'Admin fund transfer',
+                    });
+                    if (res.success) {
+                      setShowTransferModal(false);
+                      setTransferAmount('');
+                      setTransferRemark('');
+                      setCurrentPage(1);
+                    }
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                className="flex-1 bg-teal-600 text-white rounded-lg py-2.5 text-sm font-semibold disabled:opacity-60"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Transfer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="text-center text-sm text-neutral-500 py-4">
-        Copyright Â© 2025. Developed By{" "}
+        Copyright 2025. Developed By{" "}
         <a href="#" className="text-teal-600 hover:text-teal-700">
           Mandi Bazaar - 20 Minute App
         </a>

@@ -95,7 +95,7 @@ export default function DeliveryOrderDetail() {
     const [error, setError] = useState('');
     const isDevelopment = import.meta.env.MODE === 'development';
     const [sellerLocations, setSellerLocations] = useState<any[]>([]);
-    const [showOtpInput, setShowOtpInput] = useState(false);
+    const [showOtpInput, setShowOtpInput] = useState(true);
     const [otpValue, setOtpValue] = useState('');
     const [otpSending, setOtpSending] = useState(false);
     const [otpVerifying, setOtpVerifying] = useState(false);
@@ -584,6 +584,20 @@ export default function DeliveryOrderDetail() {
     const customerLng = order.deliveryAddress?.longitude || order.address?.longitude;
     const hasValidCustomerLocation = !!(customerLat && customerLng && customerLat !== 0 && customerLng !== 0);
 
+    const formatSellerAddress = (seller: any) => {
+        const address = (seller.address || '').trim();
+        const city = (seller.city || '').trim();
+        const looksLikeCoordinates = /^-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+$/.test(address);
+
+        if (address && !looksLikeCoordinates) {
+            return city ? `${address}, ${city}` : address;
+        }
+
+        if (city) return city;
+
+        return 'Location unavailable';
+    };
+
     return (
         <div className="min-h-screen bg-neutral-50 pb-32 relative">
 
@@ -696,6 +710,8 @@ export default function DeliveryOrderDetail() {
                                 const withinRange = proximity?.withinRange || false;
                                 const distance = proximity?.distance;
                                 const isLoading = pickupLoading[seller.sellerId] || false;
+                                const pickupReady = order.status === 'Ready for pickup';
+                                const canConfirmPickup = pickupReady && (withinRange || isDevelopment);
 
                                 return (
                                     <div key={idx} className="p-4 bg-neutral-50 rounded-xl border border-neutral-200">
@@ -710,7 +726,7 @@ export default function DeliveryOrderDetail() {
                                                         </span>
                                                     )}
                                                 </div>
-                                                <p className="text-sm text-neutral-600">{seller.address}, {seller.city}</p>
+                                                <p className="text-sm text-neutral-600">{formatSellerAddress(seller)}</p>
                                                 {distance !== undefined && (
                                                     <p className={`text-xs mt-1 font-medium ${withinRange ? 'text-green-600' :
                                                         distance < 1000 ? 'text-yellow-600' : 'text-red-600'
@@ -724,13 +740,19 @@ export default function DeliveryOrderDetail() {
                                         {!isPickedUp && (
                                             <button
                                                 onClick={() => handleSellerPickup(seller.sellerId)}
-                                                disabled={isLoading || (!withinRange && !isDevelopment)}
-                                                className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all ${((withinRange || isDevelopment) && !isLoading)
+                                                disabled={isLoading || !canConfirmPickup}
+                                                className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all ${(canConfirmPickup && !isLoading)
                                                     ? 'bg-green-600 text-white hover:bg-green-700 active:scale-[0.98]'
                                                     : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
                                                     }`}
                                             >
-                                                {isLoading ? 'Confirming...' : (withinRange || isDevelopment) ? 'Confirm Pickup' : 'Move within 500m to pickup'}
+                                                {isLoading
+                                                    ? 'Confirming...'
+                                                    : !pickupReady
+                                                        ? 'Waiting for seller to mark ready'
+                                                        : (withinRange || isDevelopment)
+                                                            ? 'Confirm Pickup'
+                                                            : 'Move within 500m to pickup'}
                                             </button>
                                         )}
                                     </div>
@@ -860,13 +882,13 @@ export default function DeliveryOrderDetail() {
                                     <span className="w-6 h-6 rounded bg-neutral-100 flex items-center justify-center text-xs font-bold text-neutral-600">{item.quantity}x</span>
                                     <span className="text-sm text-neutral-700 font-medium">{item.name}</span>
                                 </div>
-                                <span className="text-sm font-semibold text-neutral-900">₹{item.price * item.quantity}</span>
+                                <span className="text-sm font-semibold text-neutral-900">₹{Number(item.price || 0).toFixed(2)}</span>
                             </div>
                         ))}
                     </div>
                     <div className="mt-4 pt-4 border-t border-dashed border-neutral-200 flex justify-between items-center">
                         <span className="font-semibold text-neutral-700">Total Amount</span>
-                        <span className="text-xl font-bold text-neutral-900">₹{order.totalAmount}</span>
+                        <span className="text-xl font-bold text-neutral-900">₹{Number(order.totalAmount || 0).toFixed(2)}</span>
                     </div>
                 </div>
 
@@ -905,50 +927,27 @@ export default function DeliveryOrderDetail() {
                             </p>
                         )}
 
-                        {/* 4-digit OTP Input - Always visible but disabled until OTP is sent */}
+                        {/* 4-digit OTP Input */}
                         <input
                             type="text"
                             value={otpValue}
                             onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 4))}
                             placeholder="Enter 4-digit OTP"
-                            disabled={!showOtpInput}
-                            className={`w-full px-4 py-3 border rounded-xl text-lg font-semibold text-center mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 ${showOtpInput ? 'border-neutral-300 bg-white' : 'border-neutral-200 bg-neutral-100 text-neutral-400'
-                                }`}
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            pattern="\d*"
+                            className="w-full px-4 py-3 border rounded-xl text-lg font-semibold text-center mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 border-neutral-300 bg-white"
                             maxLength={4}
                         />
 
                         <div className="flex gap-3">
-                            {!showOtpInput ? (
-                                <button
-                                    onClick={handleSendOtp}
-                                    disabled={otpSending || (!getOtpEnabled && !isDevelopment)}
-                                    className={`flex-1 py-3 rounded-xl font-semibold transition-all ${((getOtpEnabled || isDevelopment) && !otpSending)
-                                        ? 'bg-green-600 text-white hover:bg-green-700 active:scale-[0.98]'
-                                        : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
-                                        }`}
-                                >
-                                    {otpSending ? 'Sending...' : (getOtpEnabled || isDevelopment) ? 'Get OTP' : 'Move within 500m to get OTP'}
-                                </button>
-                            ) : (
-                                <>
-                                    <button
-                                        onClick={() => {
-                                            setShowOtpInput(false);
-                                            setOtpValue('');
-                                        }}
-                                        className="flex-1 py-3 rounded-xl bg-neutral-200 text-neutral-700 font-semibold hover:bg-neutral-300 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={() => handleVerifyOtp()}
-                                        className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
-                                        disabled={otpVerifying || otpValue.length !== 4}
-                                    >
-                                        {otpVerifying ? 'Verifying...' : 'Verify OTP'}
-                                    </button>
-                                </>
-                            )}
+                            <button
+                                onClick={() => handleVerifyOtp()}
+                                className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
+                                disabled={otpVerifying || otpValue.length !== 4}
+                            >
+                                {otpVerifying ? 'Verifying...' : 'Verify OTP'}
+                            </button>
                         </div>
                     </div>
                 </div>

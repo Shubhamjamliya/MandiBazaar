@@ -475,7 +475,7 @@ export default function CheckoutAddress() {
           <input
             type="text"
             value={address.city}
-            onChange={(e) => handleInputChange('city', e.target.value)}
+            onChange={(e) => handleInputChange('city', e.target.value.replace(/[0-9]/g, ''))}
             className={`w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-colors ${errors.city ? 'border-red-500' : 'border-neutral-200'
               }`}
             placeholder="City"
@@ -490,7 +490,7 @@ export default function CheckoutAddress() {
           <input
             type="text"
             value={address.state || ''}
-            onChange={(e) => handleInputChange('state', e.target.value)}
+            onChange={(e) => handleInputChange('state', e.target.value.replace(/[0-9]/g, ''))}
             className={`w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-colors ${errors.state ? 'border-red-500' : 'border-neutral-200'
               }`}
             placeholder="State"
@@ -515,8 +515,8 @@ export default function CheckoutAddress() {
         </div>
       </div>
 
-      {/* Order Summary */}
-      <div className="px-4 mb-4">
+      {/* Order Summary - Hidden on address form page */}
+      <div className="px-4 mb-4 hidden">
         <h2 className="text-sm font-bold text-neutral-900 mb-2.5">Order Summary</h2>
         <div className="bg-white rounded-lg border border-neutral-200 p-2.5">
           {/* Cart Items */}

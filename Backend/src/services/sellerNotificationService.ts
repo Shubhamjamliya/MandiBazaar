@@ -45,6 +45,7 @@ export async function notifySellersOfOrderUpdate(
                 orderNumber: order.orderNumber,
                 status: order.status,
                 paymentStatus: order.paymentStatus,
+                specialRequests: order.specialRequests || '',
                 customer: {
                     name: order.customerName,
                     email: order.customerEmail,

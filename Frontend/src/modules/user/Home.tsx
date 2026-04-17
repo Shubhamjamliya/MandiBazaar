@@ -417,7 +417,7 @@ export default function Home() {
       {/* Wallet Shortcut */}
       <div className="px-4 pb-2">
         <button
-          onClick={() => navigate('/profile')}
+          onClick={() => navigate('/wallet')}
           className="w-full bg-white border border-emerald-100 rounded-xl p-3 shadow-sm flex items-center justify-between hover:bg-emerald-50 transition-colors"
         >
           <div className="text-left">
@@ -583,6 +583,11 @@ export default function Home() {
 
         </div>
       )}
+
+      <div className="py-6 text-center text-xs text-neutral-500">
+        Copyright 2026. Developed By{" "}
+        <span className="text-emerald-700">Mandi Bazaar - 20 Minute App</span>
+      </div>
     </div>
   );
 }

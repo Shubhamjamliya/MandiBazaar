@@ -153,8 +153,8 @@ export default function OrderAgain() {
       >
         {/* Orders Section */}
         {hasOrders && (
-          <div className="px-4 mt-2 mb-2">
-            <h2 className="text-sm font-semibold text-neutral-900 mb-2">Your Previous Orders</h2>
+          <div className="px-4 mt-0 mb-2">
+            <h2 className="text-sm font-semibold text-neutral-900 mb-1.5">Your Previous Orders</h2>
             <div className="space-y-1.5">
               {orders.map((order) => {
                 const shortId = order.id.toString().split('-').slice(-1)[0];
