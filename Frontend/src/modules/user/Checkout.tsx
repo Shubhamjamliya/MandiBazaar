@@ -79,6 +79,7 @@ export default function Checkout() {
 
   // Payment Method State
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'online' | 'cod'>('online');
+  const [selectedOnlineGateway, setSelectedOnlineGateway] = useState<'HDFC' | 'CASHFREE'>('CASHFREE');
 
 
   // Check if user has placeholder data (needs profile completion)
@@ -1622,7 +1623,7 @@ export default function Checkout() {
       {/* Payment Method Selector */}
       <div className="px-4 py-3 border-b border-neutral-200">
         <h3 className="text-sm font-bold text-neutral-900 mb-2">Payment Method</h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 mb-3">
           <button
             onClick={() => setSelectedPaymentMethod('online')}
             className={`flex-1 flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${selectedPaymentMethod === 'online'
@@ -1668,6 +1669,33 @@ export default function Checkout() {
             </div>
           </button>
         </div>
+
+        {/* Sub-selection for Online Gateway */}
+        {selectedPaymentMethod === 'online' && (
+          <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200 animate-in slide-in-from-top-2">
+            <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-2">Select Payment Provider</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setSelectedOnlineGateway('CASHFREE')}
+                className={`flex items-center justify-center gap-2 p-2 rounded-lg border-2 transition-all ${selectedOnlineGateway === 'CASHFREE'
+                  ? 'border-green-600 bg-white shadow-sm'
+                  : 'border-transparent bg-neutral-100 hover:bg-neutral-200'
+                  }`}
+              >
+                <span className={`text-xs font-bold ${selectedOnlineGateway === 'CASHFREE' ? 'text-green-700' : 'text-neutral-600'}`}>Cashfree</span>
+              </button>
+              <button
+                onClick={() => setSelectedOnlineGateway('HDFC')}
+                className={`flex items-center justify-center gap-2 p-2 rounded-lg border-2 transition-all ${selectedOnlineGateway === 'HDFC'
+                  ? 'border-green-600 bg-white shadow-sm'
+                  : 'border-transparent bg-neutral-100 hover:bg-neutral-200'
+                  }`}
+              >
+                <span className={`text-xs font-bold ${selectedOnlineGateway === 'HDFC' ? 'text-green-700' : 'text-neutral-600'}`}>HDFC Bank</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Cancellation Policy */}
@@ -2008,10 +2036,10 @@ export default function Checkout() {
         }
       `}</style>
 
-      {/* HDFC Checkout Component */}
       {showHdfcCheckout && pendingOrderId && user && (
         <HdfcCheckout
           orderId={pendingOrderId}
+          gateway={selectedOnlineGateway}
           onFailure={(error) => {
             setShowHdfcCheckout(false);
             setPendingOrderId(null);

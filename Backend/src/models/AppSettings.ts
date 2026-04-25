@@ -26,7 +26,18 @@ export interface IAppSettings extends Document {
     wallet: boolean;
     upi: boolean;
   };
+  activePaymentGateway?: 'HDFC' | 'CASHFREE';
   paymentGateways?: {
+    hdfc?: {
+      merchantId?: string;
+      accessCode?: string;
+      workingKey?: string;
+    };
+    cashfree?: {
+      appId?: string;
+      secretKey?: string;
+      environment?: 'SANDBOX' | 'PRODUCTION';
+    };
     razorpay?: {
       enabled: boolean;
       keyId?: string;
@@ -208,7 +219,26 @@ const AppSettingsSchema = new Schema<IAppSettings>(
         default: true,
       },
     },
+    activePaymentGateway: {
+      type: String,
+      enum: ['HDFC', 'CASHFREE'],
+      default: 'HDFC',
+    },
     paymentGateways: {
+      hdfc: {
+        merchantId: String,
+        accessCode: String,
+        workingKey: String,
+      },
+      cashfree: {
+        appId: String,
+        secretKey: String,
+        environment: {
+          type: String,
+          enum: ['SANDBOX', 'PRODUCTION'],
+          default: 'SANDBOX'
+        }
+      },
       razorpay: {
         enabled: Boolean,
         keyId: String,

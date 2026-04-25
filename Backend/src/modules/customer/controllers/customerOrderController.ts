@@ -235,7 +235,8 @@ export const createOrder = async (req: Request, res: Response) => {
                     // Check weight variants first if it's a weight-based product
                     if (checkProduct.sellingUnit === 'weight' && checkProduct.weightVariants && checkProduct.weightVariants.length > 0) {
                         if (isWeightVariant) {
-                            throw new Error(`Insufficient stock for weight selection: ${weightLabel}`);
+                            const availableStock = checkProduct.weightVariants.find((v: any) => v.label === weightLabel)?.stock || 0;
+                            throw new Error(`Insufficient stock for product "${checkProduct.productName}". Weight selection "${weightLabel}" only has ${availableStock} units available, but you requested ${qty}.`);
                         }
 
                         // No variation specified or mismatch, fallback to default/first enabled variant
@@ -657,7 +658,7 @@ export const createOrder = async (req: Request, res: Response) => {
             errorMessage = `Validation failed for fields: ${fields}. ${error.message}`;
         }
 
-        return res.status(500).json({
+        return res.status(error.name === 'ValidationError' || error.message.includes('stock') ? 400 : 500).json({
             success: false,
             message: errorMessage,
             error: error.message,
