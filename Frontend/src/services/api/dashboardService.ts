@@ -13,6 +13,7 @@ export interface DashboardStats {
     lowStockProducts: number;
     yearlyOrderData: { date: string; value: number }[];
     dailyOrderData: { date: string; value: number }[];
+    city?: string;
 }
 
 export interface NewOrder {
