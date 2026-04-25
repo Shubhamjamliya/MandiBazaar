@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { encrypt, decrypt } from '../utils/hdfcCrypto';
 import { fetchHdfcTransactionStatus } from './hdfcStatusApi';
 import url from 'url';
+import { restoreStockAndCancelOrder } from './orderStockService';
 
 /**
  * Create an HDFC order / generate encrypted payload
@@ -258,9 +259,8 @@ export const handleHdfcReturn = async (
             };
         } else {
             // Failed, Aborted, or Cancelled transaction
-            order.paymentStatus = 'Failed';
-            await order.save({ session });
-            await session.commitTransaction();
+            // Restore stock and mark as Cancelled
+            await restoreStockAndCancelOrder(orderId, `Payment ${verifiedStatus}: ${statusMessage || ''}`);
 
             return {
                 success: false,
@@ -299,12 +299,7 @@ export const handleHdfcCancel = async (encResp: string) => {
         const orderStatus = responseParams.get('order_status'); // likely 'Aborted'
         
         if (orderId) {
-            const order = await Order.findById(orderId);
-            if (order && order.paymentStatus === 'Pending') {
-                order.paymentStatus = 'Failed';
-                // Can track abort reason here if desired
-                await order.save();
-            }
+            await restoreStockAndCancelOrder(orderId, 'Payment cancelled by user at gateway');
         }
 
         return {

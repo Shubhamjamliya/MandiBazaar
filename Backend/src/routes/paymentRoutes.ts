@@ -6,6 +6,7 @@ import Payment from '../models/Payment';
 import AppSettings from '../models/AppSettings';
 import { fetchHdfcTransactionStatus } from '../services/hdfcStatusApi';
 import { createCashfreeOrder, verifyCashfreePayment } from '../services/cashfreeService';
+import { restoreStockAndCancelOrder } from '../services/orderStockService';
 
 const router = Router();
 
@@ -387,11 +388,7 @@ router.get('/cashfree-return', async (req: Request, res: Response) => {
             return res.redirect(`${frontendUrl}/orders/${orderId}?payment=success`);
         } else {
             // Failed
-            const order = await Order.findById(orderId);
-            if (order && order.paymentStatus === 'Pending') {
-                order.paymentStatus = 'Failed';
-                await order.save();
-            }
+            await restoreStockAndCancelOrder(orderId, 'Cashfree payment failed or was pending');
             return res.redirect(`${frontendUrl}/orders/${orderId}?error=Payment failed or pending`);
         }
     } catch (error: any) {

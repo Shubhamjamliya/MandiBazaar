@@ -20,6 +20,8 @@ import GoogleMapsLocationPicker from '../../components/GoogleMapsLocationPicker'
 import { getProducts } from '../../services/api/customerProductService';
 import { addToWishlist } from '../../services/api/customerWishlistService';
 import { updateProfile } from '../../services/api/customerService';
+import { clearCart } from '../../store/cartSlice';
+import { createOrder, cancelOrder } from '../../services/api/customerOrderService';
 import { calculateProductPrice } from '../../utils/priceUtils';
 import HdfcCheckout from '../../components/HdfcCheckout';
 
@@ -77,9 +79,7 @@ export default function Checkout() {
   const [showHdfcCheckout, setShowHdfcCheckout] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
-  // Payment Method State
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'online' | 'cod'>('online');
-  const [selectedOnlineGateway, setSelectedOnlineGateway] = useState<'HDFC' | 'CASHFREE'>('CASHFREE');
 
 
   // Check if user has placeholder data (needs profile completion)
@@ -1670,32 +1670,7 @@ export default function Checkout() {
           </button>
         </div>
 
-        {/* Sub-selection for Online Gateway */}
-        {selectedPaymentMethod === 'online' && (
-          <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200 animate-in slide-in-from-top-2">
-            <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-2">Select Payment Provider</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setSelectedOnlineGateway('CASHFREE')}
-                className={`flex items-center justify-center gap-2 p-2 rounded-lg border-2 transition-all ${selectedOnlineGateway === 'CASHFREE'
-                  ? 'border-green-600 bg-white shadow-sm'
-                  : 'border-transparent bg-neutral-100 hover:bg-neutral-200'
-                  }`}
-              >
-                <span className={`text-xs font-bold ${selectedOnlineGateway === 'CASHFREE' ? 'text-green-700' : 'text-neutral-600'}`}>Cashfree</span>
-              </button>
-              <button
-                onClick={() => setSelectedOnlineGateway('HDFC')}
-                className={`flex items-center justify-center gap-2 p-2 rounded-lg border-2 transition-all ${selectedOnlineGateway === 'HDFC'
-                  ? 'border-green-600 bg-white shadow-sm'
-                  : 'border-transparent bg-neutral-100 hover:bg-neutral-200'
-                  }`}
-              >
-                <span className={`text-xs font-bold ${selectedOnlineGateway === 'HDFC' ? 'text-green-700' : 'text-neutral-600'}`}>HDFC Bank</span>
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Sub-selection for Online Gateway removed - controlled by admin */}
       </div>
 
       {/* Cancellation Policy */}
@@ -2039,8 +2014,15 @@ export default function Checkout() {
       {showHdfcCheckout && pendingOrderId && user && (
         <HdfcCheckout
           orderId={pendingOrderId}
-          gateway={selectedOnlineGateway}
-          onFailure={(error) => {
+          onFailure={async (error) => {
+            // If payment failed or user cancelled, we mark the order as cancelled on backend to restore stock
+            if (pendingOrderId) {
+              try {
+                await cancelOrder(pendingOrderId, 'Payment window closed or initiation failed');
+              } catch (cancelErr) {
+                console.error('Failed to auto-cancel pending order:', cancelErr);
+              }
+            }
             setShowHdfcCheckout(false);
             setPendingOrderId(null);
             showGlobalToast(error || 'Payment initialization failed. Please try again.', 'error');
