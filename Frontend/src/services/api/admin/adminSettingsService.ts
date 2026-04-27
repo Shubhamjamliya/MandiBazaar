@@ -31,6 +31,16 @@ export interface PaymentMethods {
 }
 
 export interface PaymentGateways {
+  hdfc?: {
+    merchantId?: string;
+    accessCode?: string;
+    workingKey?: string;
+  };
+  cashfree?: {
+    appId?: string;
+    secretKey?: string;
+    environment?: 'SANDBOX' | 'PRODUCTION';
+  };
   razorpay?: {
     enabled: boolean;
     keyId?: string;
@@ -70,6 +80,7 @@ export interface AppSettings {
   companyPincode?: string;
   companyCountry?: string;
   paymentMethods: PaymentMethods;
+  activePaymentGateway?: 'HDFC' | 'CASHFREE';
   paymentGateways?: PaymentGateways;
   smsGateway?: SMSGatewaySettings;
   defaultCommission: number;
@@ -77,6 +88,7 @@ export interface AppSettings {
   deliveryCharges: number;
   platformFee?: number;
   freeDeliveryThreshold?: number;
+  minimumOrderValue?: number;
   defaultCashLimit?: number;
   deliveryConfig?: {
     isDistanceBased: boolean;

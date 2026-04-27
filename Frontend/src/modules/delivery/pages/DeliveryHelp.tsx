@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DeliveryHeader from '../components/DeliveryHeader';
 import DeliveryBottomNav from '../components/DeliveryBottomNav';
 import { getHelpSupport } from '../../../services/api/delivery/deliveryService';
+
+const DEFAULT_SUPPORT_PHONE = '8279281172';
+const DEFAULT_SUPPORT_EMAIL = 'mandibazaar67@gmail.com';
 
 // Icon mapping helper
 const getIcon = (iconName: string) => {
@@ -16,7 +18,11 @@ const getIcon = (iconName: string) => {
 export default function DeliveryHelp() {
   const navigate = useNavigate();
   const [faqs, setFaqs] = useState<any[]>([]);
-  const [contacts, setContacts] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([
+    { label: 'Call support', value: DEFAULT_SUPPORT_PHONE, icon: 'phone' },
+    { label: 'Email support', value: DEFAULT_SUPPORT_EMAIL, icon: 'email' },
+    { label: 'Live chat support', value: DEFAULT_SUPPORT_PHONE, icon: 'chat' },
+  ]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,7 +30,27 @@ export default function DeliveryHelp() {
       try {
         const data = await getHelpSupport();
         setFaqs(data.faqs || []);
-        setContacts(data.contact || []);
+        if (Array.isArray(data.contact) && data.contact.length > 0) {
+          const patchedContacts = data.contact.map((item: any) => {
+            const label = String(item?.label || '').toLowerCase();
+            const icon = String(item?.icon || '').toLowerCase();
+
+            if (label.includes('phone') || label.includes('call') || icon.includes('phone')) {
+              return { ...item, value: DEFAULT_SUPPORT_PHONE };
+            }
+
+            if (label.includes('email') || icon.includes('email')) {
+              return { ...item, value: DEFAULT_SUPPORT_EMAIL };
+            }
+
+            if (label.includes('chat') || icon.includes('chat')) {
+              return { ...item, value: DEFAULT_SUPPORT_PHONE };
+            }
+
+            return item;
+          });
+          setContacts(patchedContacts);
+        }
       } catch (error) {
         console.error("Failed to load help data", error);
       } finally {
@@ -33,6 +59,38 @@ export default function DeliveryHelp() {
     };
     fetchHelp();
   }, []);
+
+  const handleContactClick = (option: any) => {
+    const value = String(option?.value || '').trim();
+    const icon = String(option?.icon || '').toLowerCase();
+    const label = String(option?.label || '').toLowerCase();
+
+    const isPhone = icon.includes('phone') || label.includes('call') || label.includes('phone');
+    const isEmail = icon.includes('email') || label.includes('email');
+    const isChat = icon.includes('chat') || label.includes('chat');
+
+    if (isPhone) {
+      const phone = value.replace(/[^\d+]/g, '');
+      if (phone) window.location.href = `tel:${phone}`;
+      return;
+    }
+
+    if (isEmail) {
+      if (value) window.location.href = `mailto:${value}`;
+      return;
+    }
+
+    if (isChat) {
+      if (value.startsWith('http://') || value.startsWith('https://')) {
+        window.open(value, '_blank');
+        return;
+      }
+      const chatPhone = value.replace(/\D/g, '');
+      if (chatPhone) {
+        window.open(`https://wa.me/${chatPhone}`, '_blank');
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -45,7 +103,6 @@ export default function DeliveryHelp() {
 
   return (
     <div className="min-h-screen bg-neutral-100 pb-20">
-      <DeliveryHeader />
       <div className="px-4 py-4">
         <div className="flex items-center mb-4">
           <button
@@ -77,7 +134,13 @@ export default function DeliveryHelp() {
                   <p className="text-neutral-900 text-sm font-medium mb-1">{option.label}</p>
                   <p className="text-neutral-500 text-xs">{option.value}</p>
                 </div>
-                <div className="text-2xl">{getIcon(option.icon)}</div>
+                <button
+                  onClick={() => handleContactClick(option)}
+                  className="text-2xl hover:scale-105 transition-transform"
+                  aria-label={`Contact via ${option.label}`}
+                >
+                  {getIcon(option.icon)}
+                </button>
               </div>
             ))}
           </div>
@@ -98,10 +161,6 @@ export default function DeliveryHelp() {
           </div>
         </div>
 
-        {/* Support Button */}
-        <button className="w-full mt-4 bg-orange-500 text-white rounded-xl py-3 font-semibold hover:bg-orange-600 transition-colors shadow-md active:scale-[0.98]">
-          Contact Support
-        </button>
       </div>
       <DeliveryBottomNav />
     </div>

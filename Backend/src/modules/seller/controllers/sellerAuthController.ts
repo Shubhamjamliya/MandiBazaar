@@ -1,5 +1,12 @@
 import { Request, Response } from "express";
 import Seller from "../../../models/Seller";
+import Shop from "../../../models/Shop";
+import Product from "../../../models/Product";
+import Inventory from "../../../models/Inventory";
+import Commission from "../../../models/Commission";
+import WithdrawRequest from "../../../models/WithdrawRequest";
+import WalletTransaction from "../../../models/WalletTransaction";
+import Review from "../../../models/Review";
 import {
   sendOTP as sendOTPService,
   verifyOTP as verifyOTPService,
@@ -107,6 +114,14 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     mobile,
     email,
     storeName,
+    panCard,
+    taxName,
+    taxNumber,
+    accountName,
+    bankName,
+    branch,
+    accountNumber,
+    ifsc,
     category,
     address,
     city,
@@ -114,11 +129,14 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   } = req.body;
 
   // Validation (password removed - sellers don't need password during signup)
-  if (!sellerName || !mobile || !email || !storeName || !category) {
+  if (
+    !sellerName || !mobile || !email || !storeName || !category ||
+    !panCard || !taxName || !taxNumber || !accountName || !bankName || !branch || !accountNumber || !ifsc
+  ) {
     return res.status(400).json({
       success: false,
       message:
-        "Required fields (Name, Mobile, Email, Store Name, Category) must be provided",
+        "Required fields (seller details, KYC details, and bank details) must be provided",
     });
   }
 
@@ -127,6 +145,31 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       success: false,
       message: "Valid 10-digit mobile number is required",
     });
+  }
+
+  const normalizedPan = String(panCard).trim().toUpperCase();
+  const normalizedTaxName = String(taxName).trim();
+  const normalizedTaxNumber = String(taxNumber).trim().toUpperCase();
+  const normalizedAccountName = String(accountName).trim();
+  const normalizedBankName = String(bankName).trim();
+  const normalizedBranch = String(branch).trim();
+  const normalizedAccountNumber = String(accountNumber).trim();
+  const normalizedIfsc = String(ifsc).trim().toUpperCase();
+
+  if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(normalizedPan)) {
+    return res.status(400).json({ success: false, message: "Invalid PAN format" });
+  }
+  if (!/^[A-Za-z][A-Za-z\s.'-]{1,49}$/.test(normalizedTaxName)) {
+    return res.status(400).json({ success: false, message: "Invalid tax name format" });
+  }
+  if (!/^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{6,20}$/.test(normalizedTaxNumber)) {
+    return res.status(400).json({ success: false, message: "Invalid tax number format" });
+  }
+  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(normalizedIfsc)) {
+    return res.status(400).json({ success: false, message: "Invalid IFSC format" });
+  }
+  if (!/^[0-9]{8,20}$/.test(normalizedAccountNumber)) {
+    return res.status(400).json({ success: false, message: "Invalid account number" });
   }
 
   // Validate location is provided
@@ -203,11 +246,19 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     email,
     storeName,
     category,
+    panCard: normalizedPan,
+    taxName: normalizedTaxName,
+    taxNumber: normalizedTaxNumber,
+    accountName: normalizedAccountName,
+    bankName: normalizedBankName,
+    branch: normalizedBranch,
+    accountNumber: normalizedAccountNumber,
+    ifsc: normalizedIfsc,
     ...(serviceableArea && { serviceableArea }),
     location: locationObj, // Optimized location
     serviceRadiusKm,
     status: "Pending",
-    requireProductApproval: false,
+    requireProductApproval: true,
     viewCustomerDetails: false,
     commission: 0,
     balance: 0,
@@ -416,4 +467,117 @@ export const toggleShopStatus = asyncHandler(
       data: { isShopOpen: seller.isShopOpen },
     });
   },
+);
+/**
+ * Request account deletion OTP for seller
+ */
+export const requestDeleteAccountOTP = asyncHandler(
+  async (req: Request, res: Response) => {
+    const sellerId = (req as any).user.userId;
+    const { mobile } = req.body;
+
+    if (!sellerId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    if (!mobile || !/^[0-9]{10}$/.test(mobile)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid 10-digit mobile number is required",
+      });
+    }
+
+    const seller = await Seller.findById(sellerId);
+    if (!seller) {
+      return res.status(404).json({
+        success: false,
+        message: "Seller not found",
+      });
+    }
+
+    if (seller.mobile !== mobile) {
+      return res.status(400).json({
+        success: false,
+        message: "The mobile number does not match your account",
+      });
+    }
+
+    // Send OTP
+    await sendOTPService(mobile, "Seller");
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent successfully to your registered mobile number",
+    });
+  }
+);
+
+/**
+ * Confirm account deletion for seller
+ */
+export const confirmDeleteAccount = asyncHandler(
+  async (req: Request, res: Response) => {
+    const sellerId = (req as any).user.userId;
+    const { mobile, otp } = req.body;
+
+    if (!sellerId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    if (!otp || !/^[0-9]{4}$/.test(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid 4-digit OTP is required",
+      });
+    }
+
+    const seller = await Seller.findById(sellerId);
+    if (!seller) {
+      return res.status(404).json({
+        success: false,
+        message: "Seller not found",
+      });
+    }
+
+    // Verify OTP
+    const isValid = await verifyOTPService(mobile, otp, "Seller");
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired OTP",
+      });
+    }
+
+    // --- DELETE ALL SELLER DATA ---
+
+    // 1. Delete Shop
+    await Shop.deleteMany({ userId: sellerId });
+
+    // 2. Delete Products and their associated reviews/inventory
+    const products = await Product.find({ sellerId });
+    const productIds = products.map(p => p._id);
+    
+    await Inventory.deleteMany({ productId: { $in: productIds } });
+    await Review.deleteMany({ productId: { $in: productIds } });
+    await Product.deleteMany({ sellerId });
+
+    // 3. Delete Seller financial records
+    await Commission.deleteMany({ sellerId });
+    await WithdrawRequest.deleteMany({ sellerId });
+    await WalletTransaction.deleteMany({ sellerId });
+
+    // 4. Finally, delete the Seller record
+    await Seller.deleteOne({ _id: sellerId });
+
+    return res.status(200).json({
+      success: true,
+      message: "Your seller account and all associated data have been permanently deleted.",
+    });
+  }
 );

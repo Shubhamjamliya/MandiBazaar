@@ -123,9 +123,8 @@ export const getOrderById = asyncHandler(
     const { id } = req.params;
 
     // First check if this seller has items in this order
-    // First check if this seller has items in this order
     const sellerItems = await OrderItem.find({ order: id, seller: sellerId })
-      .populate("seller", "storeName")
+      .populate("seller", "storeName taxName taxNumber fssaiLicNo phone")
       .populate("product");
 
     if (!sellerItems || sellerItems.length === 0) {
@@ -134,6 +133,8 @@ export const getOrderById = asyncHandler(
         message: "Order not found",
       });
     }
+
+    const seller = sellerItems[0].seller as any;
 
     // Get order with populated data
     const order = await Order.findById(id)
@@ -152,50 +153,62 @@ export const getOrderById = asyncHandler(
 
     // Format order items for frontend
     // Format order items for frontend
-    const formattedItems = orderItems.map(item => {
-      let unit = item.variation || 'N/A';
+    const formattedItems = orderItems.map((item, index) => {
+      let unit = item.variation && (item.variation as string).startsWith('wv_') ? (item.variation as string).replace('wv_', '') : (item.variation || 'N/A');
       let variationMatched = false;
 
       // Try to resolve variation value from product if it exists
-      // item.product is populated now
       const product = item.product as any;
-      if (product && product.variations && Array.isArray(product.variations)) {
-        // 1. Try to match by ID or Value if validation is present
-        if (item.variation) {
-          const variationById = product.variations.find((v: any) => v._id.toString() === item.variation);
-          if (variationById) {
-            unit = variationById.value;
+      if (product) {
+        // First check weight variants if weight-based
+        if (product.sellingUnit === 'weight' && product.weightVariants && Array.isArray(product.weightVariants)) {
+          const match = product.weightVariants.find((v: any) => v.label === unit);
+          if (match) {
+            unit = match.label; // Already pretty, but ensures it's from DB
             variationMatched = true;
-          } else {
-            const variationByValue = product.variations.find((v: any) => v.value === item.variation);
-            if (variationByValue) {
-              unit = variationByValue.value;
-              variationMatched = true;
-            }
           }
         }
+        
+        // Then try quantity variations if not matched yet
+        if (!variationMatched && product.variations && Array.isArray(product.variations)) {
+          // 1. Try to match by ID or Value if validation is present
+          if (item.variation) {
+            const variationById = product.variations.find((v: any) => v._id.toString() === item.variation);
+            if (variationById) {
+              unit = variationById.value;
+              variationMatched = true;
+            } else {
+              const variationByValue = product.variations.find((v: any) => v.value === item.variation);
+              if (variationByValue) {
+                unit = variationByValue.value;
+                variationMatched = true;
+              }
+            }
+          }
 
-        // 2. Fallback: If not matched yet (even if we have a value like '250'), try to recover
-        if (!variationMatched) {
-          const variationByPrice = product.variations.find((v: any) => v.price === item.unitPrice || v.discPrice === item.unitPrice);
-          if (variationByPrice) {
-            unit = variationByPrice.value;
-            variationMatched = true;
-          } else if (product.variations.length === 1) {
-            // 3. Last Resort: If there is only one variation, assume it's that one
-            unit = product.variations[0].value;
+          // 2. Fallback: If not matched yet (even if we have a value like '250'), try to recover
+          if (!variationMatched) {
+            const variationByPrice = product.variations.find((v: any) => v.price === item.unitPrice || v.discPrice === item.unitPrice);
+            if (variationByPrice) {
+              unit = variationByPrice.value;
+              variationMatched = true;
+            } else if (product.variations.length === 1) {
+              // 3. Last Resort: If there is only one variation, assume it's that one
+              unit = product.variations[0].value;
+            }
           }
         }
       }
 
       return {
-        srNo: item._id.toString().slice(-4), // Use last 4 chars of ID as srNo
+        srNo: index + 1,
         product: item.productName || 'Unknown Product',
         soldBy: (item.seller as any)?.storeName || 'N/A',
         unit: unit,
         price: item.unitPrice || 0,
-        tax: 0,
-        taxPercent: 0,
+        tax: item.total ? (item.total * (item.gstPercentage || 0)) / 100 : 0,
+        taxPercent: item.gstPercentage || 0,
+        hsnCode: item.hsnCode || '',
         qty: item.quantity || 0,
         subtotal: item.total || 0,
       };
@@ -208,7 +221,7 @@ export const getOrderById = asyncHandler(
       orderDate: order.orderDate ? order.orderDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       deliveryDate: order.estimatedDeliveryDate ? order.estimatedDeliveryDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       timeSlot: order.timeSlot || 'N/A',
-      status: order.status === 'On the way' ? 'Out For Delivery' : order.status,
+      status: order.status === 'Out for Delivery' ? 'On the way' : order.status,
       customerName: (order.customer as any)?.name || order.customerName || '',
       customerEmail: (order.customer as any)?.email || order.customerEmail || '',
       customerPhone: (order.customer as any)?.phone || order.customerPhone || '',
@@ -218,9 +231,17 @@ export const getOrderById = asyncHandler(
       subtotal: order.subtotal || 0,
       tax: order.tax || 0,
       grandTotal: order.total || 0,
+      specialRequests: order.specialRequests || '',
       paymentMethod: order.paymentMethod || 'N/A',
       paymentStatus: order.paymentStatus || 'Pending',
       deliveryAddress: order.deliveryAddress || {},
+      sellerInfo: {
+        storeName: seller?.storeName || '',
+        taxName: seller?.taxName || '',
+        taxNumber: seller?.taxNumber || '',
+        fssaiLicNo: seller?.fssaiLicNo || '',
+        phone: seller?.phone || '',
+      }
     };
 
     return res.status(200).json({
@@ -241,7 +262,7 @@ export const updateOrderStatus = asyncHandler(
     const { status } = req.body;
 
     // Validate allowed status updates for seller
-    const allowedStatuses = ['Accepted', 'On the way', 'Delivered', 'Cancelled', 'Rejected'];
+    const allowedStatuses = ['Accepted', 'On the way', 'Out for Delivery', 'Delivered', 'Cancelled', 'Rejected'];
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -268,8 +289,10 @@ export const updateOrderStatus = asyncHandler(
       });
     }
 
+    const normalizedStatus = status === 'On the way' ? 'Out for Delivery' : status;
+
     // Check if status is already the same
-    if (order.status === status) {
+    if (order.status === normalizedStatus) {
       return res.status(400).json({
         success: false,
         message: `Order is already ${status}`,
@@ -277,11 +300,11 @@ export const updateOrderStatus = asyncHandler(
     }
 
     const previousStatus = order.status;
-    order.status = status;
+    order.status = normalizedStatus;
     await order.save();
 
     // Trigger delivery notification if seller accepts the order
-    if (status === 'Accepted' && previousStatus !== 'Accepted') {
+    if (normalizedStatus === 'Accepted' && previousStatus !== 'Accepted') {
       try {
         const io: SocketIOServer = (req.app.get("io") as SocketIOServer);
         if (io) {
@@ -311,7 +334,7 @@ export const updateOrderStatus = asyncHandler(
     }
 
     // If order is delivered, credit seller's balance
-    if (status === 'Delivered' && previousStatus !== 'Delivered') {
+    if (normalizedStatus === 'Delivered' && previousStatus !== 'Delivered') {
       const seller = await Seller.findById(sellerId);
       if (seller) {
         // Calculate net earning (sale amount - commission)

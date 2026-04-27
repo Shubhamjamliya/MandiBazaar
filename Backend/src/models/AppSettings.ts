@@ -26,7 +26,18 @@ export interface IAppSettings extends Document {
     wallet: boolean;
     upi: boolean;
   };
+  activePaymentGateway?: 'HDFC' | 'CASHFREE';
   paymentGateways?: {
+    hdfc?: {
+      merchantId?: string;
+      accessCode?: string;
+      workingKey?: string;
+    };
+    cashfree?: {
+      appId?: string;
+      secretKey?: string;
+      environment?: 'SANDBOX' | 'PRODUCTION';
+    };
     razorpay?: {
       enabled: boolean;
       keyId?: string;
@@ -56,6 +67,7 @@ export interface IAppSettings extends Document {
   platformFee?: number;
   deliveryCharges: number;
   freeDeliveryThreshold?: number;
+  minimumOrderValue?: number;
   defaultCashLimit?: number;
   deliveryConfig?: {
     isDistanceBased: boolean;
@@ -207,7 +219,26 @@ const AppSettingsSchema = new Schema<IAppSettings>(
         default: true,
       },
     },
+    activePaymentGateway: {
+      type: String,
+      enum: ['HDFC', 'CASHFREE'],
+      default: 'HDFC',
+    },
     paymentGateways: {
+      hdfc: {
+        merchantId: String,
+        accessCode: String,
+        workingKey: String,
+      },
+      cashfree: {
+        appId: String,
+        secretKey: String,
+        environment: {
+          type: String,
+          enum: ['SANDBOX', 'PRODUCTION'],
+          default: 'SANDBOX'
+        }
+      },
       razorpay: {
         enabled: Boolean,
         keyId: String,
@@ -267,6 +298,11 @@ const AppSettingsSchema = new Schema<IAppSettings>(
     freeDeliveryThreshold: {
       type: Number,
       min: [0, "Free delivery threshold cannot be negative"],
+    },
+    minimumOrderValue: {
+      type: Number,
+      default: 149,
+      min: [0, "Minimum order value cannot be negative"],
     },
     defaultCashLimit: {
       type: Number,

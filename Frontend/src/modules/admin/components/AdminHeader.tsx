@@ -12,8 +12,6 @@ export default function AdminHeader({ onMenuClick, isSidebarOpen }: AdminHeaderP
   const location = useLocation();
   const { logout } = useAuth();
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
-  const [showSearchModal, setShowSearchModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const notificationsRef = useRef<HTMLDivElement>(null);
 
   const isActive = (path: string) => location.pathname.includes(path);
@@ -115,77 +113,12 @@ export default function AdminHeader({ onMenuClick, isSidebarOpen }: AdminHeaderP
 
         {/* Action Icons */}
         <div className="flex items-center gap-2 md:gap-4 relative">
-          {/* Search Button */}
-          <div className="relative">
-            <button
-              onClick={() => setShowSearchModal(!showSearchModal)}
-              className="p-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-              aria-label="Search"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            {showSearchModal && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-neutral-200 p-4 z-50">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && searchQuery.trim()) {
-                        // Navigate to search results or perform search
-                        navigate(`/admin?search=${encodeURIComponent(searchQuery)}`);
-                        setShowSearchModal(false);
-                        setSearchQuery('');
-                      }
-                    }}
-                    placeholder="Search orders, customers, products..."
-                    className="w-full px-4 py-2 pl-10 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                    autoFocus
-                  />
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
-                  >
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <path d="M21 21L16.65 16.65"></path>
-                  </svg>
-                  <button
-                    onClick={() => {
-                      setShowSearchModal(false);
-                      setSearchQuery('');
-                    }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="18" y1="6" x2="6" y2="18"></line>
-                      <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                  </button>
-                </div>
-                {searchQuery && (
-                  <div className="mt-2 text-xs text-neutral-500">
-                    Press Enter to search
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
 
           {/* Notifications Button */}
           <div className="relative" ref={notificationsRef}>
             <button
               onClick={() => {
                 setShowNotificationsDropdown(!showNotificationsDropdown);
-                setShowSearchModal(false);
               }}
               className="p-2 text-neutral-600 hover:text-neutral-900 transition-colors relative"
               aria-label="Notifications"

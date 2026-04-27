@@ -175,7 +175,7 @@ export default function Invoice() {
                   Mandi Bazaar
                 </h1>
                 <p className="text-gray-600">
-                  Fast Delivery E-Commerce Platform
+                  Delivering in 20 MIN
                 </p>
                 <p className="text-gray-600 mt-1">Invoice</p>
               </div>
@@ -293,6 +293,13 @@ export default function Invoice() {
                               <p className="text-sm text-gray-500">
                                 {item.variant}
                               </p>
+                            )}
+                            {item.seller && (
+                              <div className="mt-1 text-[10px] text-gray-500">
+                                <p>Sold By: <span className="font-semibold">{item.seller.storeName}</span></p>
+                                {item.seller.taxNumber && <p>GST: {item.seller.taxNumber}</p>}
+                                {item.seller.fssaiLicNo && <p>FSSAI: {item.seller.fssaiLicNo}</p>}
+                              </div>
                             )}
                           </div>
                         </div>

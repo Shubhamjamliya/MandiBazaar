@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Address,
   deleteAddress,
@@ -26,6 +27,8 @@ export default function AddressBook() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareAddress, setShareAddress] = useState<Address | null>(null);
 
   const loadAddresses = async () => {
     try {
@@ -60,12 +63,37 @@ export default function AddressBook() {
       try {
         await navigator.share({ title: "Saved address", text });
       } catch {
-        // user cancelled; no-op
+        // user cancelled; show modal
+        setShareAddress(address);
+        setShowShareModal(true);
       }
-    } else if (navigator.clipboard) {
-      await navigator.clipboard.writeText(text);
-      alert("Address copied to clipboard");
+    } else {
+      setShareAddress(address);
+      setShowShareModal(true);
     }
+  };
+
+  const openShareChannel = async (channel: 'whatsapp' | 'telegram' | 'copy') => {
+    if (!shareAddress) return;
+    const text = `${shareAddress.fullName || "Address"}\n${buildAddressLine(
+      shareAddress
+    )}\nPhone: ${shareAddress.phone}`;
+
+    if (channel === 'copy') {
+      await navigator.clipboard.writeText(text);
+      alert('Address copied to clipboard');
+      setShowShareModal(false);
+      return;
+    }
+
+    if (channel === 'whatsapp') {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+      setShowShareModal(false);
+      return;
+    }
+
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(text)}`, '_blank');
+    setShowShareModal(false);
   };
 
   const handleDelete = async (id?: string) => {
@@ -236,8 +264,12 @@ export default function AddressBook() {
                         </button>
                         <button
                           onClick={() => handleMakeDefault(addr._id)}
-                          className="flex items-center gap-1 text-sm font-semibold hover:text-teal-800 disabled:text-neutral-400"
-                          disabled={isBusy || addr.isDefault}
+                          className={`flex items-center gap-1 text-sm font-semibold ${
+                            addr.isDefault
+                              ? 'text-neutral-400 cursor-not-allowed'
+                              : 'hover:text-teal-800'
+                          }`}
+                          disabled={isBusy}
                         >
                           <svg
                             viewBox="0 0 24 24"
@@ -283,6 +315,48 @@ export default function AddressBook() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {showShareModal && shareAddress && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center p-4"
+            onClick={() => setShowShareModal(false)}
+          >
+            <motion.div
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 30, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-md p-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-base font-bold text-gray-900 mb-3">Share Address</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  className="py-2 px-3 rounded-lg bg-green-50 text-green-700 font-semibold text-sm hover:bg-green-100 transition-colors"
+                  onClick={() => openShareChannel('whatsapp')}
+                >
+                  WhatsApp
+                </button>
+                <button
+                  className="py-2 px-3 rounded-lg bg-blue-50 text-blue-700 font-semibold text-sm hover:bg-blue-100 transition-colors"
+                  onClick={() => openShareChannel('telegram')}
+                >
+                  Telegram
+                </button>
+                <button
+                  className="py-2 px-3 rounded-lg bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors"
+                  onClick={() => openShareChannel('copy')}
+                >
+                  Copy
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

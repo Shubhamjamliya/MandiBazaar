@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
     getHomeSections,
     createHomeSection,
@@ -709,7 +709,7 @@ export default function AdminHomeSection({ readOnly = false }: AdminHomeSectionP
             <footer className="text-center py-4 text-sm text-neutral-600 border-t border-neutral-200 bg-white">
                 Copyright © 2025. Developed By{" "}
                 <a href="#" className="text-blue-600 hover:underline">
-                    Mandi Bazaar - 10 Minute App
+                    Mandi Bazaar - 20 Minute App
                 </a>
             </footer>
         </div >

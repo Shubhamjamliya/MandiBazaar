@@ -33,7 +33,7 @@ export interface RegisterData {
   mobile: string;
   email: string;
   dateOfBirth?: string;
-  password: string;
+  password?: string;
   address: string;
   city: string;
   pincode?: string;
@@ -100,5 +100,24 @@ export const register = async (data: RegisterData): Promise<RegisterResponse> =>
  */
 export const logout = (): void => {
   removeAuthToken();
+};
+
+/**
+ * Request account deletion OTP for delivery
+ */
+export const requestDeleteAccountOTP = async (): Promise<any> => {
+  const response = await api.post('/auth/delivery/delete-account-request');
+  return response.data;
+};
+
+/**
+ * Confirm delivery account deletion
+ */
+export const confirmDeleteAccount = async (otp: string, sessionId: string): Promise<any> => {
+  const response = await api.post('/auth/delivery/delete-account-confirm', { otp, sessionId });
+  if (response.data.success) {
+    removeAuthToken();
+  }
+  return response.data;
 };
 

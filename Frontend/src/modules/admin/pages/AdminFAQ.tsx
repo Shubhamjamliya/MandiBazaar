@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   getFAQs,
   createFAQ,
@@ -553,9 +553,9 @@ export default function AdminFAQ() {
 
       {/* Footer */}
       <footer className="text-center py-4 text-sm text-neutral-600 border-t border-neutral-200 bg-white">
-        Copyright Â© 2025. Developed By{" "}
+        Copyright 2025. Developed By{" "}
         <a href="#" className="text-blue-600 hover:underline">
-          Mandi Bazaar - 10 Minute App
+          Mandi Bazaar - 20 Minute App
         </a>
       </footer>
     </div>

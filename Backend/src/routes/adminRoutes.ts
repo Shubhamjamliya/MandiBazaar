@@ -241,6 +241,8 @@ router.get("/financial/dashboard", walletController.getFinancialDashboard);
 router.get("/wallet/earnings", walletController.getAdminEarnings);
 router.get("/wallet/transactions", walletController.getWalletTransactions);
 router.get("/wallet/withdrawals", withdrawalController.getAllWithdrawals);
+router.get("/wallet/seller/:id", walletController.getSellerTransactions);
+router.post("/wallet/transfer", walletController.createFundTransfer);
 router.post("/wallet/withdrawal/process", walletController.processWithdrawalWrapper);
 
 // Direct withdrawal routes (if used elsewhere)

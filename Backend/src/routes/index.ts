@@ -63,6 +63,9 @@ router.use("/auth/delivery", deliveryAuthRoutes);
 // FCM Token routes (protected - requires authentication)
 router.use("/fcm-tokens", authenticate, fcmTokenRoutes);
 
+// Delivery wallet routes (protected internally, except for public payment callbacks)
+router.use("/delivery/wallet", deliveryWalletRoutes);
+
 // Delivery routes (protected)
 router.use(
   "/delivery",
@@ -150,8 +153,6 @@ router.use("/payment", paymentRoutes);
 // Seller wallet routes (protected, seller only)
 router.use("/seller/wallet-new", authenticate, requireUserType("Seller"), sellerWalletRoutes);
 
-// Delivery wallet routes (protected, delivery only)
-router.use("/delivery/wallet", authenticate, requireUserType("Delivery"), deliveryWalletRoutes);
 
 // Admin withdrawal management routes (protected, admin only)
 router.use("/admin/withdrawals", authenticate, requireUserType("Admin"), adminWithdrawalRoutes);

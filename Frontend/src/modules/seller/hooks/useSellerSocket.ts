@@ -9,6 +9,7 @@ export interface SellerNotification {
     orderNumber: string;
     status: string;
     paymentStatus: string;
+    specialRequests?: string;
     customer: {
         name: string;
         email: string;

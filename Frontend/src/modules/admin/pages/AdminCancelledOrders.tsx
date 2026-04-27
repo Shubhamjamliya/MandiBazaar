@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getOrdersByStatus, type Order } from '../../../services/api/admin/adminOrderService';
 import { useAuth } from '../../../context/AuthContext';
@@ -497,7 +497,7 @@ export default function AdminCancelledOrders() {
                     className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
                   >
                     <div className="flex items-center gap-1">
-                      D. Date
+                      Delivery Date
                       {sortField === 'deliveryDate' && (
                         <svg
                           width="12"
@@ -520,7 +520,7 @@ export default function AdminCancelledOrders() {
                     className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
                   >
                     <div className="flex items-center gap-1">
-                      O. Date
+                      Oder Date
                       {sortField === 'orderDate' && (
                         <svg
                           width="12"
@@ -708,9 +708,9 @@ export default function AdminCancelledOrders() {
 
       {/* Footer */}
       <div className="text-center py-4 text-xs sm:text-sm text-neutral-600">
-        Copyright Â© 2025. Developed By{' '}
+        Copyright 2025. Developed By{' '}
         <Link to="/" className="text-blue-600 hover:text-blue-700">
-          Mandi Bazaar - 10 Minute App
+          Mandi Bazaar - 20 Minute App
         </Link>
       </div>
     </div>

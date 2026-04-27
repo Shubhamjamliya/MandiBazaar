@@ -1,7 +1,26 @@
 import { Request, Response } from "express";
 import Product from "../../../models/Product";
 import Shop from "../../../models/Shop";
+import Seller from "../../../models/Seller";
 import { asyncHandler } from "../../../utils/asyncHandler";
+
+const validateOptionalProductFormats = (data: any): string | null => {
+  const madeIn = (data?.madeIn || "").toString().trim();
+  const hsnCode = (data?.hsnCode || "").toString().trim();
+  const fssaiLicNo = (data?.fssaiLicNo || "").toString().trim();
+
+  if (madeIn && !/^[A-Za-z\s]+$/.test(madeIn)) {
+    return "Made In should contain only alphabets";
+  }
+  if (hsnCode && !/^\d{4}(?:\s?\d{2}){0,2}$/.test(hsnCode)) {
+    return "HSN code should be in format (ex- 6109 10 00)";
+  }
+  if (fssaiLicNo && !/^\d{2}\/\d{3}\/\d{8}$/.test(fssaiLicNo)) {
+    return "FSSAI lic no. should be in format (ex- 21/001/00012345)";
+  }
+
+  return null;
+};
 
 /**
  * Create a new product
@@ -10,6 +29,24 @@ export const createProduct = asyncHandler(
   async (req: Request, res: Response) => {
     const sellerId = (req as any).user.userId;
     const productData = req.body;
+
+    if ((req as any).user.userType === "Seller") {
+      const seller = await Seller.findById(sellerId).select("status");
+      if (!seller) {
+        return res.status(404).json({ success: false, message: "Seller not found" });
+      }
+      if (seller.status !== "Approved") {
+        return res.status(403).json({
+          success: false,
+          message: "Your account is not approved by admin yet. You cannot add products.",
+        });
+      }
+    }
+
+    const formatError = validateOptionalProductFormats(productData);
+    if (formatError) {
+      return res.status(400).json({ success: false, message: formatError });
+    }
 
     // Ensure sellerId matches authenticated seller
     if (productData.sellerId && productData.sellerId !== sellerId) {
@@ -199,7 +236,7 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
     .populate("category", "name")
     .populate("subcategory", "name")
     .populate("brand", "name")
-    .populate("tax", "name rate")
+    .populate("tax", "name percentage")
     .sort(sort)
     .skip(skip)
     .limit(limitNum);
@@ -245,7 +282,7 @@ export const getProductById = asyncHandler(
       .populate("category", "name")
       .populate("subcategory", "name")
       .populate("brand", "name")
-      .populate("tax", "name rate");
+      .populate("tax", "name percentage");
 
     if (!product) {
       return res.status(404).json({
@@ -270,6 +307,24 @@ export const updateProduct = asyncHandler(
     const sellerId = (req as any).user.userId;
     const { id } = req.params;
     const updateData = req.body;
+
+    if ((req as any).user.userType === "Seller") {
+      const seller = await Seller.findById(sellerId).select("status");
+      if (!seller) {
+        return res.status(404).json({ success: false, message: "Seller not found" });
+      }
+      if (seller.status !== "Approved") {
+        return res.status(403).json({
+          success: false,
+          message: "Your account is not approved by admin yet. You cannot add products.",
+        });
+      }
+    }
+
+    const formatError = validateOptionalProductFormats(updateData);
+    if (formatError) {
+      return res.status(400).json({ success: false, message: formatError });
+    }
 
     console.log("DEBUG updateProduct: sellerId from token:", sellerId);
     console.log("DEBUG updateProduct: productId:", id);
@@ -389,7 +444,7 @@ export const updateProduct = asyncHandler(
       .populate("category", "name")
       .populate("subcategory", "name")
       .populate("brand", "name")
-      .populate("tax", "name rate");
+      .populate("tax", "name percentage");
 
     console.log("DEBUG updateProduct: product updated successfully");
 

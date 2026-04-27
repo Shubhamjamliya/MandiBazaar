@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendOTP, verifyOTP } from '../../../services/api/auth/sellerAuthService';
 import OTPInput from '../../../components/OTPInput';
@@ -7,10 +7,28 @@ import { useAuth } from '../../../context/AuthContext';
 export default function SellerLogin() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const RESEND_OTP_COOLDOWN_SECONDS = 30;
   const [mobileNumber, setMobileNumber] = useState('');
   const [showOTP, setShowOTP] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!showOTP || resendCooldown <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [showOTP, resendCooldown]);
 
   const handleMobileLogin = async () => {
     if (mobileNumber.length !== 10) return;
@@ -23,6 +41,7 @@ export default function SellerLogin() {
       if (response.success) {
         setShowOTP(true);
         setError('');
+        setResendCooldown(RESEND_OTP_COOLDOWN_SECONDS);
       } else {
         setError(response.message || 'Failed to send OTP. Please try again.');
       }
@@ -71,15 +90,16 @@ export default function SellerLogin() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-teal-200/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
       </div>
 
-      {/* Back Button */}
       <button
-        onClick={() => navigate(-1)}
-        className="absolute top-6 left-6 z-10 w-11 h-11 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center hover:bg-white hover:scale-105 transition-all duration-200 border border-green-100"
-        aria-label="Back"
+        onClick={() => navigate('/help-support')}
+        className="absolute top-6 right-6 z-10 px-4 h-11 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg flex items-center justify-center gap-2 hover:bg-white hover:scale-105 transition-all duration-200 border border-green-100 text-sm font-bold text-emerald-700"
+        aria-label="Support"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M15 18L9 12L15 6" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 17H12.01M8 9a4 4 0 118 0c0 2-2 3-2 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
         </svg>
+        Support
       </button>
 
       {/* Main Card */}
@@ -141,7 +161,14 @@ export default function SellerLogin() {
                     <input
                       type="tel"
                       value={mobileNumber}
-                      onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      onChange={(e) => {
+                        let value = e.target.value.replace(/\D/g, ''); // Remove all non-digits
+                        // If starts with 91 (country code), remove it
+                        if (value.startsWith('91') && value.length > 10) {
+                          value = value.slice(2);
+                        }
+                        setMobileNumber(value.slice(0, 10));
+                      }}
                       placeholder="Enter your mobile number"
                       className="w-full pl-24 pr-4 py-3.5 text-base font-medium border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all outline-none"
                       maxLength={10}
@@ -239,12 +266,15 @@ export default function SellerLogin() {
                   </button>
                   <button
                     onClick={async () => {
+                      if (resendCooldown > 0) return;
                       setLoading(true);
                       setError('');
                       try {
                         const response = await sendOTP(mobileNumber);
                         if (!response.success) {
                           setError(response.message || 'Failed to resend OTP');
+                        } else {
+                          setResendCooldown(RESEND_OTP_COOLDOWN_SECONDS);
                         }
                       } catch (err: any) {
                         setError(err.response?.data?.message || 'Failed to resend OTP');
@@ -252,10 +282,14 @@ export default function SellerLogin() {
                         setLoading(false);
                       }
                     }}
-                    disabled={loading}
-                    className="flex-1 py-3 rounded-xl font-semibold text-sm bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 transition-all"
+                    disabled={loading || resendCooldown > 0}
+                    className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all ${
+                      loading || resendCooldown > 0 
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600'
+                    }`}
                   >
-                    {loading ? 'Sending...' : 'Resend OTP'}
+                    {loading ? 'Sending...' : resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
                   </button>
                 </div>
               </div>
@@ -280,14 +314,14 @@ export default function SellerLogin() {
         <div className="mt-6 text-[11px] text-gray-500 text-center px-4 leading-relaxed">
           By continuing, you agree to Mandi Bazaar's{' '}
           <button 
-            onClick={() => navigate('/privacy-policy')}
+            onClick={() => navigate('/terms-of-service', { state: { from: '/seller/login' } })}
             className="text-emerald-600 font-bold hover:underline"
           >
             Terms of Service
           </button>
           {' '}and{' '}
           <button 
-            onClick={() => navigate('/privacy-policy')}
+            onClick={() => navigate('/privacy-policy', { state: { from: '/seller/login' } })}
             className="text-emerald-600 font-bold hover:underline"
           >
             Privacy Policy

@@ -1,18 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { sendOTP, verifyOTP } from '../../services/api/auth/customerAuthService';
 import { useAuth } from '../../context/AuthContext';
 import OTPInput from '../../components/OTPInput';
 
 export default function Login() {
+  const OTP_RESEND_SECONDS = 30;
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
   const [mobileNumber, setMobileNumber] = useState('');
   const [showOTP, setShowOTP] = useState(false);
   const [sessionId, setSessionId] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!showOTP || resendCooldown <= 0) return;
+
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [showOTP, resendCooldown]);
 
   const handleContinue = async () => {
     if (mobileNumber.length !== 10) return;
@@ -26,6 +38,7 @@ export default function Login() {
         setSessionId(response.sessionId);
       }
       setShowOTP(true);
+      setResendCooldown(OTP_RESEND_SECONDS);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to initiate call. Please try again.');
     } finally {
@@ -153,6 +166,18 @@ export default function Login() {
           <svg width="18" height="18" className="sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
+        </button>
+
+        <button
+          onClick={() => navigate('/help-support')}
+          className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10 px-3 py-2 rounded-full bg-white shadow-md flex items-center justify-center gap-1.5 hover:bg-neutral-50 transition-colors text-xs font-bold text-emerald-700"
+          aria-label="Support"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 17H12.01M8 9a4 4 0 118 0c0 2-2 3-2 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+          </svg>
+          Support
         </button>
 
         {/* Background Section */}
@@ -321,7 +346,14 @@ export default function Login() {
                   <input
                     type="tel"
                     value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, ''); // Remove all non-digits
+                      // If starts with 91 (country code), remove it
+                      if (value.startsWith('91') && value.length > 10) {
+                        value = value.slice(2);
+                      }
+                      setMobileNumber(value.slice(0, 10));
+                    }}
                     placeholder="98765 43210"
                     className="flex-1 px-4 h-full text-base font-medium text-neutral-900 placeholder:text-neutral-400 focus:outline-none bg-transparent"
                     maxLength={10}
@@ -382,12 +414,17 @@ export default function Login() {
                 </button>
                 <button
                   onClick={handleContinue}
-                  disabled={loading}
+                  disabled={loading || resendCooldown > 0}
                   className="flex-1 py-2 rounded-lg font-semibold text-xs bg-orange-50 text-orange-600 border border-orange-500 hover:bg-orange-100 transition-colors"
                 >
-                  {loading ? 'Verifying...' : 'Resend OTP'}
+                  {loading ? 'Sending...' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
                 </button>
               </div>
+              {resendCooldown > 0 && (
+                <p className="w-full px-4 text-center text-[11px] text-neutral-500">
+                  You can resend OTP in {resendCooldown}s
+                </p>
+              )}
             </>
           )}
 
@@ -397,15 +434,15 @@ export default function Login() {
           <div className="w-full px-6 py-2 text-center animate-fade-in" style={{ animationDelay: '0.9s' }}>
             <p className="text-[10px] text-neutral-500 leading-relaxed font-medium">
               By continuing, you agree to our{' '}
-              <button 
-                onClick={() => navigate('/privacy-policy')}
+              <button
+                onClick={() => navigate('/privacy-policy', { state: { from: '/login' } })}
                 className="text-emerald-600 font-bold hover:underline"
               >
                 Privacy Policy
               </button>
               {' '}and{' '}
               <button 
-                onClick={() => navigate('/privacy-policy')}
+                onClick={() => navigate('/terms-of-service', { state: { from: '/login' } })}
                 className="text-emerald-600 font-bold hover:underline"
               >
                 Terms of Service

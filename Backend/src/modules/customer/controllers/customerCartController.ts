@@ -13,27 +13,41 @@ import Seller from '../../../models/Seller';
 const calculateItemPrice = (product: any, variationSelector: any) => {
     let variation = null;
     let variationId = variationSelector;
+    let weightVariant = null;
+    let weightLabel: string | null = null;
 
     // Handle if variationSelector is an object (some implementations store it differently)
     if (variationSelector && typeof variationSelector === 'object' && variationSelector._id) {
         variationId = variationSelector._id;
     }
 
+    if (typeof variationId === 'string' && variationId.startsWith('wv_')) {
+        weightLabel = variationId.replace('wv_', '');
+    }
+
+    if (weightLabel && product.weightVariants?.length) {
+        weightVariant = product.weightVariants.find((v: any) => v.label === weightLabel);
+    }
+
     if (variationId && product.variations?.length) {
         variation = product.variations.find((v: any) =>
             (v._id && v._id.toString() === variationId.toString()) ||
-            (v.id && v.id === variationId)
+            (v.id && v.id === variationId) ||
+            v.value === variationId ||
+            v.title === variationId ||
+            v.pack === variationId
         );
     }
 
-    let finalPrice = variation?.price || product.price || 0;
-
-    // Priority: Variation Discount -> Product Discount -> Variation Price -> Product Price
-    if (variation?.discPrice && variation.discPrice > 0) {
-        finalPrice = variation.discPrice;
-    } else if (product.discPrice && product.discPrice > 0) {
-        finalPrice = product.discPrice;
-    }
+    // Keep price precedence consistent with frontend and order creation.
+    // Priority: Weight Variant Price -> Variation Discount -> Product Discount -> Variation Price -> Product Price
+    const finalPrice = (weightVariant?.price && weightVariant.price > 0)
+        ? weightVariant.price
+        : (variation?.discPrice && variation.discPrice > 0)
+            ? variation.discPrice
+            : (product.discPrice && product.discPrice > 0)
+                ? product.discPrice
+                : (variation?.price || product.price || 0);
 
     console.log(`[DEBUG Price] VarId: ${variationId}, Found: ${!!variation}, ProdDisc: ${product.discPrice}, Final: ${finalPrice}`);
     return finalPrice;
@@ -43,15 +57,16 @@ const calculateItemPrice = (product: any, variationSelector: any) => {
 const calculateCartTotal = async (cartId: any, nearbySellerIds: mongoose.Types.ObjectId[] = []) => {
     const items = await CartItem.find({ cart: cartId }).populate({
         path: 'product',
-        select: 'price discPrice variations seller status publish productName'
+        select: 'price discPrice variations weightVariants sellingUnit seller status publish productName'
     });
 
     let total = 0;
+    const shouldApplyLocationFilter = nearbySellerIds.length > 0;
     for (const item of items) {
         const product = item.product as any;
         if (product && product.status === 'Active' && product.publish) {
-            // Check if seller is in range
-            const isAvailable = nearbySellerIds.some(id => id.toString() === product.seller.toString());
+            // If location is available, include only nearby sellers; otherwise include all active items.
+            const isAvailable = !shouldApplyLocationFilter || nearbySellerIds.some(id => id.toString() === product.seller.toString());
             if (isAvailable) {
                 const price = calculateItemPrice(product, item.variation);
                 total += price * item.quantity;
@@ -66,11 +81,13 @@ const calculateDeliveryStuff = async (total: number, items: any[], userLat: numb
     let estimatedDeliveryFee = 0;
     let platformFee = 0;
     let freeDeliveryThreshold = 0;
+    let minimumOrderValue = 149;
 
     try {
         const settings = await AppSettings.getSettings();
         platformFee = settings.platformFee || 0;
         freeDeliveryThreshold = settings.freeDeliveryThreshold || 0;
+        minimumOrderValue = settings.minimumOrderValue || 149;
 
         // Check free delivery threshold
         if (freeDeliveryThreshold > 0 && total >= freeDeliveryThreshold) {
@@ -134,7 +151,8 @@ const calculateDeliveryStuff = async (total: number, items: any[], userLat: numb
     return {
         estimatedDeliveryFee,
         platformFee,
-        freeDeliveryThreshold
+        freeDeliveryThreshold,
+        minimumOrderValue
     };
 };
 
@@ -163,7 +181,7 @@ export const getCart = async (req: Request, res: Response) => {
             path: 'items',
             populate: {
                 path: 'product',
-                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations'
+                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations weightVariants sellingUnit'
             }
         });
 
@@ -303,7 +321,7 @@ export const addToCart = async (req: Request, res: Response) => {
             path: 'items',
             populate: {
                 path: 'product',
-                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations'
+                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations weightVariants sellingUnit'
             }
         });
 
@@ -349,15 +367,12 @@ export const updateCartItem = async (req: Request, res: Response) => {
         // Parse location
         const userLat = latitude ? parseFloat(latitude as string) : null;
         const userLng = longitude ? parseFloat(longitude as string) : null;
+        const hasValidLocation = userLat !== null && userLng !== null && !isNaN(userLat) && !isNaN(userLng);
 
-        if (userLat === null || userLng === null || isNaN(userLat) || isNaN(userLng)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Location is required to update cart'
-            });
+        let nearbySellerIds: mongoose.Types.ObjectId[] = [];
+        if (hasValidLocation) {
+            nearbySellerIds = await findSellersWithinRange(userLat, userLng);
         }
-
-        const nearbySellerIds = await findSellersWithinRange(userLat, userLng);
 
         const cart = await Cart.findOne({ customer: userId });
         if (!cart) {
@@ -371,7 +386,7 @@ export const updateCartItem = async (req: Request, res: Response) => {
 
         // Verify item is still available at location
         const product = cartItem.product as any;
-        const isAvailable = product && nearbySellerIds.some(id => id.toString() === product.seller.toString());
+        const isAvailable = product && (!hasValidLocation || nearbySellerIds.some(id => id.toString() === product.seller.toString()));
 
         if (!isAvailable) {
             return res.status(403).json({
@@ -393,13 +408,15 @@ export const updateCartItem = async (req: Request, res: Response) => {
             path: 'items',
             populate: {
                 path: 'product',
-                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations'
+                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations weightVariants sellingUnit'
             }
         });
 
         const filteredItems = (updatedCart?.items as any[] || []).filter(item => {
             const prod = item.product;
-            return prod && nearbySellerIds.some(id => id.toString() === (prod.seller?._id || prod.seller).toString());
+            if (!prod) return false;
+            if (!hasValidLocation) return true;
+            return nearbySellerIds.some(id => id.toString() === (prod.seller?._id || prod.seller).toString());
         });
 
         // Calculate fees
@@ -458,7 +475,7 @@ export const removeFromCart = async (req: Request, res: Response) => {
             path: 'items',
             populate: {
                 path: 'product',
-                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations'
+                select: 'productName price mainImage stock pack mrp category seller status publish discPrice variations weightVariants sellingUnit'
             }
         });
 

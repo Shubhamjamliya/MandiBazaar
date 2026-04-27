@@ -92,6 +92,16 @@ const FALLBACK_LOGO =
         </svg>`
     );
 
+const getLocationLabel = (seller: Seller): string => {
+    const looksLikeCoordinates = (value?: string) =>
+        !!value && /^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(value.trim());
+
+    if (seller.address && !looksLikeCoordinates(seller.address)) return seller.address;
+    if (seller.searchLocation && !looksLikeCoordinates(seller.searchLocation)) return seller.searchLocation;
+    if (seller.city) return seller.city;
+    return 'Area not available';
+};
+
 export default function AdminManageSellerList() {
     const [sellers, setSellers] = useState<Seller[]>([]);
     const [loading, setLoading] = useState(true);
@@ -157,13 +167,16 @@ export default function AdminManageSellerList() {
         </span>
     );
 
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+
     // Filter sellers
     let filteredSellers = sellers.filter(seller =>
-        seller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        seller.storeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        seller.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        seller.phone.includes(searchTerm) ||
-        seller.mobile.includes(searchTerm)
+        !normalizedSearchTerm ||
+        seller.name.toLowerCase().includes(normalizedSearchTerm) ||
+        seller.storeName.toLowerCase().includes(normalizedSearchTerm) ||
+        seller.email.toLowerCase().includes(normalizedSearchTerm) ||
+        seller.phone.includes(normalizedSearchTerm) ||
+        seller.mobile.includes(normalizedSearchTerm)
     );
 
     // Sort sellers
@@ -606,6 +619,15 @@ export default function AdminManageSellerList() {
                                             </td>
                                             <td className="p-4 align-middle">
                                                 <div className="flex items-center gap-2">
+                                                    {seller.status === 'Pending' && (
+                                                        <button
+                                                            onClick={() => handleApprove(seller._id)}
+                                                            className="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded transition-colors"
+                                                            title="Approve"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => handleEdit(seller._id)}
                                                         className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition-colors"
@@ -712,8 +734,8 @@ export default function AdminManageSellerList() {
 
             {/* Footer */}
             <footer className="text-center py-4 text-sm text-neutral-600 border-t border-neutral-200 bg-white">
-                Copyright Â© 2025. Developed By{' '}
-                <a href="#" className="text-blue-600 hover:underline">Mandi Bazaar - 10 Minute App</a>
+                Copyright 2025. Developed By{' '}
+                <a href="#" className="text-blue-600 hover:underline">Mandi Bazaar - 20 Minute App</a>
             </footer>
 
             {/* Categories Modal */}
@@ -916,19 +938,7 @@ export default function AdminManageSellerList() {
                                         {editingSeller.searchLocation && (
                                             <div className="md:col-span-2">
                                                 <label className="text-xs text-neutral-500">Location</label>
-                                                <p className="text-sm font-medium text-neutral-900">{editingSeller.searchLocation}</p>
-                                            </div>
-                                        )}
-                                        {(editingSeller.latitude || editingSeller.longitude) && (
-                                            <div className="md:col-span-2 grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="text-xs text-neutral-500">Latitude</label>
-                                                    <p className="text-sm font-medium text-neutral-900">{editingSeller.latitude || 'N/A'}</p>
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs text-neutral-500">Longitude</label>
-                                                    <p className="text-sm font-medium text-neutral-900">{editingSeller.longitude || 'N/A'}</p>
-                                                </div>
+                                                <p className="text-sm font-medium text-neutral-900">{getLocationLabel(editingSeller)}</p>
                                             </div>
                                         )}
                                     </div>

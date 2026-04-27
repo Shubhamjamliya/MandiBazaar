@@ -160,6 +160,7 @@ export default function CheckoutAddress() {
   const platformFee = appConfig.platformFee;
   const deliveryFee = cart.total >= appConfig.freeDeliveryThreshold ? 0 : appConfig.deliveryFee;
   const totalAmount = cart.total + platformFee + deliveryFee;
+  const summaryItems = (cart.items || []).filter((item: any) => item?.product);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof OrderAddress, string>> = {};
@@ -474,7 +475,7 @@ export default function CheckoutAddress() {
           <input
             type="text"
             value={address.city}
-            onChange={(e) => handleInputChange('city', e.target.value)}
+            onChange={(e) => handleInputChange('city', e.target.value.replace(/[0-9]/g, ''))}
             className={`w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-colors ${errors.city ? 'border-red-500' : 'border-neutral-200'
               }`}
             placeholder="City"
@@ -489,7 +490,7 @@ export default function CheckoutAddress() {
           <input
             type="text"
             value={address.state || ''}
-            onChange={(e) => handleInputChange('state', e.target.value)}
+            onChange={(e) => handleInputChange('state', e.target.value.replace(/[0-9]/g, ''))}
             className={`w-full px-3 py-2 bg-white border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-colors ${errors.state ? 'border-red-500' : 'border-neutral-200'
               }`}
             placeholder="State"
@@ -514,13 +515,16 @@ export default function CheckoutAddress() {
         </div>
       </div>
 
-      {/* Order Summary */}
-      <div className="px-4 mb-4">
+      {/* Order Summary - Hidden on address form page */}
+      <div className="px-4 mb-4 hidden">
         <h2 className="text-sm font-bold text-neutral-900 mb-2.5">Order Summary</h2>
         <div className="bg-white rounded-lg border border-neutral-200 p-2.5">
           {/* Cart Items */}
           <div className="space-y-2 mb-3">
-            {cart.items.map((item) => {
+            {summaryItems.length === 0 && (
+              <div className="text-xs text-neutral-500">No items in cart yet.</div>
+            )}
+            {summaryItems.map((item) => {
               const { displayPrice } = calculateProductPrice(item.product);
               return (
                 <div key={item.id || `${item.product.id}-${(item.product as any).variantId || 'default'}`} className="flex items-center justify-between text-xs">

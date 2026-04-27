@@ -109,6 +109,9 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           longitude: order.address.longitude ?? 0,
         },
         paymentMethod: order.paymentMethod || "COD",
+        specialRequests: order.specialRequests || undefined,
+        couponCode: order.couponCode || undefined,
+        giftPackaging: !!order.giftPackaging,
         items: order.items.map((item) => ({
           product: {
             id: item.product.id || (item.product as { _id?: string })._id || '',

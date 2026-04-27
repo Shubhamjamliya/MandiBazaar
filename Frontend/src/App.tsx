@@ -38,12 +38,14 @@ const Categories = lazy(() => import("./modules/user/Categories"));
 const Category = lazy(() => import("./modules/user/Category"));
 const Invoice = lazy(() => import("./modules/user/Invoice"));
 const Login = lazy(() => import("./modules/user/Login"));
+const DeleteAccount = lazy(() => import("./modules/user/DeleteAccount"));
 
 const AboutUs = lazy(() => import("./modules/user/AboutUs"));
 const FAQ = lazy(() => import("./modules/user/FAQ"));
 const Wishlist = lazy(() => import("./modules/user/Wishlist"));
 const Addresses = lazy(() => import("./modules/user/Addresses"));
 const AddressBook = lazy(() => import("./modules/user/AddressBook"));
+const Wallet = lazy(() => import("./modules/user/Wallet"));
 const SpiritualStore = lazy(() => import("./modules/user/SpiritualStore"));
 const PharmaStore = lazy(() => import("./modules/user/PharmaStore"));
 const EGiftStore = lazy(() => import("./modules/user/EGiftStore"));
@@ -54,6 +56,7 @@ const ToyStore = lazy(() => import("./modules/user/ToyStore"));
 const HobbyStore = lazy(() => import("./modules/user/HobbyStore"));
 const StorePage = lazy(() => import("./modules/user/StorePage"));
 const PrivacyPolicy = lazy(() => import("./modules/user/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./modules/user/TermsOfService"));
 // Lazy load delivery routes
 const DeliveryLayout = lazy(() => import("./modules/delivery/components/DeliveryLayout"));
 const DeliveryDashboard = lazy(() => import("./modules/delivery/pages/DeliveryDashboard"));
@@ -73,6 +76,7 @@ const DeliveryAbout = lazy(() => import("./modules/delivery/pages/DeliveryAbout"
 const DeliverySellersInRange = lazy(() => import("./modules/delivery/pages/DeliverySellersInRange"));
 const DeliveryLogin = lazy(() => import("./modules/delivery/pages/DeliveryLogin"));
 const DeliverySignUp = lazy(() => import("./modules/delivery/pages/DeliverySignUp"));
+const DeliveryDeleteAccount = lazy(() => import("./modules/delivery/pages/DeliveryDeleteAccount"));
 
 // Lazy load seller routes
 const SellerLayout = lazy(() => import("./modules/seller/components/SellerLayout"));
@@ -91,6 +95,7 @@ const SellerReturnRequest = lazy(() => import("./modules/seller/pages/SellerRetu
 const SellerAccountSettings = lazy(() => import("./modules/seller/pages/SellerAccountSettings"));
 const SellerLogin = lazy(() => import("./modules/seller/pages/SellerLogin"));
 const SellerSignUp = lazy(() => import("./modules/seller/pages/SellerSignUp"));
+const SellerDeleteAccount = lazy(() => import("./modules/seller/pages/SellerDeleteAccount"));
 const SellerHelp = lazy(() => import("./modules/seller/pages/HelpSupport"));
 
 // Lazy load admin routes
@@ -119,7 +124,6 @@ const AdminPaymentList = lazy(() => import("./modules/admin/pages/AdminPaymentLi
 const AdminSmsGateway = lazy(() => import("./modules/admin/pages/AdminSmsGateway"));
 const AdminSystemUser = lazy(() => import("./modules/admin/pages/AdminSystemUser"));
 const AdminUsers = lazy(() => import("./modules/admin/pages/AdminUsers"));
-const AdminFAQ = lazy(() => import("./modules/admin/pages/AdminFAQ"));
 // AdminHomeSection removed - replaced by Category hierarchy
 const AdminBestsellerCards = lazy(() => import("./modules/admin/pages/AdminBestsellerCards"));
 const AdminBanners = lazy(() => import("./modules/admin/pages/AdminBanners"));
@@ -165,6 +169,25 @@ function App() {
     setupForegroundNotificationHandler((payload) => {
       console.log('Notification received in app:', payload);
     });
+  }, []);
+
+  // Preload support page chunk so it opens instantly from login screens.
+  useEffect(() => {
+    const preloadSupport = () => {
+      startTransition(() => {
+        import("./modules/seller/pages/HelpSupport").catch(() => {
+          // Ignore preload errors; route lazy load will still work.
+        });
+      });
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const idleId = (window as any).requestIdleCallback(preloadSupport);
+      return () => (window as any).cancelIdleCallback?.(idleId);
+    }
+
+    const timeoutId = setTimeout(preloadSupport, 700);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   return (
@@ -249,6 +272,31 @@ function App() {
                             }
                           />
 
+                          <Route
+                            path="/privacy-policy"
+                            element={
+                              <Suspense fallback={<IconLoader forceShow />}>
+                                <PrivacyPolicy />
+                              </Suspense>
+                            }
+                          />
+                          <Route
+                            path="/terms-of-service"
+                            element={
+                              <Suspense fallback={<IconLoader forceShow />}>
+                                <TermsOfService />
+                              </Suspense>
+                            }
+                          />
+                          <Route
+                            path="/help-support"
+                            element={
+                              <Suspense fallback={<IconLoader forceShow />}>
+                                <SellerHelp />
+                              </Suspense>
+                            }
+                          />
+
                           {/* Delivery App Routes */}
                           <Route
                             path="/delivery/*"
@@ -272,6 +320,7 @@ function App() {
                                       <Route path="help" element={<DeliveryHelp />} />
                                       <Route path="about" element={<DeliveryAbout />} />
                                       <Route path="sellers-in-range" element={<DeliverySellersInRange />} />
+                                      <Route path="delete-account" element={<DeliveryDeleteAccount />} />
                                     </Routes>
                                   </DeliveryLayout>
                                 </Suspense>
@@ -302,6 +351,7 @@ function App() {
                                       <Route path="wallet" element={<SellerWallet />} />
                                       <Route path="reports/sales" element={<SellerSalesReport />} />
                                       <Route path="account-settings" element={<SellerAccountSettings />} />
+                                      <Route path="delete-account" element={<SellerDeleteAccount />} />
                                       <Route path="help" element={<SellerHelp />} />
                                     </Routes>
                                   </SellerLayout>
@@ -354,7 +404,6 @@ function App() {
                                         <Route path="shipping-policy" element={<AdminShippingPolicy />} />
                                         <Route path="refund-return-policy" element={<AdminRefundReturnPolicy />} />
                                         <Route path="users" element={<AdminUsers />} />
-                                        <Route path="faq" element={<AdminFAQ />} />
                                         {/* home-section route removed - Home Sections feature removed */}
                                         <Route path="bestseller-cards" element={<AdminBestsellerCards />} />
                                         <Route path="banners" element={<AdminBanners />} />
@@ -396,8 +445,16 @@ function App() {
                                     <Route path="/orders/:id" element={<OrderDetail />} />
                                     <Route path="/order-again" element={<OrderAgain />} />
                                     <Route path="/account" element={<Account />} />
+                                    <Route
+                                      path="/wallet"
+                                      element={
+                                        <ProtectedRoute requiredUserType="Customer" redirectTo="/login">
+                                          <Wallet />
+                                        </ProtectedRoute>
+                                      }
+                                    />
                                     <Route path="/about-us" element={<AboutUs />} />
-                                    <Route path="/faq" element={<FAQ />} />
+                                    <Route path="/support" element={<FAQ />} />
                                     <Route path="/wishlist" element={<Wishlist />} />
                                     <Route path="/categories" element={<Categories />} />
                                     <Route path="/category/:id" element={<Category />} />
@@ -431,7 +488,14 @@ function App() {
                                     <Route path="/store/fashion-basics" element={<FashionStore />} />
                                     <Route path="/store/toy" element={<ToyStore />} />
                                     <Route path="/store/hobby" element={<HobbyStore />} />
-                                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                                    <Route
+                                      path="/delete-account"
+                                      element={
+                                        <ProtectedRoute requiredUserType="Customer" redirectTo="/login">
+                                          <DeleteAccount />
+                                        </ProtectedRoute>
+                                      }
+                                    />
                                   </Routes>
                                 </Suspense>
                               </AppLayout>

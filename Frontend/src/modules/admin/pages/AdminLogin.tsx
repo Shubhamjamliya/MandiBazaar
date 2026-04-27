@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendOTP, verifyOTP } from '../../../services/api/auth/adminAuthService';
 import OTPInput from '../../../components/OTPInput';
@@ -7,10 +7,28 @@ import { useAuth } from '../../../context/AuthContext';
 export default function AdminLogin() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const RESEND_OTP_COOLDOWN_SECONDS = 30;
   const [mobileNumber, setMobileNumber] = useState('');
   const [showOTP, setShowOTP] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!showOTP || resendCooldown <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [showOTP, resendCooldown]);
 
   const handleMobileLogin = async () => {
     if (mobileNumber.length !== 10) return;
@@ -21,6 +39,7 @@ export default function AdminLogin() {
     try {
       await sendOTP(mobileNumber);
       setShowOTP(true);
+      setResendCooldown(RESEND_OTP_COOLDOWN_SECONDS);
     } catch (err: any) {
       setError(
         err.response?.data?.message || "Failed to send OTP. Please try again."
@@ -63,25 +82,15 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-green-50 flex flex-col items-center justify-center px-4 py-8">
-      {/* Back Button */}
       <button
-        onClick={() => navigate(-1)}
-        className="absolute top-4 left-4 z-10 w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center hover:bg-neutral-50 transition-colors"
-        aria-label="Back">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg">
-          <path
-            d="M15 18L9 12L15 6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+        onClick={() => navigate('/help-support')}
+        className="absolute top-4 right-4 z-10 px-3.5 h-10 rounded-full bg-white shadow-md flex items-center justify-center gap-1.5 hover:bg-neutral-50 transition-colors text-xs font-bold text-emerald-700"
+        aria-label="Support">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 17H12.01M8 9a4 4 0 118 0c0 2-2 3-2 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
         </svg>
+        Support
       </button>
 
       {/* Login Card */}
@@ -126,11 +135,14 @@ export default function AdminLogin() {
                   <input
                     type="tel"
                     value={mobileNumber}
-                    onChange={(e) =>
-                      setMobileNumber(
-                        e.target.value.replace(/\D/g, "").slice(0, 10)
-                      )
-                    }
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, ''); // Remove all non-digits
+                      // If starts with 91 (country code), remove it
+                      if (value.startsWith('91') && value.length > 10) {
+                        value = value.slice(2);
+                      }
+                      setMobileNumber(value.slice(0, 10));
+                    }}
                     placeholder="Enter mobile number"
                     className="flex-1 px-3 py-2.5 text-sm placeholder:text-neutral-400 focus:outline-none"
                     maxLength={10}
@@ -186,24 +198,58 @@ export default function AdminLogin() {
                   Change Number
                 </button>
                 <button
-                  onClick={handleMobileLogin}
-                  disabled={loading}
+                  onClick={async () => {
+                    if (resendCooldown > 0) return;
+                    await handleMobileLogin();
+                  }}
+                  disabled={loading || resendCooldown > 0}
                   className="flex-1 py-2.5 rounded-lg font-semibold text-sm bg-teal-600 text-white hover:bg-teal-700 transition-colors">
-                  {loading ? "Verifying..." : "Resend OTP"}
+                  {loading ? "Sending..." : resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Resend OTP"}
                 </button>
               </div>
             </div>
           )}
 
-
-
-
+          {/* Privacy & Terms Agreement */}
+          <div className="w-full px-6 py-2 text-center animate-fade-in" style={{ animationDelay: '0.9s' }}>
+            <p className="text-[10px] text-neutral-500 leading-relaxed font-medium">
+              By continuing, you agree to our{' '}
+              <button
+                onClick={() => navigate('/privacy-policy', { state: { from: '/admin/login' } })}
+                className="text-emerald-600 font-bold hover:underline"
+              >
+                Privacy Policy
+              </button>
+              {' '}and{' '}
+              <button 
+                onClick={() => navigate('/terms-of-service', { state: { from: '/admin/login' } })}
+                className="text-emerald-600 font-bold hover:underline"
+              >
+                Terms of Service
+              </button>
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Footer Text */}
       <p className="mt-6 text-xs text-neutral-500 text-center max-w-md">
-        By continuing, you agree to Mandi Bazaar's Terms of Service and Privacy Policy
+        By continuing, you agree to Mandi Bazaar's{' '}
+        <button
+          type="button"
+          onClick={() => navigate('/terms-of-service', { state: { from: '/admin/login' } })}
+          className="text-teal-600 hover:text-teal-700 font-semibold"
+        >
+          Terms of Service
+        </button>
+        {' '}and{' '}
+        <button
+          type="button"
+          onClick={() => navigate('/privacy-policy', { state: { from: '/admin/login' } })}
+          className="text-teal-600 hover:text-teal-700 font-semibold"
+        >
+          Privacy Policy
+        </button>
       </p>
     </div>
   );

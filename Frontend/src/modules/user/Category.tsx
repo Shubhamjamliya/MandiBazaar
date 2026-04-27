@@ -8,6 +8,9 @@ import {
   Category as ApiCategory,
 } from "../../services/api/customerProductService";
 import { useLocation as useLocationContext } from "../../hooks/useLocation";
+import { calculateProductPrice } from "../../utils/priceUtils";
+
+type SortOption = "relevance" | "priceLowToHigh" | "priceHighToLow" | "nameAZ" | "nameZA";
 
 export default function CategoryPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +23,9 @@ export default function CategoryPage() {
   const [selectedSubcategory, setSelectedSubcategory] = useState("all");
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [appliedFilters, setAppliedFilters] = useState<string[]>([]);
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const [selectedSort, setSelectedSort] = useState<SortOption>("relevance");
   const [filterSearchQuery, setFilterSearchQuery] = useState("");
   const [selectedFilterCategory, setSelectedFilterCategory] = useState("Type");
   const [products, setProducts] = useState<any[]>([]);
@@ -178,8 +184,45 @@ export default function CategoryPage() {
     return () => observer.disconnect();
   }, [hasMore, isLoadingMore, page, loading, fetchProductsList]);
 
-  // Client-side filtering removed in favor of backend subcategory filtering
-  const categoryProducts = products;
+  const categoryProducts = useMemo(() => {
+    let result = [...products];
+
+    if (appliedFilters.length > 0) {
+      result = result.filter((product) => {
+        const searchableText = [
+          product.name,
+          product.productName,
+          ...(Array.isArray(product.tags) ? product.tags : []),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return appliedFilters.some((filterName) =>
+          searchableText.includes(filterName.toLowerCase())
+        );
+      });
+    }
+
+    switch (selectedSort) {
+      case "priceLowToHigh":
+        result.sort((a, b) => calculateProductPrice(a).displayPrice - calculateProductPrice(b).displayPrice);
+        break;
+      case "priceHighToLow":
+        result.sort((a, b) => calculateProductPrice(b).displayPrice - calculateProductPrice(a).displayPrice);
+        break;
+      case "nameAZ":
+        result.sort((a, b) => (a.name || a.productName || "").localeCompare(b.name || b.productName || ""));
+        break;
+      case "nameZA":
+        result.sort((a, b) => (b.name || b.productName || "").localeCompare(a.name || a.productName || ""));
+        break;
+      default:
+        break;
+    }
+
+    return result;
+  }, [products, appliedFilters, selectedSort]);
 
   if ((categoryLoading || loading) && !products.length && !category) {
     return null; // Let global IconLoader handle it
@@ -220,14 +263,16 @@ export default function CategoryPage() {
 
   // Extract filter options from products
   const getFilterOptions = () => {
-    const categoryProducts = products.filter((p) => p.categoryId === id);
+    const categoryProducts = products;
     const filterMap = new Map<string, number>();
 
     categoryProducts.forEach((product) => {
+      const productName = (product.name || product.productName || "").toLowerCase();
+      if (!productName) return;
+
       // Extract main ingredient/type from product name
-      const name = product.name.toLowerCase();
       // Remove common prefixes like "fresh", "organic", etc.
-      const cleanName = name
+      const cleanName = productName
         .replace(/^(fresh|organic|premium|best|new)\s+/i, "")
         .trim();
 
@@ -317,11 +362,21 @@ export default function CategoryPage() {
 
   const handleClearFilters = () => {
     setSelectedFilters([]);
+    setAppliedFilters([]);
+    setIsFiltersOpen(false);
   };
 
   const handleApplyFilters = () => {
-    // Apply filters logic here
+    setAppliedFilters(selectedFilters);
     setIsFiltersOpen(false);
+  };
+
+  const sortLabelMap: Record<SortOption, string> = {
+    relevance: "Sort",
+    priceLowToHigh: "Price: Low to High",
+    priceHighToLow: "Price: High to Low",
+    nameAZ: "Name: A to Z",
+    nameZA: "Name: Z to A",
   };
 
   return (
@@ -437,7 +492,10 @@ export default function CategoryPage() {
           <div className="flex items-center gap-1.5 md:gap-2 overflow-x-auto scrollbar-hide -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 scroll-smooth">
             {/* Filters Button */}
             <button
-              onClick={() => setIsFiltersOpen(true)}
+              onClick={() => {
+                setSelectedFilters(appliedFilters);
+                setIsFiltersOpen(true);
+              }}
               className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 transition-colors flex-shrink-0 whitespace-nowrap">
               <svg
                 width="12"
@@ -455,12 +513,14 @@ export default function CategoryPage() {
                   strokeLinecap="round"
                 />
               </svg>
-              <span>Filters</span>
+              <span>{appliedFilters.length > 0 ? `Filters (${appliedFilters.length})` : "Filters"}</span>
               <span className="text-neutral-500 text-[10px] ml-0.5">▾</span>
             </button>
 
             {/* Sort Button */}
-            <button className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 transition-colors flex-shrink-0 whitespace-nowrap">
+            <button
+              onClick={() => setIsSortOpen(true)}
+              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 transition-colors flex-shrink-0 whitespace-nowrap">
               <svg
                 width="12"
                 height="12"
@@ -476,7 +536,7 @@ export default function CategoryPage() {
                   strokeLinejoin="round"
                 />
               </svg>
-              <span>Sort</span>
+              <span>{sortLabelMap[selectedSort]}</span>
               <span className="text-neutral-500 text-[10px] ml-0.5">▾</span>
             </button>
 
@@ -520,7 +580,7 @@ export default function CategoryPage() {
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
                 {categoryProducts.map((product) => (
                   <ProductCard
-                    key={product.id}
+                    key={product._id || product.id}
                     product={product}
                     showHeartIcon={false}
                     showStockInfo={false}
@@ -703,6 +763,53 @@ export default function CategoryPage() {
               </motion.div>
             </div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Sort Modal */}
+      <AnimatePresence>
+        {isSortOpen && (
+          <div className="fixed inset-0 z-[100]">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setIsSortOpen(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4"
+            >
+              <h3 className="text-base font-bold text-neutral-900 mb-3">Sort By</h3>
+              <div className="space-y-2">
+                {([
+                  { key: "relevance", label: "Relevance" },
+                  { key: "priceLowToHigh", label: "Price: Low to High" },
+                  { key: "priceHighToLow", label: "Price: High to Low" },
+                  { key: "nameAZ", label: "Name: A to Z" },
+                  { key: "nameZA", label: "Name: Z to A" },
+                ] as { key: SortOption; label: string }[]).map((option) => (
+                  <button
+                    key={option.key}
+                    onClick={() => {
+                      setSelectedSort(option.key);
+                      setIsSortOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm font-medium ${selectedSort === option.key
+                      ? "border-green-600 bg-green-50 text-green-700"
+                      : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                      }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

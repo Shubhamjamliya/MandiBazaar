@@ -86,17 +86,20 @@ export interface CashCollection {
   _id: string;
   deliveryBoyId: string;
   deliveryBoyName: string;
-  orderId: string;
-  total: number;
+  deliveryBoyMobile?: string;
+  deliveryBoyCashCollected?: number;
+  orderId?: string;
+  total?: number;
   amount: number;
   remark?: string;
   collectedAt: string;
   collectedBy: string;
+  paymentMethod: string;
 }
 
 export interface CreateCashCollectionData {
   deliveryBoyId: string;
-  orderId: string;
+  orderId?: string;
   amount: number;
   remark?: string;
 }
@@ -119,6 +122,7 @@ export interface GetCashCollectionParams {
   fromDate?: string;
   toDate?: string;
   search?: string;
+  paymentMethod?: string;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
 }

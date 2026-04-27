@@ -4,6 +4,7 @@ import Order from '../models/Order';
 import Seller from '../models/Seller';
 import DeliveryTracking from '../models/DeliveryTracking';
 import OrderItem from '../models/OrderItem';
+import Notification from '../models/Notification';
 import mongoose from 'mongoose';
 import AppSettings from '../models/AppSettings';
 import { notifySellersOfOrderUpdate } from './sellerNotificationService';
@@ -67,6 +68,7 @@ export async function findAvailableDeliveryBoys(): Promise<mongoose.Types.Object
 
         const deliveryBoys = await Delivery.find({
             isOnline: true,
+            status: 'Active',
             // Check cash limit
             $expr: {
                 $lt: [
@@ -410,6 +412,22 @@ export async function notifyDeliveryBoysOfNewOrder(
                 await sendDeliveryTaskNotification(idString, order.orderNumber);
             } catch (notifyError) {
                 console.error(`Error sending push notification to delivery partner ${idString}:`, notifyError);
+            }
+
+            // Persist in-app notification so it appears on home and notifications page.
+            try {
+                await Notification.create({
+                    recipientType: 'Delivery',
+                    recipientId: id,
+                    title: 'New Task Request',
+                    message: `New delivery task for order ${order.orderNumber}.`,
+                    type: 'Order',
+                    priority: 'High',
+                    link: `/delivery/orders/${orderId}`,
+                    actionLabel: 'View Task',
+                });
+            } catch (notificationError) {
+                console.error(`Error creating in-app notification for delivery partner ${idString}:`, notificationError);
             }
         }
 

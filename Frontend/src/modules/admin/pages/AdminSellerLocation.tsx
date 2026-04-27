@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getAllSellers, Seller as SellerType } from '../../../services/api/sellerService';
 import SellerServiceMap from '../components/SellerServiceMap';
 
@@ -29,25 +29,33 @@ export default function AdminSellerLocation() {
         const response = await getAllSellers();
         // Handle ApiResponse format: { success: boolean, data: Seller[] }
         if (response.success && response.data) {
-          const mappedSellers: Seller[] = response.data.map((seller: SellerType) => ({
-            _id: seller._id,
-            sellerName: seller.sellerName || 'Unknown',
-            storeName: seller.storeName || 'Unknown Store',
-            email: seller.email || '',
-            phone: seller.mobile || '',
-            address: seller.address,
-            city: seller.city,
-            searchLocation: seller.searchLocation,
-            latitude: seller.latitude,
-            longitude: seller.longitude,
-            serviceRadiusKm: seller.serviceRadiusKm,
-            status: seller.status || 'Pending',
-          }));
+          const mappedSellers: Seller[] = response.data.map((seller: SellerType) => {
+            const location: any = (seller as any).location || {};
+            const latValue = seller.latitude ?? location.latitude ?? location.coordinates?.[1];
+            const lngValue = seller.longitude ?? location.longitude ?? location.coordinates?.[0];
+
+            return {
+              _id: seller._id,
+              sellerName: seller.sellerName || 'Unknown',
+              storeName: seller.storeName || 'Unknown Store',
+              email: seller.email || '',
+              phone: seller.mobile || '',
+              address: seller.address || location.address,
+              city: seller.city || location.city,
+              searchLocation: seller.searchLocation || location.searchLocation,
+              latitude: latValue !== undefined ? String(latValue) : undefined,
+              longitude: lngValue !== undefined ? String(lngValue) : undefined,
+              serviceRadiusKm: seller.serviceRadiusKm,
+              status: seller.status || 'Pending',
+            };
+          });
 
           // Filter sellers with valid location data
-          const sellersWithLocation = mappedSellers.filter(
-            (seller) => seller.latitude && seller.longitude
-          );
+          const sellersWithLocation = mappedSellers.filter((seller) => {
+            const lat = Number(seller.latitude);
+            const lng = Number(seller.longitude);
+            return Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
+          });
 
           setSellers(sellersWithLocation);
         } else {
@@ -227,7 +235,7 @@ export default function AdminSellerLocation() {
                     </div>
                     {seller.address && (
                       <p className="text-xs text-neutral-500 mt-2 line-clamp-2">
-                        ðŸ“ {seller.address}
+                        Address: {seller.address}
                         {seller.city && `, ${seller.city}`}
                       </p>
                     )}
@@ -237,8 +245,8 @@ export default function AdminSellerLocation() {
                       </p>
                     )}
                     <div className="mt-2 flex items-center gap-2 text-xs text-neutral-500">
-                      <span>ðŸ“ž {seller.phone}</span>
-                      {seller.email && <span>âœ‰ï¸ {seller.email}</span>}
+                      <span>Phone: {seller.phone}</span>
+                      {seller.email && <span>Email: {seller.email}</span>}
                     </div>
                   </div>
                 ))}
@@ -250,9 +258,9 @@ export default function AdminSellerLocation() {
 
       {/* Footer */}
       <div className="text-center text-sm text-neutral-500 py-4">
-        Copyright Â© 2025. Developed By{' '}
+        Copyright 2025. Developed By{' '}
         <a href="#" className="text-teal-600 hover:text-teal-700">
-          Mandi Bazaar - 10 Minute App
+          Mandi Bazaar - 20 Minute App
         </a>
       </div>
     </div>

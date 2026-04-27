@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getProfile, CustomerProfile } from '../../services/api/customerService';
+import { getProfile, CustomerProfile, updateProfile } from '../../services/api/customerService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Account() {
@@ -11,7 +11,16 @@ export default function Account() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showGstModal, setShowGstModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [gstNumber, setGstNumber] = useState('');
+  const [gstError, setGstError] = useState('');
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    dateOfBirth: '',
+  });
+  const [editError, setEditError] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -39,6 +48,11 @@ export default function Account() {
     fetchProfile();
   }, [user]);
 
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Not set';
     const date = new Date(dateString);
@@ -51,8 +65,71 @@ export default function Account() {
     navigate('/login');
   };
 
+  const openEditModal = () => {
+    const dateValue = profile?.dateOfBirth
+      ? new Date(profile.dateOfBirth).toISOString().split('T')[0]
+      : '';
+
+    setEditForm({
+      name: profile?.name || user?.name || '',
+      email: profile?.email || user?.email || '',
+      dateOfBirth: dateValue,
+    });
+    setEditError('');
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const name = editForm.name.trim();
+    const email = editForm.email.trim();
+
+    if (!name) {
+      setEditError('Please enter your name.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      setEditError('Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      setIsSavingProfile(true);
+      setEditError('');
+
+      const response = await updateProfile({
+        name,
+        email,
+        dateOfBirth: editForm.dateOfBirth || undefined,
+      });
+
+      if (response.success) {
+        setProfile(response.data);
+        setShowEditModal(false);
+      }
+    } catch (err: any) {
+      setEditError(err?.response?.data?.message || 'Failed to update profile. Please try again.');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   const handleGstSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const normalizedGst = gstNumber.trim().toUpperCase();
+    const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
+
+    if (!gstRegex.test(normalizedGst)) {
+      setGstError('Enter a valid GST number format (e.g. 07AAAAA0000A1Z5)');
+      return;
+    }
+
+    setGstNumber(normalizedGst);
+    setGstError('');
     setShowGstModal(false);
   };
 
@@ -150,7 +227,11 @@ export default function Account() {
                 {displayName.charAt(0)}
               </span>
             </div>
-            <button className="absolute bottom-1 right-1 w-8 h-8 bg-white rounded-full border-2 border-emerald-500 text-emerald-500 flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-90">
+            <button
+              onClick={openEditModal}
+              className="absolute bottom-1 right-1 w-8 h-8 bg-white rounded-full border-2 border-emerald-500 text-emerald-500 flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-90"
+              aria-label="Edit profile"
+            >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
             </button>
           </div>
@@ -197,7 +278,7 @@ export default function Account() {
           <QuickAction
             icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>}
             label="Support"
-            onClick={() => navigate('/faq')}
+            onClick={() => navigate('/support')}
           />
         </div>
 
@@ -213,7 +294,21 @@ export default function Account() {
             <MenuLink
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>}
               label="Legal & Policies"
-              onClick={() => navigate('/privacy-policy')}
+              onClick={() => navigate('/privacy-policy', { state: { from: '/account' } })}
+              helper={
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate('/support');
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded-full border border-emerald-200 hover:bg-emerald-100 transition-all"
+                  title="Need Help?"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-600">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </button>
+              }
             />
           </div>
         </div>
@@ -227,46 +322,16 @@ export default function Account() {
               label="GST Details"
               onClick={() => setShowGstModal(true)}
             />
-            <div className="px-6 py-4 bg-neutral-50/50">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Push Status</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${window.Notification?.permission === 'granted'
-                  ? 'bg-green-50 text-green-700 border-green-200'
-                  : window.Notification?.permission === 'denied'
-                    ? 'bg-red-50 text-red-700 border-red-200'
-                    : 'bg-amber-50 text-amber-700 border-amber-200'
-                  }`}>
-                  {window.Notification?.permission || 'Unsupported'}
-                </span>
-              </div>
-              <button
-                onClick={async () => {
-                  try {
-                    const { sendSelfTestNotification } = await import('../../services/api/notificationService');
-                    const res = await sendSelfTestNotification();
-                    if (res.success && res.details) {
-                      console.log(`✅ Test push sent to ${res.details.successCount} device(s)`);
-                      alert(`Request processed! Sent to ${res.details.successCount} device(s). Check your system notifications.`);
-                    } else {
-                      alert(`❌ Error: ${res.message}`);
-                    }
-                  } catch (err: any) {
-                    alert('Error sending test notification');
-                  }
-                }}
-                className="w-full py-2 bg-neutral-900 rounded-xl text-xs font-bold text-white hover:bg-black transition-colors flex items-center justify-center gap-2"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-                Send Test Notification
-              </button>
-            </div>
             <MenuLink
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>}
               label="About Us"
               onClick={() => window.location.href = 'https://about.mandibazaar.com'}
+            />
+            <MenuLink
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>}
+              label="Delete Account"
+              danger
+              onClick={() => navigate('/delete-account')}
             />
             <MenuLink
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>}
@@ -322,10 +387,17 @@ export default function Account() {
                     <input
                       type="text"
                       value={gstNumber}
-                      onChange={(e) => setGstNumber(e.target.value)}
+                      onChange={(e) => {
+                        setGstNumber(e.target.value.toUpperCase());
+                        if (gstError) setGstError('');
+                      }}
                       placeholder="e.g. 07AAAAA0000A1Z5"
+                      maxLength={15}
                       className="w-full bg-neutral-50 rounded-2xl border-none px-6 py-4 text-sm font-medium focus:ring-2 focus:ring-emerald-500/10 focus:bg-white transition-all placeholder:text-neutral-300"
                     />
+                    {gstError && (
+                      <p className="text-xs text-red-600 mt-2 text-left">{gstError}</p>
+                    )}
                   </div>
                   <button
                     type="submit"
@@ -333,6 +405,89 @@ export default function Account() {
                     className="w-full rounded-2xl bg-emerald-500 text-white font-bold py-4 hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20 active:scale-[0.98]"
                   >
                     Save Details
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showEditModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-neutral-900/40 backdrop-blur-md"
+              onClick={() => !isSavingProfile && setShowEditModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-[40px] shadow-2xl p-8 pt-12 overflow-hidden"
+            >
+              <button
+                onClick={() => setShowEditModal(false)}
+                disabled={isSavingProfile}
+                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-neutral-50 flex items-center justify-center text-neutral-400 hover:text-neutral-900 transition-colors disabled:opacity-50"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+
+              <div className="text-center relative">
+                <div className="mx-auto mb-6 w-20 h-20 rounded-3xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                </div>
+                <h3 className="text-2xl font-bold text-neutral-900 mb-2">Edit Profile</h3>
+                <p className="text-sm text-neutral-500 mb-8">Update your account details.</p>
+
+                <form onSubmit={handleEditSubmit} className="space-y-4 text-left">
+                  <div>
+                    <label className="text-xs font-semibold text-neutral-500">Full Name</label>
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                      className="mt-1 w-full bg-neutral-50 rounded-2xl border-none px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-emerald-500/10 focus:bg-white transition-all placeholder:text-neutral-300"
+                      placeholder="Enter your full name"
+                      disabled={isSavingProfile}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-neutral-500">Email</label>
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+                      className="mt-1 w-full bg-neutral-50 rounded-2xl border-none px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-emerald-500/10 focus:bg-white transition-all placeholder:text-neutral-300"
+                      placeholder="name@example.com"
+                      disabled={isSavingProfile}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-neutral-500">Date of Birth</label>
+                    <input
+                      type="date"
+                      value={editForm.dateOfBirth}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
+                      className="mt-1 w-full bg-neutral-50 rounded-2xl border-none px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-emerald-500/10 focus:bg-white transition-all"
+                      disabled={isSavingProfile}
+                    />
+                  </div>
+
+                  {editError && <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{editError}</p>}
+
+                  <button
+                    type="submit"
+                    disabled={isSavingProfile}
+                    className="w-full rounded-2xl bg-emerald-500 text-white font-bold py-4 hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20 active:scale-[0.98] disabled:opacity-60"
+                  >
+                    {isSavingProfile ? 'Saving...' : 'Save Changes'}
                   </button>
                 </form>
               </div>
@@ -360,7 +515,7 @@ const SectionHeader = ({ title }: { title: string }) => (
   <h2 className="px-2 text-xs font-bold text-neutral-400 uppercase tracking-[0.15em]">{title}</h2>
 );
 
-const MenuLink = ({ icon, label, onClick, danger }: any) => (
+const MenuLink = ({ icon, label, onClick, danger, helper }: any) => (
   <button
     onClick={onClick}
     className="w-full flex items-center justify-between px-6 py-5 group hover:bg-neutral-50/50 transition-colors"
@@ -371,6 +526,9 @@ const MenuLink = ({ icon, label, onClick, danger }: any) => (
       </div>
       <span className={`text-[15px] font-bold ${danger ? 'text-red-500' : 'text-neutral-800'}`}>{label}</span>
     </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-200 group-hover:text-neutral-400 group-hover:translate-x-1 transition-all"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    <div className="flex items-center gap-2">
+      {helper}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-200 group-hover:text-neutral-400 group-hover:translate-x-1 transition-all"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </div>
   </button>
 );

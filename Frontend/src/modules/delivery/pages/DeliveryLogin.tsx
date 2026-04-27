@@ -80,15 +80,16 @@ export default function DeliveryLogin() {
       <div className="absolute top-20 left-10 w-72 h-72 bg-green-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
       <div className="absolute bottom-20 right-10 w-72 h-72 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
       
-      {/* Back Button */}
       <button
-        onClick={() => navigate(-1)}
-        className="absolute top-6 left-6 z-10 w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center hover:bg-gray-50 transition-all active:scale-95"
-        aria-label="Back"
+        onClick={() => navigate('/help-support')}
+        className="absolute top-6 right-6 z-10 px-4 h-11 rounded-full bg-white shadow-lg flex items-center justify-center gap-2 hover:bg-gray-50 transition-all active:scale-95 text-sm font-bold text-emerald-700"
+        aria-label="Support"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 17H12.01M8 9a4 4 0 118 0c0 2-2 3-2 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
         </svg>
+        Support
       </button>
 
       {/* Login Card */}
@@ -143,7 +144,14 @@ export default function DeliveryLogin() {
                   <input
                     type="tel"
                     value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, ''); // Remove all non-digits
+                      // If starts with 91 (country code), remove it
+                      if (value.startsWith('91') && value.length > 10) {
+                        value = value.slice(2);
+                      }
+                      setMobileNumber(value.slice(0, 10));
+                    }}
                     placeholder="Enter 10-digit mobile number"
                     className="w-full pl-12 pr-4 py-3.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all"
                     maxLength={10}
@@ -269,14 +277,14 @@ export default function DeliveryLogin() {
       <div className="mt-8 text-xs text-gray-500 text-center max-w-md px-4 leading-relaxed">
         By continuing, you agree to Mandi Bazaar's{' '}
         <button 
-          onClick={() => navigate('/privacy-policy')}
+          onClick={() => navigate('/terms-of-service', { state: { from: '/delivery/login' } })}
           className="text-emerald-600 font-bold hover:underline"
         >
           Terms of Service
         </button>
         {' '}and{' '}
         <button 
-          onClick={() => navigate('/privacy-policy')}
+          onClick={() => navigate('/privacy-policy', { state: { from: '/delivery/login' } })}
           className="text-emerald-600 font-bold hover:underline"
         >
           Privacy Policy

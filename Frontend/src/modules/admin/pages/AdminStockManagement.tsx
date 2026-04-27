@@ -70,6 +70,8 @@ export default function AdminStockManagement() {
   const [loadingSubCategories, setLoadingSubCategories] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
+  const normalizedCategorySearch = categorySearch.trim().toLowerCase();
+  const normalizedProductSearch = productSearch.trim().toLowerCase();
 
   // Initial Load
   useEffect(() => {
@@ -223,8 +225,8 @@ export default function AdminStockManagement() {
       }
 
       // 5. Search Filter
-      if (productSearch) {
-        const searchLower = productSearch.toLowerCase();
+      if (normalizedProductSearch) {
+        const searchLower = normalizedProductSearch;
         const matchName = product.productName.toLowerCase().includes(searchLower);
         const matchSku = product.sku?.toLowerCase().includes(searchLower) || false;
         if (!matchName && !matchSku) return false;
@@ -232,12 +234,12 @@ export default function AdminStockManagement() {
 
       return true;
     });
-  }, [products, selectedSubCategoryId, filterStatus, filterStock, filterSeller, productSearch]);
+  }, [products, selectedSubCategoryId, filterStatus, filterStock, filterSeller, normalizedProductSearch]);
 
 
   // Filter Categories Sidebar
   const filteredCategories = categories.filter(c =>
-    c.name.toLowerCase().includes(categorySearch.toLowerCase())
+    !normalizedCategorySearch || c.name.toLowerCase().includes(normalizedCategorySearch)
   );
 
   const selectedCategory = categories.find(c => c._id === selectedCategoryId);
@@ -245,7 +247,7 @@ export default function AdminStockManagement() {
   return (
     <div className="flex h-[calc(100vh-6rem)] -m-6 bg-gray-50 overflow-hidden">
       {/* Sidebar - Categories List */}
-      <div className="w-80 bg-white border-r border-neutral-200 flex flex-col h-full flex-shrink-0 z-10 shadow-sm transition-all hidden md:flex">
+      <div className="w-80 bg-white border-r border-neutral-200 hidden md:flex md:flex-col h-full flex-shrink-0 z-10 shadow-sm transition-all">
         <div className="p-4 border-b border-neutral-100 bg-white">
           <h2 className="text-lg font-bold text-neutral-800 mb-4 px-1">Categories</h2>
           <div className="relative">

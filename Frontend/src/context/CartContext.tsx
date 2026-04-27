@@ -29,7 +29,7 @@ interface AddToCartEvent {
 interface CartContextType {
   cart: Cart;
   addToCart: (product: Product, sourceElement?: HTMLElement | null) => Promise<void>;
-  removeFromCart: (productId: string) => Promise<void>;
+  removeFromCart: (productId: string, variantId?: string, variantTitle?: string) => Promise<void>;
   updateQuantity: (productId: string, quantity: number, variantId?: string, variantTitle?: string) => Promise<void>;
   clearCart: () => Promise<void>;
   refreshCart: (latitude?: number, longitude?: number) => Promise<void>;
@@ -99,6 +99,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             mrp: Number(item.product.mrp) || 0,
             discPrice: Number(item.product.discPrice) || 0,
             variations: item.product.variations,
+            sellingUnit: item.product.sellingUnit,
+            weightVariants: item.product.weightVariants,
             imageUrl: item.product.mainImage || item.product.imageUrl,
             pack: item.product.pack || '1 unit',
             categoryId: item.product.category || '',
@@ -209,11 +211,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setEstimatedFee(response.data.estimatedDeliveryFee);
         setPlatformFee(response.data.platformFee);
         setFreeDeliveryThreshold(response.data.freeDeliveryThreshold);
+        setMinimumOrderValue(response.data.minimumOrderValue);
       } else if (queryLat !== undefined && queryLng !== undefined) {
         setItems([]);
         setEstimatedFee(undefined);
         setPlatformFee(undefined);
         setFreeDeliveryThreshold(undefined);
+        setMinimumOrderValue(undefined);
       }
     } catch (error) {
       console.error("Failed to fetch cart:", error);
@@ -235,6 +239,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [estimatedFee, setEstimatedFee] = useState<number | undefined>(undefined);
   const [platformFee, setPlatformFee] = useState<number | undefined>(undefined);
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | undefined>(undefined);
+  const [minimumOrderValue, setMinimumOrderValue] = useState<number | undefined>(undefined);
 
   const cart: Cart = useMemo(() => {
     const validItems = items.filter(item => item?.product);
@@ -250,9 +255,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       itemCount: Number(itemCount),
       estimatedDeliveryFee: estimatedFee,
       platformFee,
-      freeDeliveryThreshold
+      freeDeliveryThreshold,
+      minimumOrderValue
     };
-  }, [items, estimatedFee, platformFee, freeDeliveryThreshold]);
+  }, [items, estimatedFee, platformFee, freeDeliveryThreshold, minimumOrderValue]);
 
   const addToCart = async (product: Product, sourceElement?: HTMLElement | null) => {
     const productId = product._id || product.id;
@@ -323,6 +329,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           setEstimatedFee(response.data.estimatedDeliveryFee);
           setPlatformFee(response.data.platformFee);
           setFreeDeliveryThreshold(response.data.freeDeliveryThreshold);
+          setMinimumOrderValue(response.data.minimumOrderValue);
         }
       } catch (error: any) {
         showToast(error.response?.data?.message || "Failed to add to cart", 'error');
@@ -335,15 +342,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const removeFromCart = async (productId: string) => {
-    if (pendingOperationsRef.current.has(productId)) {
+  const removeFromCart = async (productId: string, variantId?: string, variantTitle?: string) => {
+    const operationKey = variantId ? `${productId}-${variantId}` : (variantTitle ? `${productId}-${variantTitle}` : productId);
+    if (pendingOperationsRef.current.has(operationKey)) {
       return;
     }
-    pendingOperationsRef.current.add(productId);
+    pendingOperationsRef.current.add(operationKey);
 
-    const itemToRemove = items.find(item => item?.product && (item.product.id === productId || item.product._id === productId));
+    const itemToRemove = items.find(item => {
+      if (!item?.product) return false;
+      const itemProductId = item.product.id || item.product._id;
+      if (itemProductId !== productId) return false;
+
+      if (variantId || variantTitle) {
+        const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
+        const itemVariantTitle = (item.product as any).variantTitle || (item.product as any).pack;
+        return itemVariantId === variantId || itemVariantTitle === variantTitle || item.variant === variantId;
+      }
+
+      return true;
+    });
     const previousItems = [...items];
-    setItems((prevItems) => prevItems.filter((item) => item?.product && item.product.id !== productId && item.product._id !== productId));
+    setItems((prevItems) => prevItems.filter((item) => {
+      if (!item?.product) return false;
+      const itemProductId = item.product.id || item.product._id;
+      if (itemProductId !== productId) return true;
+
+      if (variantId || variantTitle) {
+        const itemVariantId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
+        const itemVariantTitle = (item.product as any).variantTitle || (item.product as any).pack;
+        return !(itemVariantId === variantId || itemVariantTitle === variantTitle || item.variant === variantId);
+      }
+
+      return false;
+    }));
 
     if (isAuthenticated && user?.userType === 'Customer' && itemToRemove?.id) {
       try {
@@ -357,15 +389,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
           setEstimatedFee(response.data.estimatedDeliveryFee);
           setPlatformFee(response.data.platformFee);
           setFreeDeliveryThreshold(response.data.freeDeliveryThreshold);
+          setMinimumOrderValue(response.data.minimumOrderValue);
         }
       } catch (error) {
         console.error("Remove from cart failed", error);
         setItems(previousItems);
       } finally {
-        pendingOperationsRef.current.delete(productId);
+        pendingOperationsRef.current.delete(operationKey);
       }
     } else {
-      pendingOperationsRef.current.delete(productId);
+      pendingOperationsRef.current.delete(operationKey);
     }
   };
 
@@ -373,7 +406,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const sanitizedQty = Math.max(parseInt(String(quantity), 10) || 0, 0);
 
     if (sanitizedQty <= 0) {
-      removeFromCart(productId);
+      removeFromCart(productId, variantId, variantTitle);
       return;
     }
 
@@ -437,6 +470,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           setEstimatedFee(response.data.estimatedDeliveryFee);
           setPlatformFee(response.data.platformFee);
           setFreeDeliveryThreshold(response.data.freeDeliveryThreshold);
+          setMinimumOrderValue(response.data.minimumOrderValue);
         }
       } catch (error) {
         console.error("Update quantity failed", error);

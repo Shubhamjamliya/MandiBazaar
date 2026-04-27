@@ -4,6 +4,7 @@ export interface Location {
   latitude: number;
   longitude: number;
   address: string;
+  locationType?: 'Home' | 'Office';
   city?: string;
   state?: string;
   pincode?: string;

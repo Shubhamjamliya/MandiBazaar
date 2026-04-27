@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import DeliveryHeader from '../components/DeliveryHeader';
 import DeliveryBottomNav from '../components/DeliveryBottomNav';
 import { getDeliveryProfile } from '../../../services/api/delivery/deliveryService';
 
@@ -26,7 +25,6 @@ export default function DeliveryAbout() {
 
   return (
     <div className="min-h-screen bg-neutral-100 pb-20">
-      <DeliveryHeader />
       <div className="px-4 py-4">
         <div className="flex items-center mb-4">
           <button
@@ -141,7 +139,7 @@ export default function DeliveryAbout() {
 
         {/* Copyright */}
         <div className="mt-6 text-center">
-          <p className="text-neutral-400 text-xs">© 2025 Mandi Bazaar - 10 Minute App. All rights reserved.</p>
+          <p className="text-neutral-400 text-xs">© 2025 Mandi Bazaar - 20 Minute App. All rights reserved.</p>
         </div>
       </div>
       <DeliveryBottomNav />

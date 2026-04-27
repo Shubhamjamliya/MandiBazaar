@@ -1,6 +1,19 @@
 import { Request, Response } from "express";
 import Customer from "../../../models/Customer";
+import Address from "../../../models/Address";
+import Cart from "../../../models/Cart";
+import CartItem from "../../../models/CartItem";
+import Order from "../../../models/Order";
+import OrderItem from "../../../models/OrderItem";
+import Wishlist from "../../../models/Wishlist";
+import Review from "../../../models/Review";
+import Payment from "../../../models/Payment";
+import WalletTransaction from "../../../models/WalletTransaction";
+import Notification from "../../../models/Notification";
+import Return from "../../../models/Return";
+import Refund from "../../../models/Refund";
 import { asyncHandler } from "../../../utils/asyncHandler";
+import { sendSmsOtp, verifySmsOtp } from "../../../services/otpService";
 
 /**
  * Get customer profile
@@ -227,3 +240,125 @@ export const getLocation = asyncHandler(async (req: Request, res: Response) => {
     },
   });
 });
+
+/**
+ * Request account deletion OTP
+ */
+export const requestDeleteAccountOTP = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    const { phone } = req.body;
+
+    if (!userId || (req as any).user?.userType !== "Customer") {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized or not a customer",
+      });
+    }
+
+    if (!phone || !/^[0-9]{10}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid 10-digit phone number is required",
+      });
+    }
+
+    const customer = await Customer.findById(userId);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    if (customer.phone !== phone) {
+      return res.status(400).json({
+        success: false,
+        message: "The phone number does not match your account",
+      });
+    }
+
+    // Send SMS OTP
+    await sendSmsOtp(phone, "Customer");
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent successfully to your registered mobile number",
+    });
+  }
+);
+
+/**
+ * Confirm account deletion
+ */
+export const confirmDeleteAccount = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    const { phone, otp } = req.body;
+
+    if (!userId || (req as any).user?.userType !== "Customer") {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized or not a customer",
+      });
+    }
+
+    if (!otp || !/^[0-9]{4}$/.test(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid 4-digit OTP is required",
+      });
+    }
+
+    const customer = await Customer.findById(userId);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    // Verify OTP
+    const isValid = await verifySmsOtp(`DB_VERIFIED_${phone}`, otp, phone, "Customer");
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired OTP",
+      });
+    }
+
+    // --- DELETE ALL DATA ---
+    
+    // Delete Cart and CartItems
+    const cart = await Cart.findOne({ customerId: userId });
+    if (cart) {
+      await CartItem.deleteMany({ cartId: cart._id });
+      await Cart.deleteOne({ _id: cart._id });
+    }
+
+    // Delete Orders and OrderItems
+    const orders = await Order.find({ customerId: userId });
+    const orderIds = orders.map(o => o._id);
+    await OrderItem.deleteMany({ orderId: { $in: orderIds } });
+    await Order.deleteMany({ customerId: userId });
+
+    // Delete other related records
+    await Address.deleteMany({ customerId: userId });
+    await Wishlist.deleteMany({ customerId: userId });
+    await Review.deleteMany({ customerId: userId });
+    await Payment.deleteMany({ customerId: userId });
+    await WalletTransaction.deleteMany({ customerId: userId });
+    await Notification.deleteMany({ customerId: userId });
+    await Return.deleteMany({ customerId: userId });
+    await Refund.deleteMany({ customerId: userId });
+
+    // Finally, delete the Customer record
+    await Customer.deleteOne({ _id: userId });
+
+    return res.status(200).json({
+      success: true,
+      message: "Your account and all associated data have been permanently deleted.",
+    });
+  }
+);
+

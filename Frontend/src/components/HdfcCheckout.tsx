@@ -1,51 +1,78 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createHdfcOrder } from '../services/api/paymentService';
+import { createHdfcOrder } from '../services/api/paymentService'; // rename not strictly necessary
+import CashfreeCheckout from './CashfreeCheckout';
 
 interface HdfcCheckoutProps {
     orderId: string;
+    gateway?: string;
     onFailure: (error: string) => void;
 }
 
 const HdfcCheckout: React.FC<HdfcCheckoutProps> = ({
     orderId,
+    gateway,
     onFailure,
 }) => {
     const formRef = useRef<HTMLFormElement>(null);
-    const [paymentData, setPaymentData] = useState<{
+    const [provider, setProvider] = useState<'HDFC' | 'CASHFREE' | null>(null);
+    const [cashfreeData, setCashfreeData] = useState<any>(null);
+    const [hdfcData, setHdfcData] = useState<{
         encRequest: string;
         accessCode: string;
         gatewayUrl: string;
     } | null>(null);
 
+    const hasFetched = useRef(false);
     useEffect(() => {
+        if (hasFetched.current) return;
+        
         const fetchPaymentDetails = async () => {
             try {
-                // Call backend to create HDFC payload
-                const orderResponse = await createHdfcOrder(orderId);
+                hasFetched.current = true;
+                // Call backend to create payment payload
+                const orderResponse = await createHdfcOrder(orderId, gateway);
 
                 if (!orderResponse.success) {
                     onFailure(orderResponse.message || 'Failed to initialize payment');
                     return;
                 }
 
-                const { encRequest, accessCode, gatewayUrl } = orderResponse.data;
-                
-                setPaymentData({ encRequest, accessCode, gatewayUrl });
+                if (orderResponse.provider === 'CASHFREE') {
+                    setProvider('CASHFREE');
+                    setCashfreeData(orderResponse.data);
+                } else {
+                    setProvider('HDFC');
+                    const { encRequest, accessCode, gatewayUrl } = orderResponse.data || orderResponse;
+                    if (encRequest && accessCode && gatewayUrl) {
+                        setHdfcData({ encRequest, accessCode, gatewayUrl });
+                    }
+                }
             } catch (error: any) {
                 console.error('Payment initiation error:', error);
-                onFailure(error.message || 'Failed to initiate payment');
+                const message = error.response?.data?.message || error.message || 'Failed to initiate payment';
+                onFailure(message);
             }
         };
 
         fetchPaymentDetails();
-    }, [orderId, onFailure]);
+    }, [orderId, gateway, onFailure]);
 
     useEffect(() => {
-        if (paymentData && formRef.current) {
+        if (provider === 'HDFC' && hdfcData && formRef.current) {
             // Auto submit the form once data is loaded
             formRef.current.submit();
         }
-    }, [paymentData]);
+    }, [provider, hdfcData]);
+
+    if (provider === 'CASHFREE' && cashfreeData) {
+        return (
+            <CashfreeCheckout 
+                paymentSessionId={cashfreeData.payment_session_id} 
+                environment={cashfreeData.environment} 
+                onFailure={onFailure} 
+            />
+        );
+    }
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -53,21 +80,21 @@ const HdfcCheckout: React.FC<HdfcCheckoutProps> = ({
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
                     <h3 className="text-lg font-semibold mb-2">
-                        {paymentData ? 'Redirecting to HDFC Payment Gateway...' : 'Initializing Payment...'}
+                        {hdfcData ? 'Redirecting to Payment Gateway...' : 'Initializing Payment...'}
                     </h3>
                     <p className="text-gray-600">Please do not refresh the page or press back.</p>
                 </div>
             </div>
 
-            {paymentData && (
+            {provider === 'HDFC' && hdfcData && (
                 <form 
                     ref={formRef} 
                     method="POST" 
-                    action={paymentData.gatewayUrl}
+                    action={hdfcData.gatewayUrl}
                     className="hidden"
                 >
-                    <input type="hidden" name="encRequest" id="encRequest" value={paymentData.encRequest} />
-                    <input type="hidden" name="access_code" id="access_code" value={paymentData.accessCode} />
+                    <input type="hidden" name="encRequest" id="encRequest" value={hdfcData.encRequest} />
+                    <input type="hidden" name="access_code" id="access_code" value={hdfcData.accessCode} />
                 </form>
             )}
         </div>

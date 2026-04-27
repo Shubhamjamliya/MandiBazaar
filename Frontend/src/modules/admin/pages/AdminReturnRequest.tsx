@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   getReturnRequests,
   updateReturnRequest,
@@ -21,6 +21,7 @@ export default function AdminReturnRequest() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const normalizedSearchTerm = searchTerm.trim();
 
   // Fetch return requests on component mount
   useEffect(() => {
@@ -43,8 +44,16 @@ export default function AdminReturnRequest() {
           params.status = selectedStatus;
         }
 
-        if (searchTerm) {
-          params.search = searchTerm;
+        if (normalizedSearchTerm) {
+          params.search = normalizedSearchTerm;
+        }
+
+        if (fromDate) {
+          params.fromDate = fromDate;
+        }
+
+        if (toDate) {
+          params.toDate = toDate;
         }
 
         const response = await getReturnRequests(params);
@@ -72,7 +81,9 @@ export default function AdminReturnRequest() {
     currentPage,
     entriesPerPage,
     selectedStatus,
-    searchTerm,
+    normalizedSearchTerm,
+    fromDate,
+    toDate,
   ]);
 
   const handleSort = (column: string) => {
@@ -238,10 +249,9 @@ export default function AdminReturnRequest() {
                       <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
                     <input
-                      type="text"
+                      type="date"
                       value={fromDate}
                       onChange={(e) => setFromDate(e.target.value)}
-                      placeholder="MM/DD/YYYY"
                       className="pl-10 pr-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 min-w-[140px]"
                     />
                   </div>
@@ -269,10 +279,9 @@ export default function AdminReturnRequest() {
                       <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
                     <input
-                      type="text"
+                      type="date"
                       value={toDate}
                       onChange={(e) => setToDate(e.target.value)}
-                      placeholder="MM/DD/YYYY"
                       className="pl-10 pr-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 min-w-[140px]"
                     />
                   </div>
@@ -804,9 +813,9 @@ export default function AdminReturnRequest() {
 
       {/* Footer */}
       <div className="text-center text-sm text-neutral-500 py-4">
-        Copyright Â© 2025. Developed By{" "}
+        Copyright 2025. Developed By{" "}
         <a href="#" className="text-teal-600 hover:text-teal-700">
-          Mandi Bazaar - 10 Minute App
+          Mandi Bazaar - 20 Minute App
         </a>
       </div>
     </div>

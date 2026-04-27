@@ -9,7 +9,12 @@ import { getCommissionSummary } from '../../../services/commissionService';
 import Delivery from '../../../models/Delivery';
 import AppSettings from '../../../models/AppSettings';
 import CashCollection from '../../../models/CashCollection';
-import { createRazorpayOrder, verifyPaymentSignature } from '../../../services/paymentService';
+import WithdrawRequest from '../../../models/WithdrawRequest';
+import mongoose from 'mongoose';
+import { createHdfcOrder } from '../../../services/paymentService';
+import { decrypt } from '../../../utils/hdfcCrypto';
+import { fetchHdfcTransactionStatus } from '../../../services/hdfcStatusApi';
+import url from 'url';
 
 /**
  * Get delivery boy wallet balance
@@ -18,6 +23,25 @@ export const getBalance = async (req: Request, res: Response) => {
     try {
         const deliveryBoyId = req.user!.userId;
         const balance = await getWalletBalance(deliveryBoyId, 'DELIVERY_BOY');
+
+        const pendingWithdrawals = await WithdrawRequest.aggregate([
+            {
+                $match: {
+                    userId: new mongoose.Types.ObjectId(deliveryBoyId),
+                    userType: 'DELIVERY_BOY',
+                    status: { $in: ['Pending', 'Approved'] },
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: '$amount' },
+                },
+            },
+        ]);
+
+        const pendingAmount = pendingWithdrawals[0]?.total || 0;
+        const availableBalance = Math.max(0, balance - pendingAmount);
 
         const deliveryBoy = await Delivery.findById(deliveryBoyId);
         const settings = await AppSettings.findOne();
@@ -29,7 +53,7 @@ export const getBalance = async (req: Request, res: Response) => {
         return res.status(200).json({
             success: true,
             data: {
-                balance,
+                balance: availableBalance,
                 cashCollected,
                 cashLimit,
                 profile: {
@@ -172,7 +196,7 @@ export const getCommissions = async (req: Request, res: Response) => {
 };
 
 /**
- * Create a Razorpay order for cash settlement
+ * Create an HDFC order for cash settlement
  */
 export const createSettleCashOrder = async (req: Request, res: Response) => {
     try {
@@ -191,7 +215,15 @@ export const createSettleCashOrder = async (req: Request, res: Response) => {
         // Generate a unique settlement ID
         const settlementId = `SETTLE_${Date.now()}`;
 
-        const result = await createRazorpayOrder(settlementId, amount);
+        // Redirect and Cancel URLs
+        const rawBackendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
+        const backendBase = rawBackendUrl.replace(/\/api\/v1\/?$/, '');
+        const redirectUrl = `${backendBase}/api/v1/delivery/wallet/settle-cash/return`;
+        const cancelUrl = `${backendBase}/api/v1/delivery/wallet/settle-cash/cancel`;
+
+        const result = await createHdfcOrder(settlementId, amount, redirectUrl, cancelUrl, 'INR', {
+            merchant_param1: deliveryBoyId
+        });
 
         if (!result.success) {
             return res.status(500).json(result);
@@ -208,29 +240,54 @@ export const createSettleCashOrder = async (req: Request, res: Response) => {
 };
 
 /**
- * Verify Razorpay settlement payment
+ * Handle HDFC settlement payment return
  */
-export const verifySettleCash = async (req: Request, res: Response) => {
+export const hdfcSettleCashReturn = async (req: Request, res: Response) => {
     try {
-        const deliveryBoyId = req.user!.userId;
-        const {
-            amount,
-            razorpayOrderId,
-            razorpayPaymentId,
-            razorpaySignature
-        } = req.body;
+        const encResp = req.body.encResp || req.body.enc_resp || req.body.encResponse;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const workingKey = process.env.HDFC_WORKING_KEY;
 
-        const isValid = verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+        if (!encResp || !workingKey) {
+            console.error('Missing response or working key in HDFC settlement return');
+            return res.redirect(`${frontendUrl}/delivery/wallet?error=missing_config`);
+        }
 
-        if (!isValid) {
-            return res.status(400).json({ success: false, message: "Invalid payment signature." });
+        // Decrypt and process
+        const decrypted = decrypt(encResp, workingKey);
+        const params = new url.URLSearchParams(decrypted);
+
+        const settlementId = params.get('order_id');
+        const trackingId = params.get('tracking_id');
+        const orderStatus = params.get('order_status');
+        const amountStr = params.get('amount');
+        const amount = parseFloat(amountStr || '0');
+
+        if (orderStatus !== 'Success' && orderStatus !== 'Successful' && orderStatus !== 'Successfull') {
+            console.warn(`Settlement payment failed: ${orderStatus}`);
+            return res.redirect(`${frontendUrl}/delivery/wallet?error=payment_failed`);
+        }
+
+        // Dual Enquiry Security Check
+        const statusCheck = await fetchHdfcTransactionStatus(settlementId!);
+        if (!statusCheck.success || statusCheck.data?.order_status !== 'Successful') {
+            console.error('HDFC status check failed or status mismatch for settlement', settlementId);
+            return res.redirect(`${frontendUrl}/delivery/wallet?error=security_check_failed`);
+        }
+
+        const deliveryBoyId = params.get('merchant_param1');
+        if (!deliveryBoyId) {
+            console.error('Missing merchant_param1 (deliveryBoyId) in HDFC settlement return');
+            return res.redirect(`${frontendUrl}/delivery/wallet?error=missing_data`);
         }
 
         const deliveryBoy = await Delivery.findById(deliveryBoyId);
         if (!deliveryBoy) {
-            return res.status(404).json({ success: false, message: "Delivery boy not found." });
+            console.error('Delivery boy not found for settlement', deliveryBoyId);
+            return res.redirect(`${frontendUrl}/delivery/wallet?error=delivery_boy_not_found`);
         }
 
+        // Handle the settlement
         // 1. Decrement cash liability
         deliveryBoy.cashCollected = Math.max(0, (deliveryBoy.cashCollected || 0) - amount);
         await deliveryBoy.save();
@@ -240,28 +297,39 @@ export const verifySettleCash = async (req: Request, res: Response) => {
         await logCashSettlement(
             deliveryBoyId,
             amount,
-            `Settled via app payment (Razorpay: ${razorpayPaymentId})`,
-            razorpayPaymentId
+            `Settled via HDFC app payment (TrackingId: ${trackingId})`,
+            trackingId!
         );
 
         // 3. Create CashCollection record for Admin Panel
         await CashCollection.create({
             deliveryBoy: deliveryBoyId,
             amount,
-            remark: `App Payment Settlement (Razorpay: ${razorpayPaymentId})`,
-            paymentMethod: 'razorpay',
+            remark: `App Payment Settlement (HDFC Tracking: ${trackingId})`,
+            paymentMethod: 'HDFC',
             collectedAt: new Date(),
         });
 
-        return res.status(200).json({
-            success: true,
-            message: "Cash settled and logged successfully."
-        });
+        return res.redirect(`${frontendUrl}/delivery/wallet?payment=success&id=${settlementId}`);
     } catch (error: any) {
-        console.error('Error verifying settlement:', error);
-        return res.status(500).json({
-            success: false,
-            message: error.message || 'Failed to verify settlement',
-        });
+        console.error('Error handling HDFC settlement return:', error);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendUrl}/delivery/wallet?error=system_error`);
     }
 };
+
+/**
+ * Handle HDFC settlement cancellation
+ */
+export const hdfcSettleCashCancel = async (_req: Request, res: Response) => {
+    try {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        // User cancelled, just redirect back
+        return res.redirect(`${frontendUrl}/delivery/wallet?error=cancelled`);
+    } catch (error: any) {
+        console.error('Error handling HDFC settlement cancel:', error);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendUrl}/delivery/wallet?error=cancel_error`);
+    }
+};
+

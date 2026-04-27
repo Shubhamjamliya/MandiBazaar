@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { getProducts, updateStock, Product } from '../../../services/api/productService';
 import { getCategories } from '../../../services/api/categoryService';
 import { useAuth } from '../../../context/AuthContext';
+import { apiCache } from '../../../utils/apiCache';
+import { useToast } from '../../../context/ToastContext';
 
 interface StockItem {
     variationId: string;
@@ -31,6 +33,7 @@ export default function SellerStockManagement() {
     const [categories, setCategories] = useState<string[]>([]);
     const [totalPages, setTotalPages] = useState(1);
     const { user } = useAuth();
+    const { showToast } = useToast();
 
     // Fetch categories for filter
     useEffect(() => {
@@ -175,11 +178,16 @@ export default function SellerStockManagement() {
                         ? { ...item, stock: newStock }
                         : item
                 ));
+
+                // Clear cached customer-facing data so homepage/product lists reflect stock changes immediately.
+                apiCache.invalidatePattern(/^home-content-/);
+                apiCache.invalidatePattern(/^customer-products-/);
+                showToast('Stock saved successfully', 'success');
             } else {
-                alert(response.message || 'Failed to update stock');
+                showToast(response.message || 'Failed to update stock', 'error');
             }
         } catch (err: any) {
-            alert(err.response?.data?.message || err.message || 'Failed to update stock');
+            showToast(err.response?.data?.message || err.message || 'Failed to update stock', 'error');
         } finally {
             setUpdatingStock(null);
         }
@@ -308,6 +316,7 @@ export default function SellerStockManagement() {
                             </select>
                         </div>
                         <button
+                            disabled={filteredItems.length === 0}
                             onClick={() => {
                                 const headers = ['Variation Id', 'Product Id', 'Product Name', 'Seller Name', 'Variation', 'Current Stock', 'Status', 'Category'];
                                 const csvContent = [
@@ -333,7 +342,7 @@ export default function SellerStockManagement() {
                                 link.click();
                                 document.body.removeChild(link);
                             }}
-                            className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1 transition-colors"
+                            className={`${filteredItems.length === 0 ? 'bg-neutral-300 cursor-not-allowed' : 'bg-teal-600 hover:bg-teal-700'} text-white px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1 transition-colors`}
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -351,7 +360,7 @@ export default function SellerStockManagement() {
                                 type="text"
                                 className="pl-14 pr-3 py-1.5 bg-neutral-100 border-none rounded text-sm focus:ring-1 focus:ring-teal-500 w-48"
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => setSearchTerm(e.target.value.replace(/\s+/g, ''))}
                                 placeholder=""
                             />
                         </div>

@@ -1,42 +1,22 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import DashboardCard from "../components/DashboardCard";
-import OrderChart from "../components/OrderChart";
-import SalesLineChart from "../components/SalesLineChart";
-import GaugeChart from "../components/GaugeChart";
-import ErrorBoundary from "../../../components/ErrorBoundary";
 import { useAuth } from "../../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import {
   getDashboardStats,
-  getSalesAnalytics,
-  getOrderAnalytics,
-  getTodaySales,
   getTopSellers,
   getRecentOrders,
-  getSalesByLocation,
   type DashboardStats,
   type TopSeller,
   type RecentOrder,
-  type SalesByLocation,
-  type SalesAnalytics,
-  type TodaySales,
 } from "../../../services/api/admin/adminDashboardService";
 
 export default function AdminDashboard() {
   const { isAuthenticated, token } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [newOrders, setNewOrders] = useState<RecentOrder[]>([]);
   const [topSellers, setTopSellers] = useState<TopSeller[]>([]);
-  const [salesByLocation, setSalesByLocation] = useState<SalesByLocation[]>([]);
-  const [salesAnalytics, setSalesAnalytics] = useState<SalesAnalytics | null>(
-    null
-  );
-  const [orderAnalytics, setOrderAnalytics] = useState<SalesAnalytics | null>(
-    null
-  );
-  const [orderAnalyticsDaily, setOrderAnalyticsDaily] = useState<SalesAnalytics | null>(
-    null
-  );
-  const [todaySales, setTodaySales] = useState<TodaySales | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
@@ -56,25 +36,12 @@ export default function AdminDashboard() {
         setError(null);
 
         // Fetch all dashboard data in parallel
-        const [
-          statsResponse,
-          ordersResponse,
-          sellersResponse,
-          locationResponse,
-          analyticsResponse,
-          orderAnalyticsResponse,
-          orderAnalyticsDailyResponse,
-          todaySalesResponse,
-        ] = await Promise.all([
-          getDashboardStats(),
-          getRecentOrders(10),
-          getTopSellers(10),
-          getSalesByLocation(),
-          getSalesAnalytics("day"), // Use daily data for the sales line chart
-          getOrderAnalytics("month"),
-          getOrderAnalytics("day"),
-          getTodaySales(),
-        ]);
+        const [statsResponse, ordersResponse, sellersResponse] =
+          await Promise.all([
+            getDashboardStats(),
+            getRecentOrders(10),
+            getTopSellers(10),
+          ]);
 
         if (statsResponse.success) {
           console.log("Dashboard stats received:", statsResponse.data);
@@ -91,25 +58,6 @@ export default function AdminDashboard() {
           setTopSellers(sellersResponse.data);
         }
 
-        if (locationResponse.success) {
-          setSalesByLocation(locationResponse.data);
-        }
-
-        if (analyticsResponse.success) {
-          setSalesAnalytics(analyticsResponse.data);
-        }
-
-        if (orderAnalyticsResponse.success) {
-          setOrderAnalytics(orderAnalyticsResponse.data);
-        }
-
-        if (orderAnalyticsDailyResponse.success) {
-          setOrderAnalyticsDaily(orderAnalyticsDailyResponse.data);
-        }
-
-        if (todaySalesResponse.success) {
-          setTodaySales(todaySalesResponse.data);
-        }
       } catch (err: any) {
         console.error("Error fetching dashboard data:", err);
         setError(
@@ -350,18 +298,14 @@ export default function AdminDashboard() {
     </svg>
   );
 
-  // Transform sales analytics data for charts
-  const salesThisMonth = salesAnalytics?.thisPeriod || [];
-  const salesLastMonth = salesAnalytics?.lastPeriod || [];
+  const actualNewOrders = newOrders.filter((order) =>
+    ["Pending", "Received", "Processed"].includes(order.status)
+  );
 
-  // Transform order analytics data for charts (real data from backend)
-  const orderDataDec2025 = orderAnalyticsDaily?.thisPeriod || [];
-  const orderData2025 = orderAnalytics?.thisPeriod || [];
-
-  const totalPagesNewOrders = Math.ceil(newOrders.length / entriesPerPage);
+  const totalPagesNewOrders = Math.ceil(actualNewOrders.length / entriesPerPage);
   const startIndexNewOrders = (currentPage - 1) * entriesPerPage;
   const endIndexNewOrders = startIndexNewOrders + entriesPerPage;
-  const displayedNewOrders = newOrders.slice(
+  const displayedNewOrders = actualNewOrders.slice(
     startIndexNewOrders,
     endIndexNewOrders
   );
@@ -373,15 +317,6 @@ export default function AdminDashboard() {
     startIndexTopSellers,
     endIndexTopSellers
   );
-
-  // Calculate sales today and comparison from today's sales data
-  const salesToday = todaySales?.salesToday || 0;
-  const salesLastWeekSameDay = todaySales?.salesLastWeekSameDay || 0;
-  const salesDifference = salesToday - salesLastWeekSameDay;
-  const salesPercentChange =
-    salesLastWeekSameDay > 0
-      ? ((salesDifference / salesLastWeekSameDay) * 100).toFixed(0)
-      : salesToday > 0 ? "100" : "0";
 
   // Loading state
   if (loading) {
@@ -449,155 +384,73 @@ export default function AdminDashboard() {
           title="Total User"
           value={stats.totalUser}
           accentColor="#3b82f6"
+          onClick={() => navigate("/admin/users")}
         />
         <DashboardCard
           icon={categoryIcon}
           title="Total Category"
           value={stats.totalCategory}
           accentColor="#eab308"
+          onClick={() => navigate("/admin/category")}
         />
         <DashboardCard
           icon={subcategoryIcon}
           title="Total Subcategory"
           value={stats.totalSubcategory ?? 0}
           accentColor="#ec4899"
+          onClick={() => navigate("/admin/subcategory")}
         />
         <DashboardCard
           icon={productIcon}
           title="Total Product"
           value={stats.totalProduct}
           accentColor="#ef4444"
+          onClick={() => navigate("/admin/product/list")}
         />
         <DashboardCard
           icon={ordersIcon}
           title="Total Orders"
           value={stats.totalOrders}
           accentColor="#3b82f6"
+          onClick={() => navigate("/admin/orders/all")}
         />
         <DashboardCard
           icon={completedOrdersIcon}
           title="Completed Orders"
           value={stats.completedOrders}
           accentColor="#16a34a"
+          onClick={() => navigate("/admin/orders/delivered")}
         />
         <DashboardCard
           icon={pendingOrdersIcon}
           title="Pending Orders"
           value={stats.pendingOrders}
           accentColor="#a855f7"
+          onClick={() => navigate("/admin/orders/pending")}
         />
         <DashboardCard
           icon={cancelledOrdersIcon}
           title="Cancelled Orders"
           value={stats.cancelledOrders}
           accentColor="#ef4444"
+          onClick={() => navigate("/admin/orders/cancelled")}
         />
         <DashboardCard
           icon={soldOutIcon}
           title="Product Sold Out"
           value={stats.soldOutProducts}
           accentColor="#ec4899"
+          onClick={() => navigate("/admin/product/list")}
         />
         <DashboardCard
           icon={lowStockIcon}
           title="Product low on Stock"
           value={stats.lowStockProducts}
           accentColor="#eab308"
+          onClick={() => navigate("/admin/product/list")}
         />
       </div>
 
-      {/* Sales Section - Top Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Total Sales Today */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-neutral-200 p-4 sm:p-6">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-2">
-            Total Sales Today
-          </h3>
-          <div className="mb-4">
-            <p className="text-3xl font-bold text-neutral-900">
-              ₹{salesToday.toFixed(2)}
-            </p>
-            {salesDifference >= 0 ? (
-              <p className="text-sm text-green-600 mt-1">
-                â–² ₹{Math.abs(salesDifference).toFixed(2)} (+{salesPercentChange}%)
-                vs same day last week
-              </p>
-            ) : (
-              <p className="text-sm text-red-600 mt-1">
-                â–¼ ₹{Math.abs(salesDifference).toFixed(2)} ({salesPercentChange}%)
-                vs same day last week
-              </p>
-            )}
-          </div>
-          <SalesLineChart
-            thisMonthData={salesThisMonth}
-            lastMonthData={salesLastMonth}
-            height={200}
-          />
-        </div>
-
-        {/* Sales by Location & Gauge */}
-        <div className="space-y-4 sm:space-y-6">
-          {/* Sales by Location */}
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-4 sm:p-6">
-            <h3 className="text-lg font-semibold text-neutral-900 mb-4">
-              Sales by Location
-            </h3>
-            <div className="space-y-3">
-              {salesByLocation.length > 0 ? (
-                salesByLocation.map((location, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between">
-                    <span className="text-sm text-neutral-600">
-                      {location.location}
-                    </span>
-                    <span className="text-sm font-semibold text-neutral-900">
-                      ₹{(location.amount / 1000).toFixed(1)}K
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-neutral-500">
-                  No location data available
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Avg. Completed Order Value */}
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-4 sm:p-6">
-            <h3 className="text-lg font-semibold text-neutral-900 mb-4">
-              Avg. Completed Order Value
-            </h3>
-            <GaugeChart
-              value={stats.avgCompletedOrderValue}
-              maxValue={521}
-              label="Average Order Value"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <ErrorBoundary fallback={<div className="text-sm text-red-600 p-4">Chart failed to load</div>}>
-          <OrderChart
-            title="Order - Dec 2025"
-            data={orderDataDec2025}
-            maxValue={3}
-            height={400}
-          />
-        </ErrorBoundary>
-        <ErrorBoundary fallback={<div className="text-sm text-red-600 p-4">Chart failed to load</div>}>
-          <OrderChart
-            title="Order - 2025"
-            data={orderData2025}
-            maxValue={80}
-            height={400}
-          />
-        </ErrorBoundary>
-      </div>
 
       {/* Tables Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -747,6 +600,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 sm:px-6 py-3">
                         <button
+                          onClick={() => navigate(`/admin/orders/${order.id}`)}
                           className="bg-teal-600 hover:bg-teal-700 text-white p-2 rounded transition-colors"
                           aria-label="View order">
                           <svg
@@ -784,8 +638,8 @@ export default function AdminDashboard() {
           <div className="px-4 sm:px-6 py-3 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
             <div className="text-xs sm:text-sm text-neutral-700">
               Showing {startIndexNewOrders + 1} to{" "}
-              {Math.min(endIndexNewOrders, newOrders.length)} of{" "}
-              {newOrders.length} entries
+              {Math.min(endIndexNewOrders, actualNewOrders.length)} of{" "}
+              {actualNewOrders.length} entries
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -948,6 +802,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 sm:px-6 py-3">
                         <button
+                          onClick={() => navigate("/admin/manage-seller/list")}
                           className="bg-teal-600 hover:bg-teal-700 text-white p-2 rounded transition-colors"
                           aria-label="View seller">
                           <svg
@@ -1049,9 +904,9 @@ export default function AdminDashboard() {
 
       {/* Footer */}
       <div className="text-center text-sm text-neutral-500 py-4">
-        Copyright Â© 2025. Developed By{" "}
+        Copyright 2025. Developed By{" "}
         <a href="#" className="text-teal-600 hover:text-teal-700">
-          Mandi Bazaar - 10 Minute App
+          Mandi Bazaar - 20 Minute App
         </a>
       </div>
     </div>

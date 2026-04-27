@@ -17,13 +17,26 @@ export default function LocationPermissionRequest({
   description = 'We need your location to show you products available near you and enable delivery services.',
   forceShow = false,
 }: LocationPermissionRequestProps) {
-  const { requestLocation, updateLocation, isLocationEnabled, isLocationLoading, locationError, locationPermissionStatus, clearLocation } = useLocation();
+  const { requestLocation, updateLocation, isLocationEnabled, isLocationLoading, locationError, locationPermissionStatus, clearLocation, location } = useLocation();
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualAddress, setManualAddress] = useState('');
   const [manualLat, setManualLat] = useState<number | null>(null);
   const [manualLng, setManualLng] = useState<number | null>(null);
   const [manualCity, setManualCity] = useState<string>('');
   const [manualState, setManualState] = useState<string>('');
+  const [manualLocationType, setManualLocationType] = useState<'Home' | 'Office'>('Home');
+  const [showSaveCurrentLocation, setShowSaveCurrentLocation] = useState(false);
+
+  // Handle denying location permission
+  const handleDenyLocation = () => {
+    console.log('[LocationPermissionRequest] User denied location permission');
+    try {
+      sessionStorage.setItem('location_permission_denied_session', 'true');
+    } catch (e) {
+      console.warn('Failed to save denial to sessionStorage:', e);
+    }
+    onLocationGranted(); // Close modal
+  };
 
   // Auto-grant if already enabled or session permission exists
   useEffect(() => {
@@ -44,6 +57,9 @@ export default function LocationPermissionRequest({
       // ONLY call location API when user explicitly clicks the button
       // This ensures we don't auto-request location on app load
       await requestLocation();
+      if (forceShow) {
+        setShowSaveCurrentLocation(true);
+      }
       // If requestLocation succeeds, locationError will be cleared in the context
       // and isLocationEnabled will be set to true, which will trigger onLocationGranted
     } catch (error) {
@@ -82,6 +98,7 @@ export default function LocationPermissionRequest({
         latitude: manualLat || 0,
         longitude: manualLng || 0,
         address: manualAddress,
+        locationType: manualLocationType,
         city: manualCity,
         state: manualState,
       });
@@ -100,7 +117,18 @@ export default function LocationPermissionRequest({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
+        {/* Close Button */}
+        <button
+          onClick={handleDenyLocation}
+          className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600 transition-colors"
+          aria-label="Close"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
@@ -168,6 +196,15 @@ export default function LocationPermissionRequest({
                 Enter Location Manually
               </button>
 
+              {forceShow && showSaveCurrentLocation && location && (
+                <button
+                  onClick={onLocationGranted}
+                  className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                >
+                  Save Current Location
+                </button>
+              )}
+
               {skipable && (
                 <button
                   onClick={onLocationGranted}
@@ -194,6 +231,34 @@ export default function LocationPermissionRequest({
           </>
         ) : (
           <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
+                Save location as
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setManualLocationType('Home')}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold ${manualLocationType === 'Home'
+                    ? 'bg-orange-50 text-orange-700 border-orange-400'
+                    : 'bg-white text-neutral-700 border-neutral-300'
+                    }`}
+                >
+                  Home
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManualLocationType('Office')}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold ${manualLocationType === 'Office'
+                    ? 'bg-orange-50 text-orange-700 border-orange-400'
+                    : 'bg-white text-neutral-700 border-neutral-300'
+                    }`}
+                >
+                  Office
+                </button>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Search and select your location

@@ -20,6 +20,8 @@ import GoogleMapsLocationPicker from '../../components/GoogleMapsLocationPicker'
 import { getProducts } from '../../services/api/customerProductService';
 import { addToWishlist } from '../../services/api/customerWishlistService';
 import { updateProfile } from '../../services/api/customerService';
+import { clearCart } from '../../store/cartSlice';
+import { createOrder, cancelOrder } from '../../services/api/customerOrderService';
 import { calculateProductPrice } from '../../utils/priceUtils';
 import HdfcCheckout from '../../components/HdfcCheckout';
 
@@ -57,6 +59,7 @@ export default function Checkout() {
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
   const [showGstinSheet, setShowGstinSheet] = useState(false);
   const [gstin, setGstin] = useState<string>('');
+  const [specialRequest, setSpecialRequest] = useState<string>('');
   const [showCancellationPolicy, setShowCancellationPolicy] = useState(false);
   const [giftPackaging, setGiftPackaging] = useState<boolean>(false);
 
@@ -76,7 +79,6 @@ export default function Checkout() {
   const [showHdfcCheckout, setShowHdfcCheckout] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
-  // Payment Method State
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'online' | 'cod'>('online');
 
 
@@ -262,6 +264,23 @@ export default function Checkout() {
     fetchSimilar();
   }, [cart?.items?.length]);
 
+  useEffect(() => {
+    if (!showMapPicker) return;
+    if (mapLocation) return;
+
+    setMapLocation({
+      lat: userLocation?.latitude || selectedAddress?.latitude || 0,
+      lng: userLocation?.longitude || selectedAddress?.longitude || 0,
+      address: selectedAddress ? {
+        street: selectedAddress.street,
+        city: selectedAddress.city,
+        state: selectedAddress.state,
+        pincode: selectedAddress.pincode,
+        landmark: selectedAddress.landmark,
+      } : undefined,
+    });
+  }, [showMapPicker, mapLocation, userLocation?.latitude, userLocation?.longitude, selectedAddress]);
+
   if (cartLoading || ((cart?.items?.length || 0) === 0 && !showOrderSuccess)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white px-4">
@@ -305,7 +324,10 @@ export default function Checkout() {
   // Debug removed - was causing console spam
 
   const freeDeliveryThreshold = cart.freeDeliveryThreshold ?? appConfig.freeDeliveryThreshold;
+  const minimumOrderValue = cart.minimumOrderValue ?? appConfig.minimumOrderValue ?? 149;
+  const discountedTotal = displayCart.total;
   const amountNeededForFreeDelivery = Math.max(0, freeDeliveryThreshold - (displayCart.total || 0));
+  const amountNeededForMinimumOrder = Math.max(0, minimumOrderValue - discountedTotal);
   const cartItem = displayItems[0];
 
   /* DEBUG: Display Backend Configuration */
@@ -317,7 +339,6 @@ export default function Checkout() {
     return sum + (mrp * (item.quantity || 0));
   }, 0);
 
-  const discountedTotal = displayCart.total;
   const savedAmount = itemsTotal - discountedTotal;
   const handlingCharge = cart.platformFee ?? appConfig.platformFee;
 
@@ -332,22 +353,26 @@ export default function Checkout() {
   const subtotalBeforeCoupon = discountedTotal + handlingCharge + deliveryCharge;
 
   // Local calculation for immediate feedback, relying on backend validation on Apply
-  let currentCouponDiscount = 0;
+  let localCouponDiscount = 0;
   if (selectedCoupon) {
     // Logic mirrors backend for UI update purposes
     if (selectedCoupon.minOrderValue && subtotalBeforeCoupon < selectedCoupon.minOrderValue) {
       // Invalid now
     } else {
       if (selectedCoupon.discountType === 'percentage') {
-        currentCouponDiscount = Math.round((subtotalBeforeCoupon * selectedCoupon.discountValue) / 100);
-        if (selectedCoupon.maxDiscountAmount && currentCouponDiscount > selectedCoupon.maxDiscountAmount) {
-          currentCouponDiscount = selectedCoupon.maxDiscountAmount;
+        localCouponDiscount = Math.round((subtotalBeforeCoupon * selectedCoupon.discountValue) / 100);
+        if (selectedCoupon.maxDiscountAmount && localCouponDiscount > selectedCoupon.maxDiscountAmount) {
+          localCouponDiscount = selectedCoupon.maxDiscountAmount;
         }
       } else {
-        currentCouponDiscount = selectedCoupon.discountValue;
+        localCouponDiscount = selectedCoupon.discountValue;
       }
     }
   }
+
+  const currentCouponDiscount = selectedCoupon
+    ? Math.max(0, Math.min(subtotalBeforeCoupon, validatedDiscount || localCouponDiscount))
+    : 0;
 
   const giftPackagingFee = giftPackaging ? 30 : 0;
   const grandTotal = Math.max(0, discountedTotal + handlingCharge + deliveryCharge + giftPackagingFee - currentCouponDiscount);
@@ -414,6 +439,11 @@ export default function Checkout() {
       return;
     }
 
+    if (discountedTotal < minimumOrderValue) {
+      alert(`Please fulfill the minimum order limit of ₹${minimumOrderValue}. Add ₹${amountNeededForMinimumOrder.toFixed(0)} more to continue.`);
+      return;
+    }
+
     // Check if user needs to complete their profile first
     if (!bypassProfileCheck && isPlaceholderUser) {
       setProfileFormData({ name: user?.name === 'User' ? '' : (user?.name || ''), email: user?.email?.endsWith('@mandibazaar.temp') ? '' : (user?.email || '') });
@@ -462,6 +492,7 @@ export default function Checkout() {
       status: 'Pending',
       createdAt: new Date().toISOString(),
       gstin: gstin || undefined,
+      specialRequests: specialRequest.trim() || undefined,
       couponCode: selectedCoupon?.code || undefined,
       giftPackaging: giftPackaging,
       paymentMethod: selectedPaymentMethod === 'cod' ? 'COD' : 'Online',
@@ -502,37 +533,60 @@ export default function Checkout() {
   };
 
   const handleUpdateLocation = async () => {
-    if (!selectedAddress?.id || !mapLocation) return;
+    if (!selectedAddress) {
+      showGlobalToast('Please select a location on map', 'error');
+      return;
+    }
+
+    const effectiveMapLocation = mapLocation || {
+      lat: selectedAddress.latitude || userLocation?.latitude || 0,
+      lng: selectedAddress.longitude || userLocation?.longitude || 0,
+      address: {
+        street: selectedAddress.street,
+        city: selectedAddress.city,
+        state: selectedAddress.state,
+        pincode: selectedAddress.pincode,
+        landmark: selectedAddress.landmark,
+      },
+    };
+
+    if (!effectiveMapLocation.lat || !effectiveMapLocation.lng) {
+      showGlobalToast('Please select a location on map', 'error');
+      return;
+    }
+
     setIsUpdatingLocation(true);
     try {
       // Prepare update payload
       const updatePayload: any = {
-        latitude: mapLocation.lat,
-        longitude: mapLocation.lng
+        latitude: effectiveMapLocation.lat,
+        longitude: effectiveMapLocation.lng
       };
 
       // If address details are available from map, update them too
-      if (mapLocation.address) {
-        if (mapLocation.address.street) updatePayload.address = mapLocation.address.street;
-        if (mapLocation.address.city) updatePayload.city = mapLocation.address.city;
-        if (mapLocation.address.state) updatePayload.state = mapLocation.address.state;
-        if (mapLocation.address.pincode) updatePayload.pincode = mapLocation.address.pincode;
-        if (mapLocation.address.landmark) updatePayload.landmark = mapLocation.address.landmark;
+      if (effectiveMapLocation.address) {
+        if (effectiveMapLocation.address.street) updatePayload.address = effectiveMapLocation.address.street;
+        if (effectiveMapLocation.address.city) updatePayload.city = effectiveMapLocation.address.city;
+        if (effectiveMapLocation.address.state) updatePayload.state = effectiveMapLocation.address.state;
+        if (effectiveMapLocation.address.pincode) updatePayload.pincode = effectiveMapLocation.address.pincode;
+        if (effectiveMapLocation.address.landmark) updatePayload.landmark = effectiveMapLocation.address.landmark;
       }
 
-      // Update the address in backend
-      await updateAddress(selectedAddress.id, updatePayload);
+      // Update the address in backend only for saved addresses
+      if (selectedAddress.id) {
+        await updateAddress(selectedAddress.id, updatePayload);
+      }
 
       // Update local state
       const updated = {
         ...selectedAddress,
-        latitude: mapLocation.lat,
-        longitude: mapLocation.lng,
-        street: mapLocation.address?.street || selectedAddress.street,
-        city: mapLocation.address?.city || selectedAddress.city,
-        state: mapLocation.address?.state || selectedAddress.state,
-        pincode: mapLocation.address?.pincode || selectedAddress.pincode,
-        landmark: mapLocation.address?.landmark || selectedAddress.landmark,
+        latitude: effectiveMapLocation.lat,
+        longitude: effectiveMapLocation.lng,
+        street: effectiveMapLocation.address?.street || selectedAddress.street,
+        city: effectiveMapLocation.address?.city || selectedAddress.city,
+        state: effectiveMapLocation.address?.state || selectedAddress.state,
+        pincode: effectiveMapLocation.address?.pincode || selectedAddress.pincode,
+        landmark: effectiveMapLocation.address?.landmark || selectedAddress.landmark,
       };
       setSelectedAddress(updated);
       setSavedAddress(updated); // Sync
@@ -1003,11 +1057,22 @@ export default function Checkout() {
 
           <p className="text-[10px] text-neutral-600 mb-2.5">Shipment of {displayCart.itemCount || 0} {(displayCart.itemCount || 0) === 1 ? 'item' : 'items'}</p>
 
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={() => navigate('/')}
+              className="text-[11px] font-semibold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-md hover:bg-green-100 transition-colors"
+            >
+              Add more items
+            </button>
+          </div>
+
           {/* Cart Items */}
           <div className="space-y-2.5">
             {displayItems.filter(item => item.product).map((item) => {
               const variantId = (item.product as any).variantId || item.variant;
               const variantTitle = (item.product as any).variantTitle || (item.product as any).pack;
+              const { displayPrice, mrp, hasDiscount } = calculateProductPrice(item.product, item.variant);
+              const lineTotal = displayPrice * (item.quantity || 0);
 
               return (
                 <div key={item.id || `${item.product?.id}-${variantId || variantTitle}`} className="flex gap-2">
@@ -1032,6 +1097,7 @@ export default function Checkout() {
                       {item.product?.name}
                     </h3>
                     <p className="text-[10px] text-neutral-600 mb-0.5">{item.quantity} × {item.product?.pack}</p>
+                    <p className="text-[10px] text-neutral-700 font-medium mb-0.5">Quantity: {item.quantity}</p>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1042,42 +1108,46 @@ export default function Checkout() {
                       Move to wishlist
                     </button>
 
-                    {/* Quantity Selector */}
-                    <div className="flex items-center justify-between mt-1.5">
-                      <div className="flex items-center gap-1.5 bg-white border-2 border-green-600 rounded-full px-1.5 py-0.5">
-                        <button
-                          onClick={() => updateQuantity(item.product?.id, item.quantity - 1, variantId, variantTitle)}
-                          className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
-                        >
-                          −
-                        </button>
-                        <span className="text-xs font-bold text-green-600 min-w-[1.25rem] text-center">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(item.product?.id, item.quantity + 1, variantId, variantTitle)}
-                          className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
-                        >
-                          +
-                        </button>
-                      </div>
+                    <div className="flex items-end justify-between mt-1.5 gap-2">
+                      <div className="flex-1" />
 
-                      {/* Price */}
-                      {(() => {
-                        const { displayPrice, mrp, hasDiscount } = calculateProductPrice(item.product, item.variant);
-                        return (
+                      <div className="flex flex-col items-end gap-1">
+                        {/* Quantity Selector */}
+                        <div className="flex items-center gap-1.5 bg-white border-2 border-green-600 rounded-full px-1.5 py-0.5">
+                          <button
+                            onClick={() => updateQuantity(item.product?.id, item.quantity - 1, variantId, variantTitle)}
+                            className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
+                          >
+                            −
+                          </button>
+                          <span className="text-xs font-bold text-green-600 min-w-[1.25rem] text-center">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(item.product?.id, item.quantity + 1, variantId, variantTitle)}
+                            className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        {/* Price */}
+                        <div className="flex flex-col items-end">
+                          <span className="text-sm font-bold text-neutral-900">
+                            ₹{lineTotal}
+                          </span>
                           <div className="flex items-center gap-1.5">
                             {hasDiscount && (
                               <span className="text-[10px] text-neutral-500 line-through">
                                 ₹{mrp}
                               </span>
                             )}
-                            <span className="text-sm font-bold text-neutral-900">
-                              ₹{displayPrice}
+                            <span className="text-[11px] text-neutral-600">
+                              ₹{displayPrice} each
                             </span>
                           </div>
-                        );
-                      })()}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1386,7 +1456,7 @@ export default function Checkout() {
           {/* Items total */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-neutral-700">Items total</span>
+              <span className="text-xs text-neutral-700">Items total ({displayCart.itemCount || 0} {(displayCart.itemCount || 0) === 1 ? 'item' : 'items'})</span>
               {savedAmount > 0 && (
                 <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
                   Saved ₹{savedAmount}
@@ -1494,6 +1564,23 @@ export default function Checkout() {
         </button>
       </div>
 
+      {/* Add Special Request */}
+      <div className="px-4 py-2 border-b border-neutral-200">
+        <div className="w-full bg-neutral-50 rounded-lg p-2">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-xs font-semibold text-neutral-900">Add Special Request</p>
+            <span className="text-[10px] text-neutral-500">{specialRequest.length}/200</span>
+          </div>
+          <textarea
+            value={specialRequest}
+            onChange={(e) => setSpecialRequest(e.target.value.slice(0, 200))}
+            rows={2}
+            placeholder="e.g. Please avoid plastic bags"
+            className="w-full resize-none bg-white border border-neutral-200 rounded-lg p-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+        </div>
+      </div>
+
 
       {/* Gift Packaging Section */}
       <div className="px-4 py-2 border-b border-neutral-200">
@@ -1536,7 +1623,7 @@ export default function Checkout() {
       {/* Payment Method Selector */}
       <div className="px-4 py-3 border-b border-neutral-200">
         <h3 className="text-sm font-bold text-neutral-900 mb-2">Payment Method</h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 mb-3">
           <button
             onClick={() => setSelectedPaymentMethod('online')}
             className={`flex-1 flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${selectedPaymentMethod === 'online'
@@ -1582,6 +1669,8 @@ export default function Checkout() {
             </div>
           </button>
         </div>
+
+        {/* Sub-selection for Online Gateway removed - controlled by admin */}
       </div>
 
       {/* Cancellation Policy */}
@@ -1805,11 +1894,16 @@ export default function Checkout() {
 
       {/* Bottom Sticky Button */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-[60] shadow-lg">
+        {selectedAddress && discountedTotal < minimumOrderValue && (
+          <div className="px-4 py-2 text-[11px] text-center text-red-600 bg-red-50 border-b border-red-100 font-medium">
+            Please fulfill the minimum order limit of ₹{minimumOrderValue}. Add ₹{amountNeededForMinimumOrder.toFixed(0)} more.
+          </div>
+        )}
         {selectedAddress ? (
           <button
             onClick={handlePlaceOrder}
-            disabled={cart.items.length === 0}
-            className={`w-full py-3 px-4 font-bold text-sm uppercase tracking-wide transition-colors ${cart.items.length > 0
+            disabled={cart.items.length === 0 || discountedTotal < minimumOrderValue}
+            className={`w-full py-3 px-4 font-bold text-sm uppercase tracking-wide transition-colors ${cart.items.length > 0 && discountedTotal >= minimumOrderValue
               ? 'bg-green-600 text-white hover:bg-green-700'
               : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
               }`}
@@ -1917,11 +2011,18 @@ export default function Checkout() {
         }
       `}</style>
 
-      {/* HDFC Checkout Component */}
       {showHdfcCheckout && pendingOrderId && user && (
         <HdfcCheckout
           orderId={pendingOrderId}
-          onFailure={(error) => {
+          onFailure={async (error) => {
+            // If payment failed or user cancelled, we mark the order as cancelled on backend to restore stock
+            if (pendingOrderId) {
+              try {
+                await cancelOrder(pendingOrderId, 'Payment window closed or initiation failed');
+              } catch (cancelErr) {
+                console.error('Failed to auto-cancel pending order:', cancelErr);
+              }
+            }
             setShowHdfcCheckout(false);
             setPendingOrderId(null);
             showGlobalToast(error || 'Payment initialization failed. Please try again.', 'error');

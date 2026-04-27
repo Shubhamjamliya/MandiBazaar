@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { uploadImage, uploadImages } from "../../../services/api/uploadService";
 import {
@@ -21,6 +21,8 @@ import {
 } from "../../../services/api/categoryService";
 import { getActiveTaxes, Tax } from "../../../services/api/taxService";
 import { getBrands, Brand } from "../../../services/api/brandService";
+import { useAuth } from "../../../context/AuthContext";
+import { getSellerProfile } from "../../../services/api/auth/sellerAuthService";
 
 // ─── Weight Variant Presets ───────────────────────────────────────────────────
 const WEIGHT_PRESETS = [
@@ -55,9 +57,11 @@ function buildDefaultWeightVariants(pricePerKg: number): WeightVariant[] {
 export default function SellerAddProduct() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user, updateUser } = useAuth();
+  const [sellerStatus, setSellerStatus] = useState<string | undefined>(user?.status);
 
   // ── Selling unit mode ──────────────────────────────────────────────────────
-  const [sellingUnit, setSellingUnit] = useState<"weight" | "quantity">("quantity");
+  const [sellingUnit, setSellingUnit] = useState<"weight" | "quantity">("weight");
   const [pricePerKg, setPricePerKg] = useState<string>("");
   const [weightVariants, setWeightVariants] = useState<WeightVariant[]>(
     buildDefaultWeightVariants(0)
@@ -66,6 +70,39 @@ export default function SellerAddProduct() {
   // Custom weight variant state
   const [customWeightLabel, setCustomWeightLabel] = useState("");
   const [customWeightGrams, setCustomWeightGrams] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    const syncSellerApprovalStatus = async () => {
+      if (user?.userType !== "Seller") return;
+
+      try {
+        const response = await getSellerProfile();
+        const latestStatus = response?.data?.status;
+
+        if (!mounted || !latestStatus) return;
+
+        setSellerStatus(latestStatus);
+
+        if (user?.status !== latestStatus) {
+          updateUser({ ...user, status: latestStatus });
+        }
+      } catch {
+        if (!mounted) return;
+        // Fallback to cached auth user status if profile sync fails.
+        setSellerStatus(user?.status);
+      }
+    };
+
+    syncSellerApprovalStatus();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id, user?.status, user?.userType, updateUser]);
+
+  const effectiveSellerStatus = sellerStatus ?? user?.status;
 
   const handleAddCustomWeightVariant = () => {
     if (!customWeightLabel || !customWeightGrams) return;
@@ -139,14 +176,16 @@ export default function SellerAddProduct() {
     galleryImageUrls: [] as string[],
     isShopByStoreOnly: "No",
     shopId: "",
+    hsnCode: "",
+    gstPercentage: "0",
   });
 
   const [variations, setVariations] = useState<ProductVariation[]>([]);
   const [variationForm, setVariationForm] = useState({
     title: "",
     price: "",
-    discPrice: "0",
-    stock: "0",
+    discPrice: "",
+    stock: "",
     status: "Available" as "Available" | "Sold out",
   });
 
@@ -217,9 +256,11 @@ export default function SellerAddProduct() {
               galleryImageUrls: product.galleryImageUrls || [],
               isShopByStoreOnly: (product as any).isShopByStoreOnly ? "Yes" : "No",
               shopId: (product as any).shopId?._id || (product as any).shopId || "",
+              hsnCode: product.hsnCode || "",
+              gstPercentage: (product.gstPercentage || 0).toString(),
             });
-            const su = (product as any).sellingUnit || "quantity";
-            setSellingUnit(su);
+            const su = (product as any).sellingUnit || "weight";
+            setSellingUnit(su === "weight" ? "weight" : "weight");
             if (su === "weight") {
               setPricePerKg(String((product as any).pricePerKg || ""));
 
@@ -283,7 +324,34 @@ export default function SellerAddProduct() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "madeIn") {
+      const cleaned = value.replace(/[^A-Za-z\s]/g, "");
+      setFormData((prev) => ({ ...prev, [name]: cleaned }));
+      return;
+    }
+    if (name === "hsnCode") {
+      const cleaned = value.replace(/[^0-9\s]/g, "").replace(/\s+/g, " ").trimStart();
+      setFormData((prev) => ({ ...prev, [name]: cleaned }));
+      return;
+    }
+    if (name === "fssaiLicNo") {
+      const cleaned = value.replace(/[^0-9/]/g, "");
+      setFormData((prev) => ({ ...prev, [name]: cleaned }));
+      return;
+    }
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      
+      // If tax is selected, auto-fill gstPercentage
+      if (name === "tax" && value) {
+        const selectedTax = taxes.find(t => t._id === value);
+        if (selectedTax) {
+          updated.gstPercentage = selectedTax.percentage.toString();
+        }
+      }
+      
+      return updated;
+    });
   };
 
   const handleMainImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -315,11 +383,14 @@ export default function SellerAddProduct() {
   const addVariation = () => {
     if (!variationForm.title || !variationForm.price) { setUploadError("Fill in variation title and price"); return; }
     const price = parseFloat(variationForm.price);
-    const discPrice = parseFloat(variationForm.discPrice || "0");
-    const stock = parseInt(variationForm.stock || "0");
+    const discPrice = variationForm.discPrice === "" ? 0 : parseFloat(variationForm.discPrice);
+    const stock = variationForm.stock === "" ? 0 : parseInt(variationForm.stock);
+    if (isNaN(price) || price <= 0) { setUploadError("Sale price must be greater than 0"); return; }
+    if (isNaN(discPrice) || discPrice < 0) { setUploadError("MRP cannot be negative"); return; }
+    if (isNaN(stock) || stock < 0) { setUploadError("Stock cannot be negative"); return; }
     if (discPrice > price) { setUploadError("Discounted price cannot exceed sale price"); return; }
     setVariations([...variations, { title: variationForm.title, price, discPrice, stock, status: variationForm.status }]);
-    setVariationForm({ title: "", price: "", discPrice: "0", stock: "0", status: "Available" });
+    setVariationForm({ title: "", price: "", discPrice: "", stock: "", status: "Available" });
     setUploadError("");
   };
 
@@ -328,13 +399,37 @@ export default function SellerAddProduct() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError("");
+    const isSellerBlocked = user?.userType === "Seller" && effectiveSellerStatus !== "Approved";
+    if (isSellerBlocked) {
+      setUploadError("You cannot add products right now.");
+      return;
+    }
+
+    const madeIn = formData.madeIn.trim();
+    const hsnCode = formData.hsnCode.trim();
+    const fssaiLicNo = formData.fssaiLicNo.trim();
+
+    if (madeIn && !/^[A-Za-z\s]+$/.test(madeIn)) {
+      setUploadError("Made In should contain only alphabets");
+      return;
+    }
+    if (hsnCode && !/^\d{4}(?:\s?\d{2}){0,2}$/.test(hsnCode)) {
+      setUploadError("HSN code should be in format (ex- 6109 10 00)");
+      return;
+    }
+    if (fssaiLicNo && !/^\d{2}\/\d{3}\/\d{8}$/.test(fssaiLicNo)) {
+      setUploadError("FSSAI lic no. should be in format (ex- 21/001/00012345)");
+      return;
+    }
+
     if (!formData.productName.trim()) { setUploadError("Please enter a product name."); return; }
     if (formData.isShopByStoreOnly !== "Yes" && !formData.category) { setUploadError("Please select a category."); return; }
     if (sellingUnit === "weight") {
       const enabled = weightVariants.filter((v) => v.isEnabled);
       if (!enabled.length) { setUploadError("Enable at least one weight variant."); return; }
     } else {
-      if (!variations.length) { setUploadError("Please add at least one product variation."); return; }
+      setUploadError("By quantity mode has been removed. Please use weight variants.");
+      return;
     }
 
     setUploading(true);
@@ -362,36 +457,24 @@ export default function SellerAddProduct() {
         publish: formData.publish === "Yes",
         popular: formData.popular === "Yes",
         dealOfDay: formData.dealOfDay === "Yes",
-        seoTitle: formData.seoTitle || undefined,
-        seoKeywords: formData.seoKeywords || undefined,
-        seoImageAlt: formData.seoImageAlt || undefined,
-        seoDescription: formData.seoDescription || undefined,
         smallDescription: formData.smallDescription || undefined,
         tags: tagsArray,
         manufacturer: formData.manufacturer || undefined,
-        madeIn: formData.madeIn || undefined,
+        madeIn: madeIn || undefined,
         taxId: formData.tax || undefined,
         isReturnable: formData.isReturnable === "Yes",
         maxReturnDays: formData.maxReturnDays ? parseInt(formData.maxReturnDays) : undefined,
-        totalAllowedQuantity: parseInt(formData.totalAllowedQuantity || "10"),
-        fssaiLicNo: formData.fssaiLicNo || undefined,
+        fssaiLicNo: fssaiLicNo || undefined,
         mainImageUrl: mainImageUrl || undefined,
         galleryImageUrls,
         isShopByStoreOnly: formData.isShopByStoreOnly === "Yes",
         shopId: formData.isShopByStoreOnly === "Yes" && formData.shopId ? formData.shopId : undefined,
-        sellingUnit,
-        ...(sellingUnit === "weight"
-          ? {
-            pricePerKg: parseFloat(pricePerKg) || 0,
-            weightVariants: weightVariants.filter(v => v.isEnabled),
-            variations: []
-          }
-          : {
-            variations,
-            variationType: formData.variationType || undefined,
-            weightVariants: [],
-            pricePerKg: 0
-          }),
+        hsnCode: hsnCode || undefined,
+        gstPercentage: parseFloat(formData.gstPercentage) || 0,
+        sellingUnit: "weight",
+        pricePerKg: parseFloat(pricePerKg) || 0,
+        weightVariants: weightVariants.filter(v => v.isEnabled),
+        variations: [],
       };
 
       const response = id ? await updateProduct(id, productData) : await createProduct(productData);
@@ -501,7 +584,6 @@ export default function SellerAddProduct() {
                 <div className="flex gap-3">
                   {[
                     { mode: "weight" as const, emoji: "⚖️", label: "By Weight", sub: "KG / GM variants" },
-                    { mode: "quantity" as const, emoji: "📦", label: "By Quantity", sub: "per unit / piece" },
                   ].map(({ mode, emoji, label, sub }) => (
                     <button
                       key={mode}
@@ -694,7 +776,7 @@ export default function SellerAddProduct() {
               )}
 
               {/* ── QUANTITY MODE ────────────────────────────────────────── */}
-              {sellingUnit === "quantity" && (
+              {false && sellingUnit === "quantity" && (
                 <div className="space-y-4">
                   {/* Add Variation Row */}
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
@@ -707,19 +789,19 @@ export default function SellerAddProduct() {
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-1.5">Sale Price (₹) <span className="text-red-500">*</span></label>
                       <input type="number" value={variationForm.price}
-                        onChange={(e) => setVariationForm({ ...variationForm, price: e.target.value })}
+                        onChange={(e) => setVariationForm({ ...variationForm, price: e.target.value.replace(/^0+(?=\d)/, "") })}
                         placeholder="100" className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-1.5">MRP (₹)</label>
                       <input type="number" value={variationForm.discPrice}
-                        onChange={(e) => setVariationForm({ ...variationForm, discPrice: e.target.value })}
+                        onChange={(e) => setVariationForm({ ...variationForm, discPrice: e.target.value.replace(/^0+(?=\d)/, "") })}
                         placeholder="120" className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-1.5">Stock</label>
                       <input type="number" value={variationForm.stock}
-                        onChange={(e) => setVariationForm({ ...variationForm, stock: e.target.value })}
+                        onChange={(e) => setVariationForm({ ...variationForm, stock: e.target.value.replace(/^0+(?=\d)/, "") })}
                         placeholder="0" className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     </div>
                     <div className="flex items-end">
@@ -747,7 +829,7 @@ export default function SellerAddProduct() {
                           <div className="font-semibold text-neutral-800">{v.title}</div>
                           <div className="font-bold text-teal-700">₹{v.price}</div>
                           <div className="text-neutral-400">{v.discPrice > 0 ? `₹${v.discPrice}` : "—"}</div>
-                          <div className="text-neutral-600">{v.stock === 0 ? "∞" : v.stock}</div>
+                          <div className="text-neutral-600">{v.stock}</div>
                           <div>
                             <button type="button" onClick={() => removeVariation(idx)}
                               className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 text-lg leading-none font-bold">
@@ -771,7 +853,7 @@ export default function SellerAddProduct() {
           </div>
 
           {/* ── SEO ────────────────────────────────────────────────── */}
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
+          {false && <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
             <div className={sectionHead}><h2 className="text-lg font-semibold">SEO Content</h2></div>
             <div className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -793,10 +875,10 @@ export default function SellerAddProduct() {
                 <textarea name="seoDescription" value={formData.seoDescription} onChange={handleChange} placeholder="Meta description" rows={3} className={`${inputCls} resize-none`} />
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* ── Other Details ─────────────────────────────────────── */}
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
+          {false && <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
             <div className={sectionHead}><h2 className="text-lg font-semibold">Other Details</h2></div>
             <div className="p-4 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -814,6 +896,15 @@ export default function SellerAddProduct() {
                     <option value="">Select Tax</option>
                     {taxes.map((t) => <option key={t._id} value={t._id}>{t.name} ({t.percentage}%)</option>)}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">GST Percentage (%)</label>
+                  <input type="number" name="gstPercentage" value={formData.gstPercentage} onChange={handleChange} placeholder="e.g. 5" className={inputCls} />
+                  <p className="text-xs text-neutral-400 mt-1">Leave 0 if tax-free</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">HSN Code</label>
+                  <input type="text" name="hsnCode" value={formData.hsnCode} onChange={handleChange} placeholder="e.g. 1234.56.78" className={inputCls} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">Is Returnable?</label>
@@ -843,7 +934,7 @@ export default function SellerAddProduct() {
                 </div>
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* ── Images ──────────────────────────────────────────────── */}
           <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
@@ -947,13 +1038,13 @@ export default function SellerAddProduct() {
           <div className="flex justify-end pb-8">
             <button
               type="submit"
-              disabled={uploading}
-              className={`px-10 py-3.5 rounded-xl font-bold text-base transition-all shadow-md ${uploading
+              disabled={uploading || (user?.userType === "Seller" && effectiveSellerStatus !== "Approved")}
+              className={`px-10 py-3.5 rounded-xl font-bold text-base transition-all shadow-md ${(uploading || (user?.userType === "Seller" && effectiveSellerStatus !== "Approved"))
                 ? "bg-neutral-300 cursor-not-allowed text-neutral-500"
                 : "bg-teal-600 hover:bg-teal-700 active:scale-[0.98] text-white"
                 }`}
             >
-              {uploading ? "⏳ Saving…" : id ? "✓ Update Product" : "✓ Add Product"}
+              {uploading ? "⏳ Saving…" : (user?.userType === "Seller" && effectiveSellerStatus !== "Approved") ? "Temporarily Unavailable" : id ? "✓ Update Product" : "✓ Add Product"}
             </button>
           </div>
         </form>

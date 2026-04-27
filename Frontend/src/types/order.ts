@@ -37,6 +37,7 @@ export interface Order {
   tipAmount?: number;
   donationAmount?: number;
   gstin?: string;
+  specialRequests?: string;
   couponCode?: string;
   giftPackaging?: boolean;
 }

@@ -12,6 +12,7 @@ export default function AdminBillingSettings() {
     // Form State
     const [platformFee, setPlatformFee] = useState<number>(0);
     const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number>(0);
+    const [minimumOrderValue, setMinimumOrderValue] = useState<number>(149);
     const [deliveryCharges, setDeliveryCharges] = useState<number>(0);
     const [defaultCashLimit, setDefaultCashLimit] = useState<number>(2000);
     const [globalCommissionRate, setGlobalCommissionRate] = useState<number>(10);
@@ -23,6 +24,15 @@ export default function AdminBillingSettings() {
     const [kmRate, setKmRate] = useState<number>(0);
     const [deliveryBoyKmRate, setDeliveryBoyKmRate] = useState<number>(0);
     const [googleMapsKey, setGoogleMapsKey] = useState<string>('');
+
+    // Payment Gateway State
+    const [activePaymentGateway, setActivePaymentGateway] = useState<'HDFC' | 'CASHFREE'>('HDFC');
+    const [hdfcMerchantId, setHdfcMerchantId] = useState('');
+    const [hdfcAccessCode, setHdfcAccessCode] = useState('');
+    const [hdfcWorkingKey, setHdfcWorkingKey] = useState('');
+    const [cashfreeAppId, setCashfreeAppId] = useState('');
+    const [cashfreeSecretKey, setCashfreeSecretKey] = useState('');
+    const [cashfreeEnvironment, setCashfreeEnvironment] = useState<'SANDBOX' | 'PRODUCTION'>('SANDBOX');
 
     useEffect(() => {
         fetchSettings();
@@ -39,6 +49,7 @@ export default function AdminBillingSettings() {
                 // Initialize State
                 setPlatformFee(data.platformFee || 0);
                 setFreeDeliveryThreshold(data.freeDeliveryThreshold || 0);
+                setMinimumOrderValue(data.minimumOrderValue || 149);
                 setDeliveryCharges(data.deliveryCharges || 0);
                 setDefaultCashLimit(data.defaultCashLimit || 2000);
                 setGlobalCommissionRate(data.globalCommissionRate || 10);
@@ -53,6 +64,17 @@ export default function AdminBillingSettings() {
                 } else {
                     // If no config exists, try to pre-fill from env
                     setGoogleMapsKey(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '');
+                }
+
+                setActivePaymentGateway(data.activePaymentGateway || 'HDFC');
+                if (data.paymentGateways) {
+                    setHdfcMerchantId(data.paymentGateways.hdfc?.merchantId || '');
+                    setHdfcAccessCode(data.paymentGateways.hdfc?.accessCode || '');
+                    setHdfcWorkingKey(data.paymentGateways.hdfc?.workingKey || '');
+                    
+                    setCashfreeAppId(data.paymentGateways.cashfree?.appId || '');
+                    setCashfreeSecretKey(data.paymentGateways.cashfree?.secretKey || '');
+                    setCashfreeEnvironment(data.paymentGateways.cashfree?.environment || 'SANDBOX');
                 }
             }
         } catch (error: any) {
@@ -70,6 +92,7 @@ export default function AdminBillingSettings() {
             const updatePayload: any = {
                 platformFee,
                 freeDeliveryThreshold,
+                minimumOrderValue,
                 deliveryCharges,
                 defaultCashLimit,
                 globalCommissionRate,
@@ -80,6 +103,12 @@ export default function AdminBillingSettings() {
                     kmRate,
                     deliveryBoyKmRate,
                     googleMapsKey
+                },
+                activePaymentGateway,
+                paymentGateways: {
+                    ...settings?.paymentGateways,
+                    hdfc: { merchantId: hdfcMerchantId, accessCode: hdfcAccessCode, workingKey: hdfcWorkingKey },
+                    cashfree: { appId: cashfreeAppId, secretKey: cashfreeSecretKey, environment: cashfreeEnvironment }
                 }
             };
 
@@ -172,6 +201,24 @@ export default function AdminBillingSettings() {
                                 />
                             </div>
                             <p className="mt-1 text-xs text-gray-500">Orders above this amount will have free delivery.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Minimum Order Value (₹)
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={minimumOrderValue}
+                                    onChange={(e) => setMinimumOrderValue(Number(e.target.value))}
+                                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                                    placeholder="e.g. 149"
+                                />
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">Orders below this value will be blocked at checkout.</p>
                         </div>
 
                         <div>
@@ -352,6 +399,67 @@ export default function AdminBillingSettings() {
                                     placeholder="AIza..."
                                 />
                                 <p className="mt-1 text-xs text-gray-500">Required for accurate road distance calculation.</p>
+                            </div>
+                        </motion.div>
+                    )}
+                </div>
+
+                {/* Payment Gateway Configuration Section */}
+                <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6">
+                    <div className="flex justify-between items-start mb-6 pb-2 border-b">
+                        <div>
+                            <h2 className="text-lg font-semibold text-gray-900">Payment Gateway Configuration</h2>
+                            <p className="text-sm text-gray-500">Configure your primary payment provider.</p>
+                        </div>
+                    </div>
+
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Active Payment Gateway</label>
+                        <div className="flex gap-4">
+                            <label className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer ${activePaymentGateway === 'HDFC' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+                                <input type="radio" name="activeGateway" value="HDFC" checked={activePaymentGateway === 'HDFC'} onChange={() => setActivePaymentGateway('HDFC')} className="accent-green-600" />
+                                <span className="font-medium text-gray-900">HDFC Gateway</span>
+                            </label>
+                            <label className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer ${activePaymentGateway === 'CASHFREE' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+                                <input type="radio" name="activeGateway" value="CASHFREE" checked={activePaymentGateway === 'CASHFREE'} onChange={() => setActivePaymentGateway('CASHFREE')} className="accent-green-600" />
+                                <span className="font-medium text-gray-900">Cashfree Payments</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    {activePaymentGateway === 'HDFC' && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Merchant ID</label>
+                                <input type="text" value={hdfcMerchantId} onChange={(e) => setHdfcMerchantId(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Access Code</label>
+                                <input type="text" value={hdfcAccessCode} onChange={(e) => setHdfcAccessCode(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" />
+                            </div>
+                            <div className="col-span-full">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Working Key</label>
+                                <input type="password" value={hdfcWorkingKey} onChange={(e) => setHdfcWorkingKey(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" />
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {activePaymentGateway === 'CASHFREE' && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">App ID</label>
+                                <input type="text" value={cashfreeAppId} onChange={(e) => setCashfreeAppId(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Environment</label>
+                                <select value={cashfreeEnvironment} onChange={(e) => setCashfreeEnvironment(e.target.value as 'SANDBOX' | 'PRODUCTION')} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 bg-white">
+                                    <option value="SANDBOX">Sandbox (Testing)</option>
+                                    <option value="PRODUCTION">Production (Live)</option>
+                                </select>
+                            </div>
+                            <div className="col-span-full">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
+                                <input type="password" value={cashfreeSecretKey} onChange={(e) => setCashfreeSecretKey(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" />
                             </div>
                         </motion.div>
                     )}

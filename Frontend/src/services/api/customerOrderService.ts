@@ -30,6 +30,9 @@ export interface CreateOrderData {
         [key: string]: any;
     };
     paymentMethod: string;
+    specialRequests?: string;
+    couponCode?: string;
+    giftPackaging?: boolean;
     fees?: {
         deliveryFee: number;
         platformFee: number;

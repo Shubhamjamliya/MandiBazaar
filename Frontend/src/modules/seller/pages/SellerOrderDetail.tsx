@@ -1,4 +1,4 @@
-﻿import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { getOrderById, updateOrderStatus, OrderDetail } from '../../../services/api/orderService';
 import jsPDF from 'jspdf';
@@ -10,30 +10,49 @@ export default function SellerOrderDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [orderStatus, setOrderStatus] = useState<string>('Out For Delivery');
+  const [showRejectModal, setShowRejectModal] = useState(false);
+
+  const fetchOrderDetail = async (silent = false) => {
+    if (!id) return;
+
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
+
+    try {
+      const response = await getOrderById(id);
+      if (response.success && response.data) {
+        setOrderDetail(response.data);
+        setOrderStatus(response.data.status);
+      } else if (!silent) {
+        setError(response.message || 'Failed to fetch order details');
+      }
+    } catch (err: any) {
+      if (!silent) {
+        setError(err.response?.data?.message || err.message || 'Failed to fetch order details');
+      }
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  };
 
   // Fetch order detail from API
   useEffect(() => {
-    const fetchOrderDetail = async () => {
-      if (!id) return;
-
-      setLoading(true);
-      setError('');
-      try {
-        const response = await getOrderById(id);
-        if (response.success && response.data) {
-          setOrderDetail(response.data);
-          setOrderStatus(response.data.status);
-        } else {
-          setError(response.message || 'Failed to fetch order details');
-        }
-      } catch (err: any) {
-        setError(err.response?.data?.message || err.message || 'Failed to fetch order details');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrderDetail();
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    const intervalId = window.setInterval(() => {
+      fetchOrderDetail(true);
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, [id]);
 
   // Handle status update
@@ -136,7 +155,7 @@ export default function SellerOrderDetail() {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Mandi Bazaar - 10 Minute App', margin + 5, yPos + 10);
+    doc.text(`Mandi Bazaar - ${orderDetail.sellerInfo?.storeName || '20 MIN App'}`, margin + 5, yPos + 10);
 
     yPos += 20;
 
@@ -144,18 +163,26 @@ export default function SellerOrderDetail() {
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('Mandi Bazaar - 10 Minute App', margin, yPos);
+    const sellerName = orderDetail.sellerInfo?.storeName || 'Mandi Bazaar - 20 MIN App';
+    doc.text(sellerName, margin, yPos);
     yPos += 7;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('From: Mandi Bazaar - 10 Minute App', margin, yPos);
+    doc.text(`From: ${sellerName}`, margin, yPos);
     yPos += 6;
-    doc.text('Phone: 8956656429', margin, yPos);
-    yPos += 6;
-    doc.text('Email: info@Mandi Bazaar.com', margin, yPos);
-    yPos += 6;
-    doc.text('Website: https://Mandi Bazaar.com', margin, yPos);
+    if (orderDetail.sellerInfo?.phone) {
+      doc.text(`Phone: ${orderDetail.sellerInfo.phone}`, margin, yPos);
+      yPos += 6;
+    }
+    if (orderDetail.sellerInfo?.taxNumber) {
+      doc.text(`GSTIN/TAX: ${orderDetail.sellerInfo.taxNumber}`, margin, yPos);
+      yPos += 6;
+    }
+    if (orderDetail.sellerInfo?.fssaiLicNo) {
+      doc.text(`FSSAI: ${orderDetail.sellerInfo.fssaiLicNo}`, margin, yPos);
+      yPos += 6;
+    }
     yPos += 12;
 
     // Invoice Details (Right aligned)
@@ -195,15 +222,16 @@ export default function SellerOrderDetail() {
 
     const colWidths = [
       contentWidth * 0.08,  // Sr. No.
-      contentWidth * 0.40,  // Product
-      contentWidth * 0.15,  // Price
-      contentWidth * 0.15,  // Tax
-      contentWidth * 0.10,  // Qty
+      contentWidth * 0.32,  // Product
+      contentWidth * 0.12,  // HSN
+      contentWidth * 0.12,  // Price
+      contentWidth * 0.15,  // Tax ₹ (%)
+      contentWidth * 0.09,  // Qty
       contentWidth * 0.12,  // Subtotal
     ];
 
     let xPos = margin;
-    const headers = ['Sr. No.', 'Product', 'Price', 'Tax ₹ (%)', 'Qty', 'Subtotal'];
+    const headers = ['Sr. No.', 'Product', 'HSN', 'Price', 'Tax ₹ (%)', 'Qty', 'Subtotal'];
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
@@ -228,6 +256,7 @@ export default function SellerOrderDetail() {
       const rowData = [
         item.srNo.toString(),
         item.product,
+        item.hsnCode || '-',
         `₹${item.price.toFixed(2)}`,
         `${item.tax.toFixed(2)} (${item.taxPercent.toFixed(2)}%)`,
         item.qty.toString(),
@@ -295,11 +324,11 @@ export default function SellerOrderDetail() {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 100, 100);
-    doc.text('Bill Generated by Mandi Bazaar - 10 Minute App', pageWidth / 2, yPos, { align: 'center' });
+    doc.text('Bill Generated by Mandi Bazaar - 20 MIN App', pageWidth / 2, yPos, { align: 'center' });
     yPos += 8;
 
     doc.setFontSize(8);
-    doc.text('Copyright Â© 2025. Developed By Mandi Bazaar - 10 Minute App', pageWidth / 2, yPos, { align: 'center' });
+    doc.text('Copyright 2025. Developed By Mandi Bazaar - 20 MIN App', pageWidth / 2, yPos, { align: 'center' });
 
     // Save the PDF
     const fileName = `Invoice_${orderDetail.invoiceNumber}_${orderDetail.id}.pdf`;
@@ -368,11 +397,7 @@ export default function SellerOrderDetail() {
                     Accept Order
                   </button>
                   <button
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to reject this order? This cannot be undone.')) {
-                        handleStatusUpdate('Rejected');
-                      }
-                    }}
+                    onClick={() => setShowRejectModal(true)}
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors font-medium shadow-sm"
                   >
                     Reject Order
@@ -418,6 +443,13 @@ export default function SellerOrderDetail() {
               Print Invoice
             </button>
           </div>
+
+          {orderDetail.specialRequests?.trim() && (
+            <div className="mt-4 bg-white border border-orange-200 rounded-lg p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 mb-1">Customer Special Request</p>
+              <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">{orderDetail.specialRequests}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -437,23 +469,29 @@ export default function SellerOrderDetail() {
                 </div>
                 <div>
                   <div className="text-xs text-green-600 font-semibold">Mandi Bazaar</div>
-                  <div className="text-[10px] text-green-600">in 10 Minutes</div>
+                  <div className="text-[10px] text-green-600">in 20 Minutes</div>
                 </div>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900 mb-2">Mandi Bazaar - 10 Minute App</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900 mb-2">{orderDetail.sellerInfo?.storeName || 'Mandi Bazaar - 20 MIN App'}</h1>
               <div className="text-sm text-neutral-600 mb-1">
-                <span className="font-medium">From:</span> Mandi Bazaar - 10 Minute App
+                <span className="font-medium">From:</span> {orderDetail.sellerInfo?.storeName || 'Mandi Bazaar - 20 MIN App'}
               </div>
               <div className="text-sm text-neutral-600 space-y-1">
-                <div>
-                  <span className="font-medium">Phone:</span> 8956656429
-                </div>
-                <div>
-                  <span className="font-medium">Email:</span> info@Mandi Bazaar.com
-                </div>
-                <div>
-                  <span className="font-medium">Website:</span> https://Mandi Bazaar.com
-                </div>
+                {orderDetail.sellerInfo?.phone && (
+                  <div>
+                    <span className="font-medium">Phone:</span> {orderDetail.sellerInfo.phone}
+                  </div>
+                )}
+                {orderDetail.sellerInfo?.taxNumber && (
+                  <div>
+                    <span className="font-medium">{orderDetail.sellerInfo?.taxName || 'GSTIN'}:</span> {orderDetail.sellerInfo.taxNumber}
+                  </div>
+                )}
+                {orderDetail.sellerInfo?.fssaiLicNo && (
+                  <div>
+                    <span className="font-medium">FSSAI:</span> {orderDetail.sellerInfo.fssaiLicNo}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -488,6 +526,7 @@ export default function SellerOrderDetail() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Sr. No.</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Product</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">HSN</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Unit</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Price</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Tax ₹ (%)</th>
@@ -500,6 +539,7 @@ export default function SellerOrderDetail() {
                   <tr key={item.srNo}>
                     <td className="px-4 py-3 text-sm text-neutral-900">{item.srNo}</td>
                     <td className="px-4 py-3 text-sm text-neutral-900">{item.product}</td>
+                    <td className="px-4 py-3 text-sm text-neutral-600 font-medium">{item.hsnCode || '-'}</td>
                     <td className="px-4 py-3 text-sm text-neutral-900">{formatUnit(item.unit, item.qty)}</td>
                     <td className="px-4 py-3 text-sm text-neutral-900">₹{item.price.toFixed(2)}</td>
                     <td className="px-4 py-3 text-sm text-neutral-600">
@@ -516,7 +556,7 @@ export default function SellerOrderDetail() {
           {/* Bill Generation Note */}
           <div className="border-t border-dashed border-neutral-300 pt-4">
             <p className="text-sm text-neutral-600 text-center">
-              Bill Generated by Mandi Bazaar - 10 Minute App
+              Bill Generated by Mandi Bazaar - 20 MIN App
             </p>
           </div>
         </div>
@@ -525,10 +565,52 @@ export default function SellerOrderDetail() {
       {/* Footer */}
       <footer className="mt-6 px-4 sm:px-6 text-center py-4 bg-neutral-100 rounded-lg">
         <p className="text-xs sm:text-sm text-neutral-600">
-          Copyright Â© 2025. Developed By{' '}
-          <span className="font-semibold text-teal-600">Mandi Bazaar - 10 Minute App</span>
+          Copyright 2025. Developed By{' '}
+          <span className="font-semibold text-teal-600">Mandi Bazaar - 20 MIN App</span>
         </p>
       </footer>
+
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-lg">
+            <div className="border-b border-neutral-200 px-4 py-3">
+              <h3 className="text-sm font-semibold text-neutral-900">Reject Order</h3>
+            </div>
+            <div className="px-4 py-4 space-y-3">
+              <p className="text-sm text-neutral-700">
+                Are you sure you want to reject this order? This cannot be undone.
+              </p>
+              {orderDetail.specialRequests?.trim() && (
+                <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 mb-1">
+                    Customer Special Request
+                  </p>
+                  <p className="text-sm text-orange-800 whitespace-pre-wrap">
+                    {orderDetail.specialRequests}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-neutral-200 px-4 py-3">
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="px-4 py-2 text-sm text-neutral-700 hover:text-neutral-900"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowRejectModal(false);
+                  handleStatusUpdate('Rejected');
+                }}
+                className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-md"
+              >
+                Reject Order
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

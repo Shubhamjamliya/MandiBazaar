@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import React, { useRef, useEffect, useState, memo } from 'react';
 import { Product } from '../../../types/domain';
@@ -34,7 +34,7 @@ function ProductCard({
   badgeText,
   showPackBadge = false,
   showStockInfo = false,
-  showHeartIcon = false,
+  showHeartIcon = true,
   showVegetarianIcon = false,
   showOptionsText = false,
   optionsCount = 2,
@@ -47,6 +47,7 @@ function ProductCard({
   const imageRef = useRef<HTMLImageElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Use the optimized useWishlist hook
   const { isWishlisted, toggleWishlist } = useWishlist(((product as any).id || product._id) as string);
@@ -121,6 +122,54 @@ function ProductCard({
 
   const handleCardClick = () => {
     navigate(`/product/${((product as any).id || product._id) as string}`);
+  };
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const productId = ((product as any).id || product._id) as string;
+    const shareUrl = `${window.location.origin}/product/${productId}`;
+    const shareData = {
+      title: product.name || product.productName || 'Product',
+      text: `Check this on Mandi Bazaar: ${product.name || product.productName || 'Product'}`,
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        setShowShareModal(true);
+      }
+    } catch (error) {
+      if ((error as any)?.name !== 'AbortError') {
+        setShowShareModal(true);
+      }
+    }
+  };
+
+  const openShareChannel = async (channel: 'whatsapp' | 'telegram' | 'copy') => {
+    const productId = ((product as any).id || product._id) as string;
+    const shareUrl = `${window.location.origin}/product/${productId}`;
+    const productName = product.name || product.productName || 'Product';
+    const shareText = `Check this on Mandi Bazaar: ${productName} - ${shareUrl}`;
+
+    if (channel === 'copy') {
+      await navigator.clipboard.writeText(shareUrl);
+      showToast('Product link copied');
+      setShowShareModal(false);
+      return;
+    }
+
+    if (channel === 'whatsapp') {
+      window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
+      setShowShareModal(false);
+      return;
+    }
+
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(productName)}`, '_blank');
+    setShowShareModal(false);
   };
 
   const handleAdd = async (e: React.MouseEvent) => {
@@ -258,31 +307,48 @@ function ProductCard({
 
           {/* Wishlist Heart */}
           {showHeartIcon && (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleWishlist(e);
-              }}
-              className="absolute top-2 right-2 z-30 w-8 h-8 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all shadow-sm group/heart"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill={isWishlisted ? "#ef4444" : "none"}
-                xmlns="http://www.w3.org/2000/svg"
-                className={`transition-colors ${isWishlisted ? "text-red-500" : "text-neutral-400 group-hover/heart:text-red-400"}`}
+            <div className="absolute top-2 right-2 z-30 flex gap-1.5">
+              <button
+                onClick={handleShare}
+                className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all shadow-sm"
+                aria-label="Share product"
               >
-                <path
-                  d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-neutral-500">
+                  <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="2" />
+                  <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                  <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="2" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" strokeWidth="2" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" strokeWidth="2" />
+                </svg>
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleWishlist(e);
+                }}
+                className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all shadow-sm group/heart"
+                aria-label="Like product"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill={isWishlisted ? "#ef4444" : "none"}
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={`transition-colors ${isWishlisted ? "text-red-500" : "text-neutral-400 group-hover/heart:text-red-400"}`}
+                >
+                  <path
+                    d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
           )}
 
           {/* Options Badge */}
@@ -391,6 +457,48 @@ function ProductCard({
         onClose={() => setIsVariantModalOpen(false)}
         product={product}
       />
+
+      <AnimatePresence>
+        {showShareModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center p-4"
+            onClick={() => setShowShareModal(false)}
+          >
+            <motion.div
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 30, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-md p-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-base font-bold text-gray-900 mb-3">Share Product</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  className="py-2 px-3 rounded-lg bg-green-50 text-green-700 font-semibold text-sm hover:bg-green-100 transition-colors"
+                  onClick={() => openShareChannel('whatsapp')}
+                >
+                  WhatsApp
+                </button>
+                <button
+                  className="py-2 px-3 rounded-lg bg-blue-50 text-blue-700 font-semibold text-sm hover:bg-blue-100 transition-colors"
+                  onClick={() => openShareChannel('telegram')}
+                >
+                  Telegram
+                </button>
+                <button
+                  className="py-2 px-3 rounded-lg bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors"
+                  onClick={() => openShareChannel('copy')}
+                >
+                  Copy
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div >
   );
 }

@@ -4,12 +4,12 @@ import api from './config';
  * Create HDFC order for payment.
  * Gets the encrypted request payload from backend.
  */
-export const createHdfcOrder = async (orderId: string) => {
+export const createHdfcOrder = async (orderId: string, gateway?: string) => {
     try {
-        const response = await api.post('/payment/create-order', { orderId });
+        const response = await api.post('/payment/create-order', { orderId, gateway });
         return response.data;
     } catch (error: any) {
-        console.error('Error creating HDFC order:', error);
+        console.error('Error creating payment order:', error);
         throw error;
     }
 };

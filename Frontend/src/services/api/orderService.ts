@@ -28,6 +28,8 @@ export interface OrderItem {
   taxPercent: number;
   qty: number;
   subtotal: number;
+  hsnCode?: string;
+  gstPercentage?: number;
 }
 
 export interface DeliveryAddress {
@@ -57,9 +59,17 @@ export interface OrderDetail {
   subtotal: number;
   tax: number;
   grandTotal: number;
+  specialRequests?: string;
   paymentMethod: string;
   paymentStatus: string;
   deliveryAddress: DeliveryAddress;
+  sellerInfo?: {
+    storeName: string;
+    taxName: string;
+    taxNumber: string;
+    fssaiLicNo: string;
+    phone: string;
+  };
 }
 
 export interface UpdateOrderStatusData {

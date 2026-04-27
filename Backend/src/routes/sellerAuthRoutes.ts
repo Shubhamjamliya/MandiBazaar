@@ -19,4 +19,8 @@ router.get("/profile", authenticate, sellerAuthController.getProfile);
 router.put("/profile", authenticate, sellerAuthController.updateProfile);
 router.put("/toggle-shop-status", authenticate, sellerAuthController.toggleShopStatus);
 
+// Account deletion (protected)
+router.post("/delete-account-request", authenticate, sellerAuthController.requestDeleteAccountOTP);
+router.post("/delete-account-confirm", authenticate, sellerAuthController.confirmDeleteAccount);
+
 export default router;

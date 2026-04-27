@@ -51,6 +51,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
             category: categoryId,
             status: "Active",
             publish: true,
+            stock: { $gt: 0 },
           };
 
           // Fetch active products from the category for preview images
@@ -104,6 +105,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
         category: categoryId,
         status: "Active",
         publish: true,
+        stock: { $gt: 0 },
         $or: [
           { isShopByStoreOnly: { $ne: true } },
           { isShopByStoreOnly: { $exists: false } },
@@ -158,6 +160,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
         match: {
           status: "Active",
           publish: true,
+          stock: { $gt: 0 },
         },
       })
       .sort({ order: 1 })
@@ -225,6 +228,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
             _id: { $in: shop.products.slice(0, 4) },
             status: "Active",
             publish: true,
+            stock: { $gt: 0 },
             seller: { $in: nearbySellerIds },
           })
             .select("mainImage")
@@ -266,6 +270,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
     const foodProductsQuery: any = {
       status: "Active",
       publish: true,
+      stock: { $gt: 0 },
     };
 
     const foodProducts = await Product.find(foodProductsQuery)
@@ -334,6 +339,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
             const productQuery: any = {
               status: "Active",
               publish: true,
+              stock: { $gt: 0 },
               subcategory: subcat._id,
               $or: [
                 { isShopByStoreOnly: { $ne: true } },
@@ -386,6 +392,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
         const directProductQuery: any = {
           status: "Active",
           publish: true,
+          stock: { $gt: 0 },
           category: category._id,
           $or: [
             { subcategory: { $exists: false } },
@@ -517,6 +524,7 @@ export const getStoreProducts = async (req: Request, res: Response) => {
     let query: any = {
       status: "Active",
       publish: true,
+      stock: { $gt: 0 },
       isShopByStoreOnly: true,
     };
 

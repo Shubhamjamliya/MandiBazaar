@@ -26,6 +26,7 @@ export const getProducts = async (req: Request, res: Response) => {
     const query: any = {
       status: "Active",
       publish: true,
+      stock: { $gt: 0 },
       // Exclude shop-by-store-only products from category pages
       $or: [
         { isShopByStoreOnly: { $ne: true } },
@@ -231,6 +232,7 @@ export const getProductById = async (req: Request, res: Response) => {
       _id: id,
       status: "Active",
       publish: true,
+      stock: { $gt: 0 },
     })
       .populate("category", "name")
       .populate("subcategory", "name")
@@ -291,6 +293,7 @@ export const getProductById = async (req: Request, res: Response) => {
       _id: { $ne: product._id },
       status: "Active",
       publish: true,
+      stock: { $gt: 0 },
       // Exclude shop-by-store-only products from similar products
       $or: [
         { isShopByStoreOnly: { $ne: true } },

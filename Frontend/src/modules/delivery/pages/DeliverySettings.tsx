@@ -1,23 +1,43 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import DeliveryHeader from '../components/DeliveryHeader';
 import DeliveryBottomNav from '../components/DeliveryBottomNav';
 import { updateSettings, getDeliveryProfile } from '../../../services/api/delivery/deliveryService';
 
 export default function DeliverySettings() {
   const navigate = useNavigate();
+  const SETTINGS_STORAGE_KEY = 'delivery-local-settings';
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   useEffect(() => {
     const fetchSettings = async () => {
+      const cachedSettingsRaw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (cachedSettingsRaw) {
+        try {
+          const cachedSettings = JSON.parse(cachedSettingsRaw);
+          setNotificationsEnabled(cachedSettings.notifications ?? true);
+          setLocationEnabled(cachedSettings.location ?? true);
+          setSoundEnabled(cachedSettings.sound ?? true);
+        } catch {
+          // Ignore parse issues and fallback to API
+        }
+      }
+
+
+
       try {
         const profile = await getDeliveryProfile();
         if (profile.settings) {
-          setNotificationsEnabled(profile.settings.notifications ?? true);
-          setLocationEnabled(profile.settings.location ?? true);
-          setSoundEnabled(profile.settings.sound ?? true);
+          const nextSettings = {
+            notifications: profile.settings.notifications ?? true,
+            location: profile.settings.location ?? true,
+            sound: profile.settings.sound ?? true,
+          };
+          setNotificationsEnabled(nextSettings.notifications);
+          setLocationEnabled(nextSettings.location);
+          setSoundEnabled(nextSettings.sound);
+          localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings));
         }
       } catch (error) {
         console.error("Failed to fetch settings", error);
@@ -27,18 +47,32 @@ export default function DeliverySettings() {
   }, []);
 
   const handleSettingChange = async (key: string, value: boolean) => {
+    const previous = {
+      notifications: notificationsEnabled,
+      location: locationEnabled,
+      sound: soundEnabled,
+    };
+
     // Optimistic update
     if (key === 'notifications') setNotificationsEnabled(value);
     if (key === 'location') setLocationEnabled(value);
     if (key === 'sound') setSoundEnabled(value);
 
+    const next = { ...previous, [key]: value };
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(next));
+
     try {
       await updateSettings({ [key]: value });
     } catch (error) {
       console.error("Failed to update settings", error);
-      // Revert if needed (optional)
+      setNotificationsEnabled(previous.notifications);
+      setLocationEnabled(previous.location);
+      setSoundEnabled(previous.sound);
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(previous));
     }
   };
+
+
 
   const settingsOptions = [
     {
@@ -66,7 +100,6 @@ export default function DeliverySettings() {
 
   return (
     <div className="min-h-screen bg-neutral-100 pb-20">
-      <DeliveryHeader />
       <div className="px-4 py-4">
         <div className="flex items-center mb-4">
           <button
@@ -119,23 +152,10 @@ export default function DeliverySettings() {
             <h3 className="text-neutral-900 font-semibold">Other</h3>
           </div>
           <div className="divide-y divide-neutral-200">
-            <button className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors">
-              <div className="flex-1 text-left">
-                <p className="text-neutral-900 text-sm font-medium">Language</p>
-                <p className="text-neutral-500 text-xs mt-1">English</p>
-              </div>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M9 18L15 12L9 6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-neutral-400"
-                />
-              </svg>
-            </button>
-            <button className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors">
+            <button
+              onClick={() => navigate('/privacy-policy', { state: { from: '/delivery/settings' } })}
+              className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors"
+            >
               <div className="flex-1 text-left">
                 <p className="text-neutral-900 text-sm font-medium">Privacy Policy</p>
               </div>
@@ -150,7 +170,10 @@ export default function DeliverySettings() {
                 />
               </svg>
             </button>
-            <button className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors">
+            <button
+              onClick={() => navigate('/terms-of-service', { state: { from: '/delivery/settings' } })}
+              className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors"
+            >
               <div className="flex-1 text-left">
                 <p className="text-neutral-900 text-sm font-medium">Terms & Conditions</p>
               </div>

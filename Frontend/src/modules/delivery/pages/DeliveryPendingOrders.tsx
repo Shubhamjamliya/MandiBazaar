@@ -11,18 +11,41 @@ export default function DeliveryPendingOrders() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchOrders = async (isInitialLoad = false) => {
       try {
+        if (isInitialLoad) {
+          setLoading(true);
+        }
         const data = await getPendingOrders();
         setPendingOrders(data);
+        setError('');
       } catch (err: any) {
         setError(err.message || 'Failed to load pending orders');
       } finally {
-        setLoading(false);
+        if (isInitialLoad) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchOrders();
+    fetchOrders(true);
+
+    const intervalId = window.setInterval(() => {
+      fetchOrders(false);
+    }, 30000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchOrders(false);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const getStatusColor = (status: string) => {
