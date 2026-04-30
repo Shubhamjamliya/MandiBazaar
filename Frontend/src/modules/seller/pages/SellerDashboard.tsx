@@ -19,6 +19,7 @@ export default function SellerDashboard() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  const [sellerProfile, setSellerProfile] = useState<any>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -37,6 +38,7 @@ export default function SellerDashboard() {
         }
 
         if (profileResponse.success) {
+          setSellerProfile(profileResponse.data);
           // Use nullish coalescing to default to true if isShopOpen is undefined
           const shopStatus = profileResponse.data.isShopOpen ?? true;
           console.log('Initial shop status from profile:', shopStatus, 'Raw value:', profileResponse.data.isShopOpen);
@@ -301,7 +303,7 @@ export default function SellerDashboard() {
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <circle cx="12" cy="10" r="3" stroke="white" strokeWidth="2"/>
               </svg>
-              <span className="text-xs font-semibold text-white truncate max-w-[120px]">{stats?.city || 'Set Location'}</span>
+              <span className="text-xs font-semibold text-white truncate max-w-[120px]">{sellerProfile?.city || 'Set Location'}</span>
             </button>
             
             {/* Notification Icon */}

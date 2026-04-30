@@ -20,7 +20,6 @@ import GoogleMapsLocationPicker from '../../components/GoogleMapsLocationPicker'
 import { getProducts } from '../../services/api/customerProductService';
 import { addToWishlist } from '../../services/api/customerWishlistService';
 import { updateProfile } from '../../services/api/customerService';
-// import { clearCart } from '../../store/cartSlice';
 import { createOrder, cancelOrder } from '../../services/api/customerOrderService';
 import { calculateProductPrice } from '../../utils/priceUtils';
 import HdfcCheckout from '../../components/HdfcCheckout';

@@ -457,7 +457,7 @@ export default function DeliveryDashboard() {
       <DeliveryHeader
         locationLabel={locationLabel || 'Tap to detect location'}
         locationLoading={locationLoading}
-        locationError={locationLabelError || (locationError ?? undefined)}
+        locationError={locationLabelError || locationError || undefined}
         onUseCurrentLocation={handleUseCurrentLocation}
       />
 
