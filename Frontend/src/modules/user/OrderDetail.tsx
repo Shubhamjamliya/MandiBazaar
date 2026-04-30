@@ -1214,7 +1214,7 @@ export default function OrderDetail() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.85 }}>
           {order?.invoiceEnabled ? (
-            <Link to={`/orders/${id}/invoice`} className="flex-1">
+            <Link to={`/invoice/${id}`} className="flex-1">
               <Button className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white">
                 View Invoice
               </Button>
