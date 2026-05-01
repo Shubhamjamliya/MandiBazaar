@@ -54,7 +54,11 @@ export default function SellerOrders() {
 
         const response = await getOrders(params);
         if (response.success && response.data) {
-          setOrders(response.data);
+          // Deduplicate orders by ID to prevent any display duplicates
+          const uniqueOrders = (response.data || []).filter((order, index, self) => 
+            index === self.findIndex((o) => o.id === order.id)
+          );
+          setOrders(uniqueOrders);
         } else {
           setError(response.message || 'Failed to fetch orders');
         }

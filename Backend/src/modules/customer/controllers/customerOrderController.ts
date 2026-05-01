@@ -585,10 +585,10 @@ export const createOrder = async (req: Request, res: Response) => {
                 if (savedOrder) {
                     // Only notify sellers if it's COD. Online orders notify after payment.
                     if (savedOrder.paymentMethod === 'COD') {
-                        // notifyDeliveryBoysOfNewOrder removed: will be triggered when seller accepts the order
+                        // Socket notification for realtime popup and updates
                         await notifySellersOfOrderUpdate(io, savedOrder, 'NEW_ORDER');
 
-                        // Send push notification to sellers
+                        // Send push notification to sellers (stores in database)
                         const { sendSellerNewOrderNotification } = await import("../../../services/notificationService");
                         const sellerIds = new Set<string>();
                         (savedOrder.items as any[]).forEach(item => {

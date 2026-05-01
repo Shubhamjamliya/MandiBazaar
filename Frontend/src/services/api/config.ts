@@ -84,6 +84,17 @@ api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Dynamically get the token for the current context (admin/seller/user/delivery)
     const token = getAuthToken();
+    const userType = getUserTypeFromPath();
+    const prefixedKey = getPrefixedKey(AUTH_TOKEN_KEY);
+    
+    console.log('🔐 Auth Token Request Debug:', {
+      userType,
+      prefixedKey,
+      hasToken: !!token,
+      url: config.url,
+      pathname: window.location.pathname
+    });
+    
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }

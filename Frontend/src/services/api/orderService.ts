@@ -125,6 +125,27 @@ export const updateOrderStatus = async (id: string, data: UpdateOrderStatusData)
  * Resend order notification
  */
 export const resendOrderNotification = async (id: string): Promise<ApiResponse<any>> => {
-  const response = await api.post<ApiResponse<any>>(`/orders/${id}/resend-notification`);
-  return response.data;
+  const endpoint = `/orders/${id}/resend-notification`;
+  console.log('📤 Resend Notification API Call:', {
+    endpoint,
+    orderId: id,
+    url: `${api.defaults.baseURL}${endpoint}`
+  });
+  try {
+    const response = await api.post<ApiResponse<any>>(endpoint);
+    console.log('✅ Resend Notification Success:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Resend Notification Failed:', {
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL,
+      }
+    });
+    throw error;
+  }
 };

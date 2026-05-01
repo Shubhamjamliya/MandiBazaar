@@ -207,28 +207,31 @@ export default function Invoice() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-100 flex flex-col items-center py-4 sm:py-8 px-2 sm:px-4 print:bg-white print:p-0">
+    <div className="min-h-screen bg-neutral-100 flex flex-col items-center py-2 sm:py-8 px-1 sm:px-4 print:bg-white print:p-0">
       {/* Top Action Bar (Hidden when printing) */}
-      <div className="w-full max-w-full sm:max-w-[210mm] flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 print:hidden">
+      <div className="w-full max-w-full sm:max-w-[210mm] flex flex-col sm:flex-row justify-between items-center gap-2 mb-3 sm:mb-6 print:hidden">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium self-start sm:self-center">
-          <ArrowLeftIcon className="w-5 h-5" />
-          <span>Back to Order</span>
+          className="flex items-center gap-1 text-gray-600 hover:text-gray-900 font-medium self-start sm:self-center text-sm">
+          <ArrowLeftIcon className="w-4 h-4" />
+          <span className="hidden sm:inline">Back to Order</span>
+          <span className="sm:hidden">Back</span>
         </button>
-        <div className="flex gap-2 sm:gap-4 w-full sm:w-auto">
+        <div className="flex gap-1 sm:gap-4 w-full sm:w-auto">
           <Button
             variant="outline"
             onClick={handlePrint}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 border-gray-300 bg-white text-sm sm:text-base px-2 sm:px-4 py-2">
-            <PrinterIcon className="w-4 h-4" />
-            Print
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-2 border-gray-300 bg-white text-xs sm:text-base px-2 sm:px-4 py-1 sm:py-2">
+            <PrinterIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Print</span>
+            <span className="sm:hidden">Print</span>
           </Button>
           <Button
             onClick={handlePrint}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white shadow-sm text-sm sm:text-base px-2 sm:px-4 py-2">
-            <DownloadIcon className="w-4 h-4" />
-            Download
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-2 bg-green-600 hover:bg-green-700 text-white shadow-sm text-xs sm:text-base px-2 sm:px-4 py-1 sm:py-2">
+            <DownloadIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Download</span>
+            <span className="sm:hidden">PDF</span>
           </Button>
         </div>
       </div>
@@ -236,104 +239,109 @@ export default function Invoice() {
       {/* The Invoice Container */}
       <div 
         ref={invoiceRef}
-        className="w-full max-w-full sm:max-w-[210mm] bg-white shadow-lg sm:shadow-2xl p-3 sm:p-[15mm] print:shadow-none print:p-0 font-serif text-black overflow-hidden"
+        className="w-full max-w-full sm:max-w-[210mm] bg-white shadow-lg sm:shadow-2xl p-2 sm:p-[15mm] print:shadow-none print:p-0 font-serif text-black overflow-hidden"
         style={{ minHeight: 'auto' }}>
         
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-black pb-4 mb-1 gap-4 sm:gap-0">
+        <div className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-black pb-2 sm:pb-4 mb-1 gap-2 sm:gap-0">
           <div className="flex-1 w-full sm:w-auto">
-            <p className="text-[10px] sm:text-sm font-bold">GSTIN : {company.gstin}</p>
-            <div className="mt-2 sm:mt-4 text-[10px] sm:text-[11px] leading-tight">
-              <p className="font-bold text-xs sm:text-sm">Mandi Bazaar</p>
-              <p>{company.address}</p>
+            <p className="text-[9px] sm:text-sm font-bold">GSTIN : {company.gstin}</p>
+            <div className="mt-1 sm:mt-4 text-[8px] sm:text-[11px] leading-tight">
+              <p className="font-bold text-[9px] sm:text-sm">Mandi Bazaar</p>
+              <p className="line-clamp-2">{company.address}</p>
               <p>Phone : {company.phone}</p>
             </div>
           </div>
           
           <div className="text-center flex-1 w-full sm:w-auto">
-            <p className="text-xs sm:text-sm font-bold tracking-widest mb-1 underline">TAX INVOICE</p>
-            <div className="flex flex-row sm:flex-col items-center justify-center gap-2 sm:gap-0">
-              <img src="/assets/logo/logo.png" alt="Mandi Bazaar Logo" className="w-8 h-8 sm:w-12 sm:h-12 object-contain" />
-              <p className="text-[8px] sm:text-[10px] font-bold">TM</p>
+            <p className="text-[8px] sm:text-sm font-bold tracking-widest mb-1 underline">TAX INVOICE</p>
+            <div className="flex flex-row sm:flex-col items-center justify-center gap-1 sm:gap-0">
+              <img src="/assets/logo/logo.png" alt="Mandi Bazaar Logo" className="w-6 h-6 sm:w-12 sm:h-12 object-contain" />
+              <p className="text-[7px] sm:text-[10px] font-bold">TM</p>
             </div>
           </div>
 
           <div className="text-left sm:text-right flex-1 w-full sm:w-auto flex flex-col items-start sm:items-end">
-            <h1 className="text-xl sm:text-3xl font-bold tracking-tighter" style={{ fontFamily: 'serif' }}>MANDI BAZAAR</h1>
+            <h1 className="text-lg sm:text-3xl font-bold tracking-tighter" style={{ fontFamily: 'serif' }}>MANDI BAZAAR</h1>
           </div>
         </div>
 
         {/* Invoice Info Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 border border-black text-[10px] sm:text-[11px]">
-          <div className="border-b sm:border-b-0 sm:border-r border-black p-1 space-y-1">
-            <p className="flex justify-between sm:justify-start"><span className="w-20 sm:w-24 inline-block">Invoice No</span> <span className="sm:hidden">:</span> <span className="text-red-600 font-bold text-sm ml-0 sm:ml-2">{order.id?.split('-').pop()?.toUpperCase() || '01'}</span></p>
-            <p className="flex justify-between sm:justify-start"><span className="w-20 sm:w-24 inline-block">Reverse Charge</span> <span className="sm:hidden">:</span> <span className="ml-0 sm:ml-2">No</span></p>
-          </div>
-          <div className="p-1 space-y-1">
-            <p className="flex justify-between sm:justify-start"><span className="w-20 sm:w-24 inline-block">Invoice Date</span> <span className="sm:hidden">:</span> <span className="ml-0 sm:ml-2 font-bold">{order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-GB') : '-'}</span></p>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-              <p className="flex justify-between sm:justify-start w-full sm:w-auto"><span className="w-20 sm:w-24 inline-block">State</span> <span className="sm:hidden">:</span> <span className="ml-0 sm:ml-2">{company.state}</span></p>
-              <p className="flex justify-between sm:justify-start w-full sm:w-auto mt-1 sm:mt-0"><span className="w-20 sm:w-20 inline-block">State Code</span> <span className="sm:hidden">:</span> <span className="ml-0 sm:ml-1">{company.stateCode}</span></p>
+        <div className="border border-black text-[9px] sm:text-[11px] overflow-x-auto scrollbar-hide">
+          <div className="grid grid-cols-1 sm:grid-cols-2 min-w-full sm:min-w-0">
+            <div className="border-b sm:border-b-0 sm:border-r border-black p-1 space-y-0.5">
+              <p className="flex justify-between sm:justify-start"><span className="w-20 sm:w-24 inline-block text-[8px] sm:text-[9px]">Invoice No</span> <span className="sm:hidden">:</span> <span className="text-red-600 font-bold text-xs sm:text-sm ml-0 sm:ml-2">{order.id?.split('-').pop()?.toUpperCase() || '01'}</span></p>
+              <p className="flex justify-between sm:justify-start"><span className="w-20 sm:w-24 inline-block text-[8px] sm:text-[9px]">Reverse Charge</span> <span className="sm:hidden">:</span> <span className="ml-0 sm:ml-2 text-[8px] sm:text-[9px]">No</span></p>
+            </div>
+            <div className="p-1 space-y-0.5">
+              <p className="flex justify-between sm:justify-start"><span className="w-20 sm:w-24 inline-block text-[8px] sm:text-[9px]">Invoice Date</span> <span className="sm:hidden">:</span> <span className="ml-0 sm:ml-2 font-bold text-[8px] sm:text-[9px]">{order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-GB') : '-'}</span></p>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-0.5">
+                <p className="flex justify-between sm:justify-start text-[8px]"><span className="w-20 sm:w-24 inline-block text-[8px]">State</span> <span className="sm:hidden">:</span> <span className="ml-0 sm:ml-2 text-[8px]">{company.state}</span></p>
+                <p className="flex justify-between sm:justify-start text-[8px]"><span className="w-20 sm:w-20 inline-block text-[8px]">State Code</span> <span className="sm:hidden">:</span> <span className="ml-0 sm:ml-1 text-[8px]">{company.stateCode}</span></p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Copy Type (Checkbox area) */}
-        <div className="flex flex-row justify-end gap-2 sm:gap-4 text-[8px] sm:text-[9px] font-bold mt-1 mb-1">
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 sm:w-3 sm:h-3 border border-black flex items-center justify-center text-[8px]">✓</div>
-            <span>Original for Recipient</span>
+        <div className="flex flex-row justify-end gap-1 sm:gap-4 text-[7px] sm:text-[9px] font-bold mt-0.5 mb-0.5">
+          <div className="flex items-center gap-0.5">
+            <div className="w-2 h-2 sm:w-3 sm:h-3 border border-black flex items-center justify-center text-[6px]">✓</div>
+            <span>Original</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <div className="w-2 h-2 sm:w-3 sm:h-3 border border-black"></div>
-            <span>Duplicate for Supplier</span>
+            <span className="hidden sm:inline">Duplicate for Supplier</span>
+            <span className="sm:hidden">Duplicate</span>
           </div>
         </div>
 
         {/* Receiver Details */}
-        <div className="border border-black bg-gray-50 p-1 text-[10px] sm:text-[11px] font-bold mb-1">
+        <div className="border border-black bg-gray-50 p-1 text-[9px] sm:text-[11px] font-bold mb-1">
           Details of Receiver | Billed to :
         </div>
-        <div className="border border-black p-1 sm:p-2 text-[10px] sm:text-[11px] space-y-1 mb-1 min-h-auto sm:min-h-[80px]">
-          {(() => {
-            const addr = order.address || (order as any).deliveryAddress || {};
-            const name = addr.name || (order as any).customerName || '-';
-            const phone = addr.phone || (order as any).customerPhone || '-';
-            const fullAddress = addr.address || addr.street || '-';
-            const city = addr.city || '-';
-            const pincode = addr.pincode || '';
-            
-            return (
-              <>
-                <p><span className="w-20 sm:w-24 inline-block font-bold">Name</span> : <span className="font-bold">{name}</span></p>
-                <div className="flex flex-col sm:flex-row justify-between gap-1 sm:gap-0">
-                  <p className="flex-1"><span className="w-20 sm:w-24 inline-block font-bold">Address</span> : <span>{fullAddress}, {city} {pincode ? `(${pincode})` : ''}</span></p>
-                  <p className="w-full sm:w-48"><span className="w-20 sm:w-8 inline-block font-bold">Mob.</span> : <span>{phone}</span></p>
-                </div>
-                <div className="flex flex-wrap gap-x-4 sm:gap-x-8 gap-y-1 sm:gap-y-0">
-                  <p><span className="w-20 sm:w-24 inline-block font-bold">GSTIN</span> : <span>{order.gstin || '-'}</span></p>
-                  <p><span className="w-20 sm:w-12 inline-block font-bold">State</span> : <span>{addr.state || company.state}</span></p>
-                  <p><span className="w-20 sm:w-16 inline-block font-bold">State Code</span> : <span>{isInterState ? '' : company.stateCode}</span></p>
-                  <p><span className="w-20 sm:w-24 inline-block font-bold">Place of Supply</span> : <span>{city}</span></p>
-                </div>
-              </>
-            );
-          })()}
+        <div className="border border-black overflow-x-auto scrollbar-hide mb-1">
+          <div className="p-1 sm:p-2 text-[8px] sm:text-[11px] space-y-0.5 sm:space-y-1 min-h-auto sm:min-h-[80px] min-w-[300px] sm:min-w-0">
+            {(() => {
+              const addr = order.address || (order as any).deliveryAddress || {};
+              const name = addr.name || (order as any).customerName || '-';
+              const phone = addr.phone || (order as any).customerPhone || '-';
+              const fullAddress = addr.address || addr.street || '-';
+              const city = addr.city || '-';
+              const pincode = addr.pincode || '';
+              
+              return (
+                <>
+                  <p className="line-clamp-1"><span className="w-16 sm:w-24 inline-block font-bold">Name</span> : <span className="font-bold">{name}</span></p>
+                  <div className="flex flex-col sm:flex-row justify-between gap-0.5 sm:gap-0">
+                    <p className="flex-1 line-clamp-2"><span className="w-16 sm:w-24 inline-block font-bold">Address</span> : <span className="text-[7px] sm:text-[11px]">{fullAddress}, {city} {pincode ? `(${pincode})` : ''}</span></p>
+                    <p className="w-full sm:w-48 line-clamp-1"><span className="w-10 sm:w-8 inline-block font-bold">Mob.</span> : <span className="text-[7px] sm:text-[11px]">{phone}</span></p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-x-2 sm:gap-x-4 gap-y-0.5 sm:gap-y-0 text-[7px] sm:text-[11px]">
+                    <p><span className="w-16 sm:w-24 inline-block font-bold">GSTIN</span> : <span>{order.gstin || '-'}</span></p>
+                    <p><span className="w-12 sm:w-12 inline-block font-bold">State</span> : <span>{addr.state || company.state}</span></p>
+                    <p className="hidden sm:block"><span className="w-16 inline-block font-bold">State Code</span> : <span>{isInterState ? '' : company.stateCode}</span></p>
+                    <p><span className="w-16 sm:w-24 inline-block font-bold">PoS</span> : <span>{city}</span></p>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
         </div>
 
         {/* Items Table Container with Horizontal Scroll on Mobile */}
         <div className="border border-black mb-1 overflow-x-auto scrollbar-hide">
-          <table className="w-full text-[10px] sm:text-[11px] border-collapse min-w-[500px] sm:min-w-0">
+          <table className="w-full text-[8px] sm:text-[11px] border-collapse min-w-[500px] sm:min-w-0">
             <thead>
               <tr className="border-b border-black font-bold bg-neutral-50">
-                <th className="border-r border-black p-1 w-8 text-center">Sr. No.</th>
-                <th className="border-r border-black p-2 sm:p-4 text-center">Name of Product / Service</th>
-                <th className="border-r border-black p-1 w-16 text-center">HSN / SAC</th>
-                <th className="border-r border-black p-1 w-10 text-center">Qty.</th>
-                <th className="border-r border-black p-1 w-16 text-center">Rate</th>
-                <th className="p-1 w-20 sm:w-24 text-center" colSpan={2}>
-                  <div className="border-b border-black pb-1 mb-1">Amount</div>
-                  <div className="flex justify-around px-1 sm:px-2">
+                <th className="border-r border-black p-0.5 sm:p-1 w-6 text-center text-[7px] sm:text-[10px]">Sr.</th>
+                <th className="border-r border-black p-1 sm:p-4 text-center text-[7px] sm:text-[10px]">Name of Product / Service</th>
+                <th className="border-r border-black p-0.5 sm:p-1 w-12 text-center text-[7px] sm:text-[9px]">HSN / SAC</th>
+                <th className="border-r border-black p-0.5 sm:p-1 w-8 text-center text-[7px] sm:text-[9px]">Qty.</th>
+                <th className="border-r border-black p-0.5 sm:p-1 w-12 text-center text-[7px] sm:text-[9px]">Rate</th>
+                <th className="p-0.5 sm:p-1 w-16 sm:w-24 text-center text-[7px] sm:text-[9px]" colSpan={2}>
+                  <div className="border-b border-black pb-0.5 mb-0.5 text-[7px]">Amount</div>
+                  <div className="flex justify-around px-0.5 sm:px-2 text-[7px]">
                     <span>Rs</span>
                     <span>P</span>
                   </div>
@@ -344,20 +352,20 @@ export default function Invoice() {
               {items.map((item: any, index: number) => {
                 const { rs, p } = splitAmount(item.amount);
                 return (
-                  <tr key={index} className="border-b border-black/10 last:border-0 h-8 sm:h-10">
-                    <td className="border-r border-black p-1 text-center">{index + 1}</td>
-                    <td className="border-r border-black p-2 font-medium">{item.productName || item.product?.name || 'Product'}</td>
-                    <td className="border-r border-black p-1 text-center">{item.hsnCode || '-'}</td>
-                    <td className="border-r border-black p-1 text-center">{item.quantity}</td>
-                    <td className="border-r border-black p-1 text-right">{item.unitPrice?.toFixed(0)}</td>
-                    <td className="border-r border-black p-1 text-right w-10 sm:w-12">{rs}</td>
-                    <td className="p-1 text-center w-8 sm:w-10">{p}</td>
+                  <tr key={index} className="border-b border-black/10 last:border-0 h-6 sm:h-10">
+                    <td className="border-r border-black p-0.5 text-center text-[7px]">{index + 1}</td>
+                    <td className="border-r border-black p-0.5 sm:p-2 font-medium text-[7px] line-clamp-2">{item.productName || item.product?.name || 'Product'}</td>
+                    <td className="border-r border-black p-0.5 text-center text-[7px]">{item.hsnCode || '-'}</td>
+                    <td className="border-r border-black p-0.5 text-center text-[7px]">{item.quantity}</td>
+                    <td className="border-r border-black p-0.5 text-right text-[7px]">{item.unitPrice?.toFixed(0)}</td>
+                    <td className="border-r border-black p-0.5 text-right w-8 sm:w-12 text-[7px]">{rs}</td>
+                    <td className="p-0.5 text-center w-6 sm:w-10 text-[7px]">{p}</td>
                   </tr>
                 );
               })}
               {/* Spacer rows */}
               {Array.from({ length: Math.max(0, 5 - items.length) }).map((_, i) => (
-                <tr key={`spacer-${i}`} className="h-8 sm:h-10 border-b border-black/5 last:border-0">
+                <tr key={`spacer-${i}`} className="h-6 sm:h-10 border-b border-black/5 last:border-0">
                   <td className="border-r border-black"></td>
                   <td className="border-r border-black"></td>
                   <td className="border-r border-black"></td>
@@ -368,10 +376,10 @@ export default function Invoice() {
                 </tr>
               ))}
               {/* Cash/Credit Stamp area */}
-              <tr className="h-12 sm:h-20">
+              <tr className="h-8 sm:h-20">
                 <td className="border-r border-black"></td>
-                <td className="border-r border-black p-2 sm:p-4 align-bottom">
-                  <span className="bg-black text-white px-2 py-0.5 rounded text-[8px] sm:text-[10px] font-bold italic">CASH/CREDIT</span>
+                <td className="border-r border-black p-1 align-bottom">
+                  <span className="bg-black text-white px-1 py-0.5 rounded text-[7px] sm:text-[10px] font-bold italic">CASH/CREDIT</span>
                 </td>
                 <td className="border-r border-black"></td>
                 <td className="border-r border-black"></td>
@@ -384,71 +392,73 @@ export default function Invoice() {
         </div>
 
         {/* Footer Summary Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_200px] border border-black text-[10px] sm:text-[11px]">
-          <div className="flex flex-col border-b sm:border-b-0 sm:border-r border-black">
-            <div className="p-2 border-b border-black min-h-[40px]">
-              <p className="font-bold uppercase text-[9px] sm:text-[11px]">Total Invoice Amount in words :</p>
-              <p className="mt-1 italic text-[9px] sm:text-[11px]">{numberToWords(grandTotal)}</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-[1.2fr_1fr] flex-1">
-              <div className="p-2 border-b sm:border-b-0 sm:border-r border-black leading-relaxed">
-                <p className="font-bold underline mb-1">Bank Name : {bank.name}</p>
-                <p><span className="w-20 inline-block font-bold">Account No.</span> : <span>{bank.accountNo}</span></p>
-                <p><span className="w-20 inline-block font-bold">IFS Code</span> : <span>{bank.ifsc}</span></p>
-                <p><span className="w-20 inline-block font-bold">MICR</span> : <span>{bank.micr}</span></p>
+        <div className="border border-black text-[8px] sm:text-[11px] overflow-x-auto scrollbar-hide">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] min-w-[350px] sm:min-w-0">
+            <div className="flex flex-col border-b sm:border-b-0 sm:border-r border-black">
+              <div className="p-1 sm:p-2 border-b border-black min-h-[30px] sm:min-h-[40px]">
+                <p className="font-bold uppercase text-[7px] sm:text-[11px]">Invoice Amount in Words :</p>
+                <p className="mt-0.5 sm:mt-1 italic text-[7px] sm:text-[11px] line-clamp-2">{numberToWords(grandTotal)}</p>
               </div>
-              <div className="flex flex-col justify-end items-center p-2 text-center italic min-h-[60px] sm:min-h-0">
-                <p className="text-[8px] sm:text-[9px] mb-2 sm:mb-8">(Customer Sign & Common Seal)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-[1.2fr_1fr] flex-1">
+                <div className="p-1 sm:p-2 border-b sm:border-b-0 sm:border-r border-black leading-relaxed text-[7px] sm:text-[10px]">
+                  <p className="font-bold underline mb-0.5 text-[7px] sm:text-[9px]">{bank.name}</p>
+                  <p className="line-clamp-1"><span className="w-20 inline-block font-bold text-[7px]">Acc No.</span> : <span className="text-[7px]">{bank.accountNo}</span></p>
+                  <p className="line-clamp-1"><span className="w-16 inline-block font-bold text-[7px]">IFS Code</span> : <span className="text-[7px]">{bank.ifsc}</span></p>
+                  <p className="line-clamp-1"><span className="w-10 inline-block font-bold text-[7px]">MICR</span> : <span className="text-[7px]">{bank.micr}</span></p>
+                </div>
+                <div className="flex flex-col justify-end items-center p-1 sm:p-2 text-center italic min-h-[50px] sm:min-h-0">
+                  <p className="text-[7px] sm:text-[9px] mb-1 sm:mb-8">(Signature)</p>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div className="flex flex-col">
-            <table className="w-full border-collapse">
-              <tbody>
-                <tr className="border-b border-black h-7">
-                  <td className="p-1 font-bold text-right pr-2">Total</td>
-                  <td className="border-l border-black p-1 text-right w-12 sm:w-16">{splitAmount(totalBeforeTax).rs}</td>
-                  <td className="border-l border-black p-1 text-center w-6 sm:w-8">{splitAmount(totalBeforeTax).p}</td>
-                </tr>
-                <tr className="border-b border-black h-7">
-                  <td className="p-1 text-right pr-2">Add : CGST @</td>
-                  <td className="border-l border-black p-1 text-right">{splitAmount(cgst).rs}</td>
-                  <td className="border-l border-black p-1 text-center">{splitAmount(cgst).p}</td>
-                </tr>
-                <tr className="border-b border-black h-7">
-                  <td className="p-1 text-right pr-2">Add : SGST @</td>
-                  <td className="border-l border-black p-1 text-right">{splitAmount(sgst).rs}</td>
-                  <td className="border-l border-black p-1 text-center">{splitAmount(sgst).p}</td>
-                </tr>
-                <tr className="border-b border-black h-7">
-                  <td className="p-1 text-right pr-2">Add : IGST @</td>
-                  <td className="border-l border-black p-1 text-right">{splitAmount(igst).rs}</td>
-                  <td className="border-l border-black p-1 text-center">{splitAmount(igst).p}</td>
-                </tr>
-                <tr className="border-b border-black h-7 bg-gray-100">
-                  <td className="p-1 font-bold text-right pr-2">Grand Total</td>
-                  <td className="border-l border-black p-1 text-right font-bold">{splitAmount(grandTotal).rs}</td>
-                  <td className="border-l border-black p-1 text-center font-bold">{splitAmount(grandTotal).p}</td>
-                </tr>
-                <tr className="h-7">
-                  <td className="p-1 text-right text-[8px] sm:text-[9px] pr-2 leading-tight">GST on Reverse Charge</td>
-                  <td className="border-l border-black p-1 text-right">0</td>
-                  <td className="border-l border-black p-1 text-center">00</td>
-                </tr>
-              </tbody>
-            </table>
-            <div className="flex-1 border-t border-black p-2 flex flex-col justify-between items-center text-center">
-              <p className="text-[7px] sm:text-[8px] leading-tight mt-1">Certified that the particulars given above are true and correct</p>
-              <p className="font-bold text-[9px] sm:text-[10px] mt-1">for MANDI BAZAAR</p>
-              <div className="h-6 sm:h-10"></div>
-              <p className="text-[8px] sm:text-[9px] font-bold underline">Authorised Signatory</p>
+            
+            <div className="flex flex-col">
+              <table className="w-full border-collapse text-[7px] sm:text-[10px]">
+                <tbody>
+                  <tr className="border-b border-black h-5 sm:h-7">
+                    <td className="p-0.5 sm:p-1 font-bold text-right pr-1 sm:pr-2 text-[7px] whitespace-nowrap">Total</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-right w-10 sm:w-16 text-[7px]">{splitAmount(totalBeforeTax).rs}</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-center w-5 sm:w-8 text-[7px]">{splitAmount(totalBeforeTax).p}</td>
+                  </tr>
+                  <tr className="border-b border-black h-5 sm:h-7">
+                    <td className="p-0.5 sm:p-1 text-right pr-1 sm:pr-2 text-[7px] whitespace-nowrap">CGST @</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-right text-[7px]">{splitAmount(cgst).rs}</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-center text-[7px]">{splitAmount(cgst).p}</td>
+                  </tr>
+                  <tr className="border-b border-black h-5 sm:h-7">
+                    <td className="p-0.5 sm:p-1 text-right pr-1 sm:pr-2 text-[7px] whitespace-nowrap">SGST @</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-right text-[7px]">{splitAmount(sgst).rs}</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-center text-[7px]">{splitAmount(sgst).p}</td>
+                  </tr>
+                  <tr className="border-b border-black h-5 sm:h-7">
+                    <td className="p-0.5 sm:p-1 text-right pr-1 sm:pr-2 text-[7px] whitespace-nowrap">IGST @</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-right text-[7px]">{splitAmount(igst).rs}</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-center text-[7px]">{splitAmount(igst).p}</td>
+                  </tr>
+                  <tr className="border-b border-black h-5 sm:h-7 bg-gray-100">
+                    <td className="p-0.5 sm:p-1 font-bold text-right pr-1 sm:pr-2 text-[7px] whitespace-nowrap">Grand Total</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-right font-bold text-[7px]">{splitAmount(grandTotal).rs}</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-center font-bold text-[7px]">{splitAmount(grandTotal).p}</td>
+                  </tr>
+                  <tr className="h-4 sm:h-7">
+                    <td className="p-0.5 sm:p-1 text-right text-[7px] pr-1 leading-tight whitespace-nowrap">GST RC</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-right text-[7px]">0</td>
+                    <td className="border-l border-black p-0.5 sm:p-1 text-center text-[7px]">00</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div className="flex-1 border-t border-black p-1 sm:p-2 flex flex-col justify-between items-center text-center">
+                <p className="text-[6px] sm:text-[8px] leading-tight mt-0.5">Certified that the particulars are true and correct</p>
+                <p className="font-bold text-[8px] sm:text-[10px] mt-0.5">for MANDI BAZAAR</p>
+                <div className="h-4 sm:h-10"></div>
+                <p className="text-[7px] sm:text-[9px] font-bold underline">Authorised Signatory</p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Footer text */}
-        <div className="mt-2 text-[8px] sm:text-[9px] font-medium leading-tight">
+        <div className="mt-1 text-[7px] sm:text-[9px] font-medium leading-tight">
           <p>Subject to Udaipur Jurisdiction</p>
           <p>E. & OE.</p>
         </div>
