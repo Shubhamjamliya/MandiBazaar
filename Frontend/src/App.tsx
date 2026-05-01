@@ -166,9 +166,13 @@ function App() {
     initPush();
 
     // Setup foreground notification handler
-    setupForegroundNotificationHandler((payload) => {
+    const unsubscribe = setupForegroundNotificationHandler((payload) => {
       console.log('Notification received in app:', payload);
     });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   // Preload support page chunk so it opens instantly from login screens.

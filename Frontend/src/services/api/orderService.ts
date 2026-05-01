@@ -120,3 +120,11 @@ export const updateOrderStatus = async (id: string, data: UpdateOrderStatusData)
   const response = await api.patch<ApiResponse<{ id: string; status: string }>>(`/orders/${id}/status`, data);
   return response.data;
 };
+
+/**
+ * Resend order notification
+ */
+export const resendOrderNotification = async (id: string): Promise<ApiResponse<any>> => {
+  const response = await api.post<ApiResponse<any>>(`/orders/${id}/resend-notification`);
+  return response.data;
+};

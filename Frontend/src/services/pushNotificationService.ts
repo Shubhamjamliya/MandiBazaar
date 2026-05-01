@@ -161,13 +161,13 @@ export async function registerFCMToken(forceUpdate: boolean = false): Promise<st
 /**
  * Setup foreground notification handler
  */
-export function setupForegroundNotificationHandler(handler?: (payload: any) => void): void {
+export function setupForegroundNotificationHandler(handler?: (payload: any) => void): (() => void) | void {
     if (!messaging) {
         console.warn('⚠️ Firebase Messaging not initialized');
         return;
     }
 
-    onMessage(messaging, (payload) => {
+    return onMessage(messaging, (payload) => {
         console.log('📬 Foreground message received:', payload);
 
         // Show notification even when app is in focus
@@ -178,7 +178,7 @@ export function setupForegroundNotificationHandler(handler?: (payload: any) => v
                 body: body,
                 icon: payload.notification?.icon || payload.data?.icon || '/favicon.png',
                 badge: '/favicon.png',
-                tag: payload.data?.type || 'notification',
+                tag: payload.data?.orderId || payload.data?.type || 'notification',
                 requireInteraction: false,
                 silent: false,
                 data: payload.data

@@ -32,7 +32,11 @@ export default function SellerDashboard() {
 
         if (statsResponse.success) {
           setStats(statsResponse.data.stats);
-          setNewOrders(statsResponse.data.newOrders);
+          // De-duplicate orders by ID just in case the backend returns duplicates
+          const uniqueOrders = (statsResponse.data.newOrders || []).filter((order, index, self) => 
+            index === self.findIndex((o) => o.id === order.id)
+          );
+          setNewOrders(uniqueOrders);
         } else {
           setError(statsResponse.message || 'Failed to fetch dashboard data');
         }

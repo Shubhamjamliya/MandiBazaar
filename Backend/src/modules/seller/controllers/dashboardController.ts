@@ -17,7 +17,10 @@ export const getDashboardStats = asyncHandler(
         // Find orders associated with this seller
         // Since Order model doesn't have sellerId, we find orders via OrderItem
         const sellerOrderItems = await OrderItem.find({ seller: sellerId }).select('order');
-        const sellerOrderIds = [...new Set(sellerOrderItems.map(item => item.order.toString()))];
+        const sellerOrderIds = [...new Set(sellerOrderItems
+            .filter(item => item && item.order)
+            .map(item => item.order.toString())
+        )];
 
         // 1. KPI Metrics
         const [

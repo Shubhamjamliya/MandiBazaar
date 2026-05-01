@@ -368,3 +368,82 @@ export const updateOrderStatus = asyncHandler(
     });
   }
 );
+
+/**
+ * Resend order notification to delivery boys
+ */
+export const resendOrderNotification = asyncHandler(
+  async (req: Request, res: Response) => {
+    const sellerId = (req as any).user.userId;
+    const { id } = req.params;
+
+    // Check if this seller has items in this order
+    const sellerItems = await OrderItem.findOne({ order: id, seller: sellerId });
+
+    if (!sellerItems) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found or you are not authorized for this order",
+      });
+    }
+
+    const order = await Order.findById(id);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Only allow resending if no delivery boy is assigned
+    if (order.deliveryBoy) {
+      return res.status(400).json({
+        success: false,
+        message: "Order already assigned to a delivery partner",
+      });
+    }
+
+    // Only allow resending for 'Accepted' status (waiting for delivery)
+    if (order.status !== 'Accepted') {
+      return res.status(400).json({
+        success: false,
+        message: "Notifications can only be resent for orders waiting for a delivery partner",
+      });
+    }
+
+    try {
+      const io: SocketIOServer = (req.app.get("io") as SocketIOServer);
+      if (io) {
+        const fullOrder = await Order.findById(order._id)
+          .populate({
+            path: 'items',
+            populate: { path: 'seller' }
+          })
+          .lean();
+
+        if (fullOrder) {
+          console.log(`📡 Manually re-triggering delivery notification for order ${order.orderNumber}`);
+          await notifyDeliveryBoysOfNewOrder(io, fullOrder as any);
+          
+          return res.status(200).json({
+            success: true,
+            message: "Notification sent successfully to delivery partners",
+          });
+        }
+      }
+    } catch (notifyError) {
+      console.error('Error re-notifying delivery boys:', notifyError);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send notification",
+        error: (notifyError as any).message
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Notification service unavailable",
+    });
+  }
+);

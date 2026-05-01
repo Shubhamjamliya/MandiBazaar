@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { getOrderById, updateOrderStatus, OrderDetail } from '../../../services/api/orderService';
+import { getOrderById, updateOrderStatus, resendOrderNotification, OrderDetail } from '../../../services/api/orderService';
 import jsPDF from 'jspdf';
 
 // Helper to convert number to words (Indian System)
@@ -52,6 +52,25 @@ export default function SellerOrderDetail() {
   const [error, setError] = useState<string>('');
   const [orderStatus, setOrderStatus] = useState<string>('Out For Delivery');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+
+  const handleResendNotification = async () => {
+    if (!id) return;
+    
+    setNotificationLoading(true);
+    try {
+      const response = await resendOrderNotification(id);
+      if (response.success) {
+        alert('Notification sent successfully to delivery partners');
+      } else {
+        alert(response.message || 'Failed to send notification');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to send notification');
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
 
   const fetchOrderDetail = async (silent = false) => {
     if (!id) return;
@@ -358,6 +377,21 @@ export default function SellerOrderDetail() {
                 </select>
               )}
             </div>
+            <button
+              onClick={handleResendNotification}
+              disabled={notificationLoading || orderStatus !== 'Accepted' || !!orderDetail.deliveryBoyName}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium print:hidden ${
+                notificationLoading || orderStatus !== 'Accepted' || !!orderDetail.deliveryBoyName
+                  ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
+              }`}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              {notificationLoading ? 'Sending...' : 'Resend Notification'}
+            </button>
             <button
               onClick={handleExportPDF}
               className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium print:hidden"
