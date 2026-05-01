@@ -3,6 +3,8 @@ import { authenticate, requireUserType } from '../middleware/auth';
 import { createHdfcOrder, handleHdfcReturn, handleHdfcCancel } from '../services/paymentService';
 import Order from '../models/Order';
 import Payment from '../models/Payment';
+import Cart from '../models/Cart';
+import CartItem from '../models/CartItem';
 import AppSettings from '../models/AppSettings';
 import { fetchHdfcTransactionStatus } from '../services/hdfcStatusApi';
 import { createCashfreeOrder, verifyCashfreePayment } from '../services/cashfreeService';
@@ -172,6 +174,19 @@ router.post('/hdfc-sync/:orderId', authenticate, requireUserType('Customer'), as
             if (order.status === 'Pending') order.status = 'Received';
             await order.save();
 
+            // Clear customer's cart after successful payment
+            try {
+                const cart = await Cart.findOne({ customer: order.customer });
+                if (cart) {
+                    await CartItem.deleteMany({ cart: cart._id });
+                    cart.items = [];
+                    cart.total = 0;
+                    await cart.save();
+                }
+            } catch (cartError) {
+                console.error('Failed to clear cart during sync:', cartError);
+            }
+
             return res.status(200).json({ success: true, message: 'Order synced as paid', data: order });
         }
 
@@ -218,6 +233,22 @@ router.post('/hdfc-return', async (req: Request, res: Response) => {
         const result = await handleHdfcReturn(encResp, req.app.get('io'));
 
         if (result.success) {
+            // Clear customer's cart after successful payment
+            try {
+                const order = await Order.findById(result.orderId);
+                if (order) {
+                    const cart = await Cart.findOne({ customer: order.customer });
+                    if (cart) {
+                        await CartItem.deleteMany({ cart: cart._id });
+                        cart.items = [];
+                        cart.total = 0;
+                        await cart.save();
+                    }
+                }
+            } catch (cartError) {
+                console.error('Failed to clear cart after HDFC payment:', cartError);
+            }
+
             return res.redirect(`${frontendUrl}/orders/${result.orderId}?payment=success`);
         } else {
             return res.redirect(`${frontendUrl}/orders/${result.orderId || ''}?error=${encodeURIComponent(result.message || 'Payment failed')}`);
@@ -246,6 +277,22 @@ router.get('/hdfc-return', async (req: Request, res: Response) => {
         const result = await handleHdfcReturn(encResp, req.app.get('io'));
 
         if (result.success) {
+            // Clear customer's cart after successful payment
+            try {
+                const order = await Order.findById(result.orderId);
+                if (order) {
+                    const cart = await Cart.findOne({ customer: order.customer });
+                    if (cart) {
+                        await CartItem.deleteMany({ cart: cart._id });
+                        cart.items = [];
+                        cart.total = 0;
+                        await cart.save();
+                    }
+                }
+            } catch (cartError) {
+                console.error('Failed to clear cart after HDFC payment (GET):', cartError);
+            }
+
             return res.redirect(`${frontendUrl}/orders/${result.orderId}?payment=success`);
         } else {
             return res.redirect(`${frontendUrl}/orders/${result.orderId || ''}?error=${encodeURIComponent(result.message || 'Payment failed')}`);
@@ -345,6 +392,19 @@ router.get('/cashfree-return', async (req: Request, res: Response) => {
                 order.paymentId = paymentRecord._id.toString();
                 if (order.status === 'Pending') order.status = 'Received';
                 await order.save();
+
+                // Clear customer's cart after successful payment
+                try {
+                    const cart = await Cart.findOne({ customer: order.customer });
+                    if (cart) {
+                        await CartItem.deleteMany({ cart: cart._id });
+                        cart.items = [];
+                        cart.total = 0;
+                        await cart.save();
+                    }
+                } catch (cartError) {
+                    console.error('Failed to clear cart after Cashfree payment:', cartError);
+                }
 
                 // Create Pending Commissions 
                 try {

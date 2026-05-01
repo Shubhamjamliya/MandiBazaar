@@ -602,20 +602,20 @@ export const createOrder = async (req: Request, res: Response) => {
                                 console.error(`Error sending push notification to seller ${sellerId}:`, notifyError);
                             }
                         }
-                    }
 
-                    // Send push notification to customer (Order Confirmed/Received)
-                    const { sendCustomerOrderNotification } = await import("../../../services/notificationService");
-                    try {
-                        await sendCustomerOrderNotification(
-                            savedOrder._id.toString(),
-                            savedOrder.orderNumber,
-                            savedOrder.customer.toString(),
-                            savedOrder.total,
-                            savedOrder.paymentMethod === 'Online' ? 'Pending' : 'Processed'
-                        );
-                    } catch (notifyError) {
-                        console.error("Error sending order confirmation notification to customer:", notifyError);
+                        // Send push notification to customer for COD (Order Received)
+                        const { sendCustomerOrderNotification } = await import("../../../services/notificationService");
+                        try {
+                            await sendCustomerOrderNotification(
+                                savedOrder._id.toString(),
+                                savedOrder.orderNumber,
+                                savedOrder.customer.toString(),
+                                savedOrder.total,
+                                'Processed'
+                            );
+                        } catch (notifyError) {
+                            console.error("Error sending order confirmation notification to customer:", notifyError);
+                        }
                     }
                 }
             }
@@ -676,10 +676,18 @@ export const getMyOrders = async (req: Request, res: Response) => {
         const userId = req.user!.userId;
         const { status, page = 1, limit = 10 } = req.query;
 
-        const query: any = { customer: userId };
+        const query: any = { 
+            customer: userId,
+            // Exclude Pending orders that are not Paid (i.e. Online payments waiting for verification)
+            // This prevents orders from appearing in the user's list until they are actually successful.
+            $or: [
+                { status: { $ne: 'Pending' } },
+                { paymentStatus: 'Paid' }
+            ]
+        };
 
         if (status) {
-            query.status = status; // Note: Model field is 'status', not 'orderStatus'
+            query.status = status;
         }
 
         const skip = (Number(page) - 1) * Number(limit);

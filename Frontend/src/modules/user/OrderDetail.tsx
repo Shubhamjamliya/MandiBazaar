@@ -789,9 +789,9 @@ export default function OrderDetail() {
     },
     // Backend status mappings
     Pending: {
-      title: "Order placed",
-      subtitle: "We are confirming your order",
-      color: "bg-yellow-600",
+      title: "Payment pending",
+      subtitle: "Complete payment to finalize order",
+      color: "bg-orange-500",
     },
     Processed: {
       title: "Order processed",

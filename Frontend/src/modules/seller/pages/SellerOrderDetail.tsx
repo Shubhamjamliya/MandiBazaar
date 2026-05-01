@@ -3,6 +3,47 @@ import { useState, useEffect } from 'react';
 import { getOrderById, updateOrderStatus, OrderDetail } from '../../../services/api/orderService';
 import jsPDF from 'jspdf';
 
+// Helper to convert number to words (Indian System)
+const numberToWords = (n: number): string => {
+  const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  const convert = (num: number): string => {
+    if (num < 20) return units[num];
+    if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? ' ' + units[num % 10] : '');
+    if (num < 1000) return units[Math.floor(num / 100)] + ' Hundred' + (num % 100 !== 0 ? ' and ' + convert(num % 100) : '');
+    if (num < 100000) return convert(Math.floor(num / 1000)) + ' Thousand' + (num % 1000 !== 0 ? ' ' + convert(num % 1000) : '');
+    if (num < 10000000) return convert(Math.floor(num / 100000)) + ' Lakh' + (num % 100000 !== 0 ? ' ' + convert(num % 100000) : '');
+    return convert(Math.floor(num / 10000000)) + ' Crore' + (num % 10000000 !== 0 ? ' ' + convert(num % 10000000) : '');
+  };
+
+  if (n === 0) return 'Zero';
+  const integerPart = Math.floor(n);
+  const decimalPart = Math.round((n - integerPart) * 100);
+  
+  let str = convert(integerPart) + ' Rupees';
+  if (decimalPart > 0) {
+    str += ' and ' + convert(decimalPart) + ' Paise';
+  }
+  return str + ' Only';
+};
+
+const COMPANY_DETAILS = {
+  name: "MANDI BAZAAR",
+  gstin: "08DGVPP0057C1Z7",
+  address: "Krishna Vila, 75 D, E Block, Pratap Nagar, Udaipur, Rajasthan 313001",
+  phone: "91 8959522509",
+  state: "RAJASTHAN",
+  stateCode: "08"
+};
+
+const BANK_DETAILS = {
+  name: "HDFC BANK, UDAIPUR",
+  accountNo: "50200105409135",
+  ifsc: "HDFC0001273",
+  micr: "313240003"
+};
+
 export default function SellerOrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -129,210 +170,109 @@ export default function SellerOrderDetail() {
   };
 
   const handleExportPDF = () => {
+    // Note: Manual PDF generation with jsPDF is updated to match the layout better
+    // but window.print() is the recommended way for pixel-perfect Tax Invoice matching.
     if (!orderDetail) return;
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
-    const contentWidth = pageWidth - 2 * margin;
+    const margin = 15;
     let yPos = margin;
 
-    // Helper function to add a new page if needed
-    const checkPageBreak = (requiredHeight: number) => {
-      if (yPos + requiredHeight > pageHeight - margin) {
-        doc.addPage();
-        yPos = margin;
-        return true;
-      }
-      return false;
-    };
-
-    // Header - Company Info
-    doc.setFillColor(22, 163, 74); // Green color
-    doc.rect(margin, yPos, contentWidth, 15, 'F');
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Mandi Bazaar - ${orderDetail.sellerInfo?.storeName || '20 MIN App'}`, margin + 5, yPos + 10);
-
-    yPos += 20;
-
-    // Company Details
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    const sellerName = orderDetail.sellerInfo?.storeName || 'Mandi Bazaar - 20 MIN App';
-    doc.text(sellerName, margin, yPos);
-    yPos += 7;
-
+    // Header
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`From: ${sellerName}`, margin, yPos);
-    yPos += 6;
-    if (orderDetail.sellerInfo?.phone) {
-      doc.text(`Phone: ${orderDetail.sellerInfo.phone}`, margin, yPos);
-      yPos += 6;
-    }
-    if (orderDetail.sellerInfo?.taxNumber) {
-      doc.text(`GSTIN/TAX: ${orderDetail.sellerInfo.taxNumber}`, margin, yPos);
-      yPos += 6;
-    }
-    if (orderDetail.sellerInfo?.fssaiLicNo) {
-      doc.text(`FSSAI: ${orderDetail.sellerInfo.fssaiLicNo}`, margin, yPos);
-      yPos += 6;
-    }
-    yPos += 12;
-
-    // Invoice Details (Right aligned)
-    const rightX = pageWidth - margin;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Date: ${formatDate(orderDetail.orderDate)}`, rightX, yPos - 30, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    doc.text(`GSTIN : ${COMPANY_DETAILS.gstin}`, margin, yPos);
+    doc.text('TAX INVOICE', pageWidth / 2, yPos, { align: 'center' });
     doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Invoice #${orderDetail.invoiceNumber}`, rightX, yPos - 20, { align: 'right' });
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Order ID: ${orderDetail.id}`, rightX, yPos - 14, { align: 'right' });
-    doc.text(`Delivery Date: ${formatDate(orderDetail.deliveryDate)}`, rightX, yPos - 8, { align: 'right' });
-    doc.text(`Time Slot: ${orderDetail.timeSlot}`, rightX, yPos - 2, { align: 'right' });
-
-    // Status badge
-    const statusWidth = doc.getTextWidth(orderStatus) + 8;
-    doc.setFillColor(59, 130, 246); // Blue for status
-    doc.roundedRect(rightX - statusWidth, yPos + 2, statusWidth, 6, 1, 1, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9);
-    doc.text(orderStatus, rightX - statusWidth / 2, yPos + 5.5, { align: 'center' });
-
-    yPos += 15;
-    doc.setTextColor(0, 0, 0);
-
-    // Draw a line
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
+    doc.text('MANDI BAZAAR', pageWidth - margin, yPos, { align: 'right' });
     yPos += 10;
 
-    // Table Header
-    checkPageBreak(20);
-    doc.setFillColor(245, 245, 245);
-    doc.rect(margin, yPos, contentWidth, 10, 'F');
-
-    const colWidths = [
-      contentWidth * 0.08,  // Sr. No.
-      contentWidth * 0.32,  // Product
-      contentWidth * 0.12,  // HSN
-      contentWidth * 0.12,  // Price
-      contentWidth * 0.15,  // Tax ₹ (%)
-      contentWidth * 0.09,  // Qty
-      contentWidth * 0.12,  // Subtotal
-    ];
-
-    let xPos = margin;
-    const headers = ['Sr. No.', 'Product', 'HSN', 'Price', 'Tax ₹ (%)', 'Qty', 'Subtotal'];
-
     doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(COMPANY_DETAILS.address, margin, yPos);
+    yPos += 5;
+    doc.text(`Phone : ${COMPANY_DETAILS.phone}`, margin, yPos);
+    yPos += 10;
+
+    // Border and Info Grid
+    doc.setDrawColor(0);
+    doc.rect(margin, yPos, pageWidth - 2 * margin, 20);
+    doc.line(pageWidth / 2, yPos, pageWidth / 2, yPos + 20);
+    
+    doc.setFontSize(9);
+    doc.text(`Invoice No: ${orderDetail.invoiceNumber}`, margin + 5, yPos + 7);
+    doc.text('Reverse Charge: No', margin + 5, yPos + 15);
+    
+    doc.text(`Invoice Date: ${formatDate(orderDetail.orderDate)}`, pageWidth / 2 + 5, yPos + 7);
+    doc.text(`State: ${COMPANY_DETAILS.state} (${COMPANY_DETAILS.stateCode})`, pageWidth / 2 + 5, yPos + 15);
+    yPos += 25;
+
+    // Receiver Details
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
+    doc.text('Details of Receiver | Billed to :', margin, yPos);
+    yPos += 5;
+    doc.rect(margin, yPos, pageWidth - 2 * margin, 25);
+    doc.setFont('helvetica', 'normal');
+    const addr = (orderDetail.deliveryAddress || (orderDetail as any).address || {}) as any;
+    const name = addr.name || orderDetail.customerName || 'N/A';
+    const phone = addr.phone || orderDetail.customerPhone || 'N/A';
+    const addressStr = `${addr.address || addr.street || '-'}, ${addr.city || '-'}`;
 
-    headers.forEach((header, index) => {
-      doc.text(header, xPos + 2, yPos + 7);
-      xPos += colWidths[index];
+    doc.text(`Name : ${name}`, margin + 5, yPos + 7);
+    doc.text(`Address : ${addressStr}`, margin + 5, yPos + 14);
+    doc.text(`Mob : ${phone}`, margin + 5, yPos + 21);
+    yPos += 30;
+
+    // Table
+    doc.setFont('helvetica', 'bold');
+    doc.rect(margin, yPos, pageWidth - 2 * margin, 80); // Fixed height for table area
+    doc.line(margin, yPos + 10, pageWidth - margin, yPos + 10);
+    
+    const cols = [10, 80, 20, 20, 20, 30]; // Sr, Name, HSN, Qty, Rate, Amount
+    let xPos = margin;
+    const headers = ['Sr', 'Product Name', 'HSN', 'Qty', 'Rate', 'Amount'];
+    headers.forEach((h, i) => {
+      doc.text(h, xPos + 2, yPos + 7);
+      xPos += cols[i];
     });
 
-    yPos += 12;
-
-    // Table Rows
-    orderDetail.items.forEach((item) => {
-      checkPageBreak(15);
-
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
-
+    yPos += 15;
+    doc.setFont('helvetica', 'normal');
+    orderDetail.items.forEach((item, i) => {
       xPos = margin;
-      const rowData = [
-        item.srNo.toString(),
-        item.product,
-        item.hsnCode || '-',
-        `₹${item.price.toFixed(2)}`,
-        `${item.tax.toFixed(2)} (${item.taxPercent.toFixed(2)}%)`,
-        item.qty.toString(),
-        `₹${item.subtotal.toFixed(2)}`,
-      ];
-
-      rowData.forEach((data, index) => {
-        // Truncate long text
-        const maxWidth = colWidths[index] - 4;
-        let text = data;
-        if (doc.getTextWidth(text) > maxWidth && index === 1) {
-          // Truncate product name if too long
-          while (doc.getTextWidth(text + '...') > maxWidth && text.length > 0) {
-            text = text.slice(0, -1);
-          }
-          text += '...';
-        }
-        doc.text(text, xPos + 2, yPos + 5);
-        xPos += colWidths[index];
-      });
-
-      // Draw row separator
-      doc.setDrawColor(220, 220, 220);
-      doc.line(margin, yPos + 8, pageWidth - margin, yPos + 8);
-
-      yPos += 10;
+      doc.text((i + 1).toString(), xPos + 2, yPos);
+      xPos += cols[0];
+      doc.text(item.product.substring(0, 45), xPos + 2, yPos);
+      xPos += cols[1];
+      doc.text(item.hsnCode || '-', xPos + 2, yPos);
+      xPos += cols[2];
+      doc.text(item.qty.toString(), xPos + 2, yPos);
+      xPos += cols[3];
+      doc.text(item.price.toFixed(0), xPos + 2, yPos);
+      xPos += cols[4];
+      doc.text(item.subtotal.toFixed(2), xPos + 2, yPos);
+      yPos += 7;
     });
 
-    // Calculate totals
+    // Summary logic
     const totalSubtotal = orderDetail.items.reduce((sum, item) => sum + item.subtotal, 0);
     const totalTax = orderDetail.items.reduce((sum, item) => sum + item.tax, 0);
     const grandTotal = totalSubtotal + totalTax;
 
-    yPos += 5;
-    checkPageBreak(30);
-
-    // Totals Section
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 8;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Subtotal:', pageWidth - margin - 60, yPos, { align: 'right' });
-    doc.text(`₹${totalSubtotal.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
-    yPos += 7;
-
-    doc.text('Tax:', pageWidth - margin - 60, yPos, { align: 'right' });
-    doc.text(`₹${totalTax.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
-    yPos += 7;
-
+    // Footer summary
+    yPos = 135 + 80;
+    doc.rect(margin, yPos, pageWidth - 2 * margin, 40);
+    doc.text(`Total Amount in words: ${numberToWords(grandTotal)}`, margin + 5, yPos + 7);
+    
+    doc.line(pageWidth - margin - 60, yPos, pageWidth - margin - 60, yPos + 40);
+    doc.text(`Subtotal: ${totalSubtotal.toFixed(2)}`, pageWidth - margin - 5, yPos + 7, { align: 'right' });
+    doc.text(`Tax: ${totalTax.toFixed(2)}`, pageWidth - margin - 5, yPos + 15, { align: 'right' });
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text('Grand Total:', pageWidth - margin - 60, yPos, { align: 'right' });
-    doc.text(`₹${grandTotal.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
-    yPos += 15;
+    doc.text(`Grand Total: ${grandTotal.toFixed(2)}`, pageWidth - margin - 5, yPos + 25, { align: 'right' });
 
-    // Footer
-    checkPageBreak(20);
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.5);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 8;
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text('Bill Generated by Mandi Bazaar - 20 MIN App', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 8;
-
-    doc.setFontSize(8);
-    doc.text('Copyright 2025. Developed By Mandi Bazaar - 20 MIN App', pageWidth / 2, yPos, { align: 'center' });
-
-    // Save the PDF
-    const fileName = `Invoice_${orderDetail.invoiceNumber}_${orderDetail.id}.pdf`;
-    doc.save(fileName);
+    doc.save(`Invoice_${orderDetail.invoiceNumber}.pdf`);
   };
 
   const handlePrint = () => {
@@ -420,7 +360,7 @@ export default function SellerOrderDetail() {
             </div>
             <button
               onClick={handleExportPDF}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium print:hidden"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -433,7 +373,7 @@ export default function SellerOrderDetail() {
             </button>
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium print:hidden"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 6 2 18 2 18 9" />
@@ -453,111 +393,183 @@ export default function SellerOrderDetail() {
         </div>
       </div>
 
-      {/* View Order Details Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
-        <div className="bg-teal-600 text-white px-4 sm:px-6 py-3">
-          <h2 className="text-base sm:text-lg font-semibold">View Order Details</h2>
+      {/* Reusable Tax Invoice Section (Matches Image 1) */}
+      <div className="bg-white rounded-lg shadow-lg border border-neutral-200 overflow-hidden print:shadow-none print:border-0 print:p-0">
+        <div className="bg-teal-600 text-white px-4 sm:px-6 py-3 print:hidden">
+          <h2 className="text-base sm:text-lg font-semibold">Tax Invoice Preview</h2>
         </div>
-        <div className="bg-white px-4 sm:px-6 py-6">
+        
+        {/* The Actual Invoice (Styled to match IMAGE 1) */}
+        <div className="p-4 sm:p-8 font-serif text-black max-w-[210mm] mx-auto bg-white print:p-0">
           {/* Header Section */}
-          <div className="flex flex-col lg:flex-row justify-between gap-6 mb-6">
-            {/* Left: Company Info */}
+          <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-2">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">A</span>
-                </div>
-                <div>
-                  <div className="text-xs text-green-600 font-semibold">Mandi Bazaar</div>
-                  <div className="text-[10px] text-green-600">in 20 Minutes</div>
-                </div>
+              <p className="text-[10px] sm:text-xs font-bold">GSTIN : {COMPANY_DETAILS.gstin}</p>
+              <div className="mt-2 text-[10px] sm:text-[11px] leading-tight">
+                <p className="font-bold text-xs sm:text-sm">Mandi Bazaar</p>
+                <p>{COMPANY_DETAILS.address}</p>
+                <p>Phone : {COMPANY_DETAILS.phone}</p>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900 mb-2">{orderDetail.sellerInfo?.storeName || 'Mandi Bazaar - 20 MIN App'}</h1>
-              <div className="text-sm text-neutral-600 mb-1">
-                <span className="font-medium">From:</span> {orderDetail.sellerInfo?.storeName || 'Mandi Bazaar - 20 MIN App'}
-              </div>
-              <div className="text-sm text-neutral-600 space-y-1">
-                {orderDetail.sellerInfo?.phone && (
-                  <div>
-                    <span className="font-medium">Phone:</span> {orderDetail.sellerInfo.phone}
-                  </div>
-                )}
-                {orderDetail.sellerInfo?.taxNumber && (
-                  <div>
-                    <span className="font-medium">{orderDetail.sellerInfo?.taxName || 'GSTIN'}:</span> {orderDetail.sellerInfo.taxNumber}
-                  </div>
-                )}
-                {orderDetail.sellerInfo?.fssaiLicNo && (
-                  <div>
-                    <span className="font-medium">FSSAI:</span> {orderDetail.sellerInfo.fssaiLicNo}
-                  </div>
-                )}
+            </div>
+            
+            <div className="text-center flex-1">
+              <p className="text-[10px] sm:text-xs font-bold tracking-widest mb-1 underline">TAX INVOICE</p>
+              <div className="flex flex-col items-center justify-center">
+                <img src="/assets/logo/logo.png" alt="Mandi Bazaar Logo" className="w-8 h-8 sm:w-12 sm:h-12 object-contain" />
+                <p className="text-[8px] sm:text-[10px] font-bold">TM</p>
               </div>
             </div>
 
-            {/* Right: Invoice Details */}
-            <div className="flex-1 lg:text-right">
-              <div className="text-sm text-neutral-600 mb-4">
-                <span className="font-medium">Date:</span> {formatDate(orderDetail.orderDate)}
-              </div>
-              <div className="text-lg font-semibold text-neutral-900 mb-1">Invoice #{orderDetail.invoiceNumber}</div>
-              <div className="text-sm text-neutral-600 mb-1">
-                <span className="font-medium">Order ID:</span> {orderDetail.id}
-              </div>
-              <div className="text-sm text-neutral-600 mb-1">
-                <span className="font-medium">Delivery Date:</span> {formatDate(orderDetail.deliveryDate)}
-              </div>
-              <div className="text-sm text-neutral-600 mb-3">
-                <span className="font-medium">Time Slot:</span> {orderDetail.timeSlot}
-              </div>
-              <div className="flex items-center gap-2 lg:justify-end">
-                <span className="text-sm font-medium text-neutral-700">Order Status:</span>
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(orderStatus)}`}>
-                  {orderStatus}
-                </span>
+            <div className="text-right flex-1 flex flex-col items-end">
+              <h1 className="text-xl sm:text-3xl font-bold tracking-tighter">MANDI BAZAAR</h1>
+            </div>
+          </div>
+
+          {/* Invoice Info Grid */}
+          <div className="grid grid-cols-2 border border-black text-[10px] sm:text-[11px] mb-2">
+            <div className="border-r border-black p-1 space-y-1">
+              <p className="flex gap-2"><span className="w-20 sm:w-24 font-bold">Invoice No</span> : <span className="text-red-600 font-bold">{orderDetail.invoiceNumber || orderDetail.id?.split('-').pop()?.toUpperCase()}</span></p>
+              <p className="flex gap-2"><span className="w-20 sm:w-24 font-bold">Reverse Charge</span> : <span>No</span></p>
+            </div>
+            <div className="p-1 space-y-1">
+              <p className="flex gap-2"><span className="w-20 sm:w-24 font-bold">Invoice Date</span> : <span>{formatDate(orderDetail.orderDate)}</span></p>
+              <div className="flex items-center gap-4">
+                <p className="flex gap-2"><span className="w-20 sm:w-24 font-bold">State</span> : <span>{COMPANY_DETAILS.state}</span></p>
+                <p className="flex gap-2"><span className="w-20 sm:w-16 font-bold">Code</span> : <span>{COMPANY_DETAILS.stateCode}</span></p>
               </div>
             </div>
           </div>
 
-          {/* Product Table */}
-          <div className="overflow-x-auto mb-6">
-            <table className="w-full min-w-[800px]">
-              <thead className="bg-neutral-50 border-b border-neutral-200">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Sr. No.</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Product</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">HSN</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Unit</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Price</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Tax ₹ (%)</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Qty</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">Subtotal</th>
+          {/* Receiver Details */}
+          <div className="border border-black bg-gray-50 p-1 text-[10px] sm:text-[11px] font-bold mb-0">
+            Details of Receiver | Billed to :
+          </div>
+          <div className="border border-black p-1 sm:p-2 text-[10px] sm:text-[11px] space-y-1 mb-2">
+            {(() => {
+              const addr = (orderDetail.deliveryAddress || (orderDetail as any).address || {}) as any;
+              const name = addr.name || orderDetail.customerName || 'N/A';
+              const phone = addr.phone || orderDetail.customerPhone || 'N/A';
+              const fullAddress = addr.address || addr.street || '-';
+              const city = addr.city || '-';
+              const pincode = addr.pincode || '';
+              
+              return (
+                <>
+                  <p className="flex gap-2"><span className="w-20 sm:w-24 font-bold">Name</span> : <span className="font-bold">{name}</span></p>
+                  <p className="flex gap-2"><span className="w-20 sm:w-24 font-bold">Address</span> : <span>{fullAddress}, {city} {pincode ? `(${pincode})` : ''}</span></p>
+                  <div className="flex flex-wrap gap-x-8">
+                    <p className="flex gap-2"><span className="w-20 sm:w-24 font-bold">Mob.</span> : <span>{phone}</span></p>
+                    <p className="flex gap-2"><span className="w-20 sm:w-24 font-bold">Place of Supply</span> : <span>{city}</span></p>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Items Table */}
+          <div className="border border-black mb-2">
+            <table className="w-full text-[10px] sm:text-[11px] border-collapse">
+              <thead>
+                <tr className="border-b border-black font-bold bg-gray-50">
+                  <th className="border-r border-black p-1 w-8">Sr.</th>
+                  <th className="border-r border-black p-1 text-left">Name of Product / Service</th>
+                  <th className="border-r border-black p-1 w-16">HSN</th>
+                  <th className="border-r border-black p-1 w-10">Qty</th>
+                  <th className="border-r border-black p-1 w-16">Rate</th>
+                  <th className="p-1 w-20 sm:w-24">Amount (Rs)</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-neutral-200">
-                {orderDetail.items.map((item) => (
-                  <tr key={item.srNo}>
-                    <td className="px-4 py-3 text-sm text-neutral-900">{item.srNo}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-900">{item.product}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-600 font-medium">{item.hsnCode || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-900">{formatUnit(item.unit, item.qty)}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-900">₹{item.price.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-600">
-                      {item.tax.toFixed(2)} ({item.taxPercent.toFixed(2)}%)
-                    </td>
-                    <td className="px-4 py-3 text-sm text-neutral-900">{item.qty}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-900 font-medium">₹{item.subtotal.toFixed(2)}</td>
+              <tbody>
+                {orderDetail.items.map((item, index) => (
+                  <tr key={index} className="border-b border-black/10 last:border-0 h-8">
+                    <td className="border-r border-black p-1 text-center">{index + 1}</td>
+                    <td className="border-r border-black p-1">{item.product}</td>
+                    <td className="border-r border-black p-1 text-center">{item.hsnCode || '-'}</td>
+                    <td className="border-r border-black p-1 text-center">{item.qty}</td>
+                    <td className="border-r border-black p-1 text-right">{item.price.toFixed(0)}</td>
+                    <td className="p-1 text-right">{item.subtotal.toFixed(2)}</td>
                   </tr>
                 ))}
+                {/* Filler rows to maintain height */}
+                {Array.from({ length: Math.max(0, 8 - orderDetail.items.length) }).map((_, i) => (
+                  <tr key={`filler-${i}`} className="h-8 border-b border-black/5 last:border-0">
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td className="border-r border-black"></td>
+                    <td></td>
+                  </tr>
+                ))}
+                <tr className="h-10 border-t border-black">
+                   <td className="border-r border-black"></td>
+                   <td className="p-1 align-bottom border-r border-black">
+                     <span className="bg-black text-white px-2 py-0.5 rounded text-[8px] font-bold italic">CASH/CREDIT</span>
+                   </td>
+                   <td className="border-r border-black"></td>
+                   <td className="border-r border-black"></td>
+                   <td className="border-r border-black"></td>
+                   <td></td>
+                </tr>
               </tbody>
             </table>
           </div>
 
-          {/* Bill Generation Note */}
-          <div className="border-t border-dashed border-neutral-300 pt-4">
-            <p className="text-sm text-neutral-600 text-center">
-              Bill Generated by Mandi Bazaar - 20 MIN App
-            </p>
+          {/* Footer Summary Section */}
+          {(() => {
+            const totalSubtotal = orderDetail.items.reduce((sum, item) => sum + item.subtotal, 0);
+            const totalTax = orderDetail.items.reduce((sum, item) => sum + item.tax, 0);
+            const grandTotal = totalSubtotal + totalTax;
+            return (
+              <div className="grid grid-cols-[1fr_200px] border border-black text-[10px] sm:text-[11px]">
+                <div className="flex flex-col border-r border-black">
+                  <div className="p-2 border-b border-black min-h-[40px]">
+                    <p className="font-bold uppercase text-[9px]">Total Invoice Amount in words :</p>
+                    <p className="mt-1 italic">{numberToWords(grandTotal)}</p>
+                  </div>
+                  <div className="grid grid-cols-[1.2fr_1fr] flex-1">
+                    <div className="p-2 border-r border-black leading-tight">
+                      <p className="font-bold underline mb-1">Bank Name : {BANK_DETAILS.name}</p>
+                      <p><span className="w-20 inline-block font-bold">A/c No.</span> : {BANK_DETAILS.accountNo}</p>
+                      <p><span className="w-20 inline-block font-bold">IFSC</span> : {BANK_DETAILS.ifsc}</p>
+                    </div>
+                    <div className="flex flex-col justify-end items-center p-2 text-center italic">
+                      <p className="text-[8px] mb-4">(Customer Sign & Common Seal)</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col">
+                  <table className="w-full border-collapse">
+                    <tbody>
+                      <tr className="border-b border-black h-7">
+                        <td className="p-1 font-bold text-right pr-2">Subtotal</td>
+                        <td className="border-l border-black p-1 text-right w-20">{totalSubtotal.toFixed(2)}</td>
+                      </tr>
+                      <tr className="border-b border-black h-7">
+                        <td className="p-1 text-right pr-2">Tax Amount</td>
+                        <td className="border-l border-black p-1 text-right">{totalTax.toFixed(2)}</td>
+                      </tr>
+                      <tr className="border-b border-black h-7 bg-gray-100">
+                        <td className="p-1 font-bold text-right pr-2 uppercase">Grand Total</td>
+                        <td className="border-l border-black p-1 text-right font-bold">{grandTotal.toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div className="flex-1 border-t border-black p-2 flex flex-col justify-between items-center text-center">
+                    <p className="text-[7px] leading-tight">Certified that the particulars given above are true and correct</p>
+                    <p className="font-bold text-[9px] mt-1">for MANDI BAZAAR</p>
+                    <div className="h-4"></div>
+                    <p className="text-[8px] font-bold underline">Authorised Signatory</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          <div className="mt-2 text-[8px] sm:text-[9px] font-medium flex justify-between">
+            <p>Subject to Udaipur Jurisdiction</p>
+            <p>E. & OE.</p>
           </div>
         </div>
       </div>
@@ -611,6 +623,50 @@ export default function SellerOrderDetail() {
           </div>
         </div>
       )}
+      {/* Print Specific CSS */}
+      <style>{`
+        @media print {
+          @page {
+            margin: 0;
+            size: A4;
+          }
+          body {
+            background-color: white !important;
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          /* Hide everything except the invoice section when printing */
+          .print\\:hidden, 
+          header, 
+          aside, 
+          footer, 
+          nav,
+          .bg-neutral-50.pb-8 > div:not(.print\\:shadow-none) {
+            display: none !important;
+          }
+          .min-h-screen {
+            min-height: 0 !important;
+          }
+          .bg-neutral-50 {
+             background-color: white !important;
+          }
+          /* Ensure the invoice container takes full width and looks perfect */
+          .max-w-[210mm] {
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 15mm !important;
+            box-shadow: none !important;
+            border: 0 !important;
+          }
+          /* Fix font for printing */
+          * {
+            color: black !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

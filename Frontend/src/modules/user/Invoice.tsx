@@ -134,6 +134,26 @@ export default function Invoice() {
     );
   }
 
+  if (order?.status === 'Pending') {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center text-center">
+        <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mb-6">
+          <span className="text-4xl">⏳</span>
+        </div>
+        <h1 className="text-2xl font-bold mb-2 text-gray-900">Payment Pending</h1>
+        <p className="text-gray-600 mb-8 max-w-md">Invoices are generated only after successful payment. Please complete your payment to view the invoice.</p>
+        <div className="flex gap-4">
+          <Link to={`/orders/${id}`}>
+            <Button className="bg-orange-600 hover:bg-orange-700">Go to Order</Button>
+          </Link>
+          <Link to="/orders">
+            <Button variant="outline">Back to List</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   // Company Details (from image)
   const company = {
     name: "MANDI BAZAAR",
@@ -275,17 +295,30 @@ export default function Invoice() {
           Details of Receiver | Billed to :
         </div>
         <div className="border border-black p-1 sm:p-2 text-[10px] sm:text-[11px] space-y-1 mb-1 min-h-auto sm:min-h-[80px]">
-          <p><span className="w-20 sm:w-24 inline-block">Name</span> : <span className="font-bold">{order.address?.name || '-'}</span></p>
-          <div className="flex flex-col sm:flex-row justify-between gap-1 sm:gap-0">
-            <p className="flex-1"><span className="w-20 sm:w-24 inline-block font-serif">Address</span> : <span className="font-sans text-[9px] sm:text-[11px]">{order.address?.address || order.address?.street || '-'}, {order.address?.city || '-'}</span></p>
-            <p className="w-full sm:w-48"><span className="w-20 sm:w-8 inline-block">Mob.</span> : <span>{order.address?.phone || '-'}</span></p>
-          </div>
-          <div className="flex flex-wrap gap-x-4 sm:gap-x-8 gap-y-1 sm:gap-y-0">
-            <p><span className="w-20 sm:w-24 inline-block">GSTIN</span> : <span>{order.gstin || '-'}</span></p>
-            <p><span className="w-20 sm:w-12 inline-block">State</span> : <span>{order.address?.state || company.state}</span></p>
-            <p><span className="w-20 sm:w-16 inline-block">State Code</span> : <span>{isInterState ? '' : company.stateCode}</span></p>
-            <p><span className="w-20 sm:w-24 inline-block">Place of Supply</span> : <span>{order.address?.city || '-'}</span></p>
-          </div>
+          {(() => {
+            const addr = order.address || (order as any).deliveryAddress || {};
+            const name = addr.name || (order as any).customerName || '-';
+            const phone = addr.phone || (order as any).customerPhone || '-';
+            const fullAddress = addr.address || addr.street || '-';
+            const city = addr.city || '-';
+            const pincode = addr.pincode || '';
+            
+            return (
+              <>
+                <p><span className="w-20 sm:w-24 inline-block font-bold">Name</span> : <span className="font-bold">{name}</span></p>
+                <div className="flex flex-col sm:flex-row justify-between gap-1 sm:gap-0">
+                  <p className="flex-1"><span className="w-20 sm:w-24 inline-block font-bold">Address</span> : <span>{fullAddress}, {city} {pincode ? `(${pincode})` : ''}</span></p>
+                  <p className="w-full sm:w-48"><span className="w-20 sm:w-8 inline-block font-bold">Mob.</span> : <span>{phone}</span></p>
+                </div>
+                <div className="flex flex-wrap gap-x-4 sm:gap-x-8 gap-y-1 sm:gap-y-0">
+                  <p><span className="w-20 sm:w-24 inline-block font-bold">GSTIN</span> : <span>{order.gstin || '-'}</span></p>
+                  <p><span className="w-20 sm:w-12 inline-block font-bold">State</span> : <span>{addr.state || company.state}</span></p>
+                  <p><span className="w-20 sm:w-16 inline-block font-bold">State Code</span> : <span>{isInterState ? '' : company.stateCode}</span></p>
+                  <p><span className="w-20 sm:w-24 inline-block font-bold">Place of Supply</span> : <span>{city}</span></p>
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Items Table Container with Horizontal Scroll on Mobile */}
