@@ -10,18 +10,11 @@ export const createCashfreeOrder = async (
     try {
         const settings = await AppSettings.getSettings();
         const cashfreeConfig = settings.paymentGateways?.cashfree;
-        
-        // Load credentials with better prioritization
-        let appId = cashfreeConfig?.appId?.trim();
-        let secretKey = cashfreeConfig?.secretKey?.trim();
-        let env = cashfreeConfig?.environment?.trim();
 
-        // If credentials are not in DB, fallback to .env
-        if (!appId || !secretKey) {
-            appId = process.env.CASHFREE_APP_ID?.trim();
-            secretKey = process.env.CASHFREE_SECRET_KEY?.trim();
-            env = env || process.env.CASHFREE_ENVIRONMENT?.trim();
-        }
+        // Prefer environment variables over DB to avoid stale admin settings.
+        let appId = process.env.CASHFREE_APP_ID?.trim() || cashfreeConfig?.appId?.trim();
+        let secretKey = process.env.CASHFREE_SECRET_KEY?.trim() || cashfreeConfig?.secretKey?.trim();
+        let env = process.env.CASHFREE_ENVIRONMENT?.trim() || cashfreeConfig?.environment?.trim();
 
         // Default to SANDBOX if still not set
         let environment = (env || 'SANDBOX').toUpperCase();
@@ -111,16 +104,10 @@ export const verifyCashfreePayment = async (orderId: string) => {
     try {
         const settings = await AppSettings.getSettings();
         const cashfreeConfig = settings.paymentGateways?.cashfree;
-        
-        let appId = cashfreeConfig?.appId?.trim();
-        let secretKey = cashfreeConfig?.secretKey?.trim();
-        let env = cashfreeConfig?.environment?.trim();
 
-        if (!appId || !secretKey) {
-            appId = process.env.CASHFREE_APP_ID?.trim();
-            secretKey = process.env.CASHFREE_SECRET_KEY?.trim();
-            env = env || process.env.CASHFREE_ENVIRONMENT?.trim();
-        }
+        let appId = process.env.CASHFREE_APP_ID?.trim() || cashfreeConfig?.appId?.trim();
+        let secretKey = process.env.CASHFREE_SECRET_KEY?.trim() || cashfreeConfig?.secretKey?.trim();
+        let env = process.env.CASHFREE_ENVIRONMENT?.trim() || cashfreeConfig?.environment?.trim();
 
         let environment = (env || 'SANDBOX').toUpperCase();
         if (secretKey && secretKey.startsWith('cfsk_ma_prod_')) {

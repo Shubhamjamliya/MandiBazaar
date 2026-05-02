@@ -30,9 +30,6 @@ export default function AdminBillingSettings() {
     const [hdfcMerchantId, setHdfcMerchantId] = useState('');
     const [hdfcAccessCode, setHdfcAccessCode] = useState('');
     const [hdfcWorkingKey, setHdfcWorkingKey] = useState('');
-    const [cashfreeAppId, setCashfreeAppId] = useState('');
-    const [cashfreeSecretKey, setCashfreeSecretKey] = useState('');
-    const [cashfreeEnvironment, setCashfreeEnvironment] = useState<'SANDBOX' | 'PRODUCTION'>('SANDBOX');
 
     useEffect(() => {
         fetchSettings();
@@ -71,10 +68,6 @@ export default function AdminBillingSettings() {
                     setHdfcMerchantId(data.paymentGateways.hdfc?.merchantId || '');
                     setHdfcAccessCode(data.paymentGateways.hdfc?.accessCode || '');
                     setHdfcWorkingKey(data.paymentGateways.hdfc?.workingKey || '');
-                    
-                    setCashfreeAppId(data.paymentGateways.cashfree?.appId || '');
-                    setCashfreeSecretKey(data.paymentGateways.cashfree?.secretKey || '');
-                    setCashfreeEnvironment(data.paymentGateways.cashfree?.environment || 'SANDBOX');
                 }
             }
         } catch (error: any) {
@@ -107,8 +100,7 @@ export default function AdminBillingSettings() {
                 activePaymentGateway,
                 paymentGateways: {
                     ...settings?.paymentGateways,
-                    hdfc: { merchantId: hdfcMerchantId, accessCode: hdfcAccessCode, workingKey: hdfcWorkingKey },
-                    cashfree: { appId: cashfreeAppId, secretKey: cashfreeSecretKey, environment: cashfreeEnvironment }
+                    hdfc: { merchantId: hdfcMerchantId, accessCode: hdfcAccessCode, workingKey: hdfcWorkingKey }
                 }
             };
 
@@ -445,22 +437,8 @@ export default function AdminBillingSettings() {
                     )}
 
                     {activePaymentGateway === 'CASHFREE' && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">App ID</label>
-                                <input type="text" value={cashfreeAppId} onChange={(e) => setCashfreeAppId(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Environment</label>
-                                <select value={cashfreeEnvironment} onChange={(e) => setCashfreeEnvironment(e.target.value as 'SANDBOX' | 'PRODUCTION')} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 bg-white">
-                                    <option value="SANDBOX">Sandbox (Testing)</option>
-                                    <option value="PRODUCTION">Production (Live)</option>
-                                </select>
-                            </div>
-                            <div className="col-span-full">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
-                                <input type="password" value={cashfreeSecretKey} onChange={(e) => setCashfreeSecretKey(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" />
-                            </div>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                            Cashfree credentials are managed via server environment variables. Update them in your backend deployment settings.
                         </motion.div>
                     )}
                 </div>
