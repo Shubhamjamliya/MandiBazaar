@@ -139,7 +139,7 @@ export default function DeliveryAbout() {
 
         {/* Copyright */}
         <div className="mt-6 text-center">
-          <p className="text-neutral-400 text-xs">© 2025 Mandi Bazaar - 20 Minute App. All rights reserved.</p>
+          <p className="text-neutral-400 text-xs">© 2025 Mandi Bazaar - Quick Delivery App. All rights reserved.</p>
         </div>
       </div>
       <DeliveryBottomNav />

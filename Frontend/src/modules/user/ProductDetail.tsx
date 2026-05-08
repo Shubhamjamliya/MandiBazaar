@@ -559,7 +559,7 @@ export default function ProductDetail() {
               />
             </svg>
             <span className="text-sm text-neutral-700 font-medium">
-              20 MIN
+              Quick Delivery
             </span>
           </div>
 

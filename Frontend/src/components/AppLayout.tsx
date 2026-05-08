@@ -359,7 +359,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <header className="sticky top-0 z-50 bg-gradient-to-r from-emerald-600 to-green-700 shadow-lg md:top-[60px]">
               {/* Delivery info line */}
               <div className="px-4 md:px-6 lg:px-8 py-2 bg-black/10 backdrop-blur-sm text-[10px] uppercase tracking-wider font-black text-emerald-50 text-center">
-                ✨ Delivering fresh in 20 mins
+                ✨ Fresh Produce Delivered to your doorstep
               </div>
 
               {/* Location line - only show if user has provided location */}
@@ -585,9 +585,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
                         {isActive('/') ? (
                           <>
                             {/* Roof */}
-                            <path d="M2 12L12 4L22 12" stroke="#1f2937" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="#22c55e" />
+                            <path d="M2 12L12 4L22 12" stroke="#1f2937" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="#facc15" />
                             {/* House body */}
-                            <rect x="4" y="12" width="16" height="8" fill="#22c55e" stroke="#1f2937" strokeWidth="2" strokeLinejoin="round" />
+                            <rect x="4" y="12" width="16" height="8" fill="#facc15" stroke="#1f2937" strokeWidth="2" strokeLinejoin="round" />
                             {/* Chimney */}
                             <rect x="15" y="5" width="4" height="5" fill="#1f2937" stroke="#1f2937" strokeWidth="2" />
                             {/* Door */}
@@ -644,7 +644,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                         {isActive('/order-again') ? (
                           <>
                             {/* Shopping bag body */}
-                            <path d="M5 8V6C5 4.34315 6.34315 3 8 3H16C17.6569 3 19 4.34315 19 6V8H21C21.5523 8 22 8.44772 22 9V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V9C2 8.44772 2.44772 8 3 8H5Z" fill="#22c55e" stroke="#1f2937" strokeWidth="2" strokeLinejoin="round" />
+                            <path d="M5 8V6C5 4.34315 6.34315 3 8 3H16C17.6569 3 19 4.34315 19 6V8H21C21.5523 8 22 8.44772 22 9V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V9C2 8.44772 2.44772 8 3 8H5Z" fill="#facc15" stroke="#1f2937" strokeWidth="2" strokeLinejoin="round" />
                             {/* Handles */}
                             <path d="M7 8V6C7 5.44772 7.44772 5 8 5H16C16.5523 5 17 5.44772 17 6V8" stroke="#1f2937" strokeWidth="2" strokeLinecap="round" fill="none" />
                           </>
@@ -673,7 +673,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                       </motion.svg>
                     </div>
                     <span className={`text-xs mt-0.5 relative z-10 ${isActive('/order-again') ? 'font-medium text-neutral-700' : 'font-medium text-neutral-500'}`}>
-                      Order Again
+                      Order
                     </span>
                   </Link>
                 </motion.div>
@@ -708,8 +708,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
                           <>
                             {/* Top-left and bottom-right are black when active */}
                             <circle cx="7" cy="7" r="2.5" fill="#1f2937" stroke="#1f2937" strokeWidth="2" />
-                            <circle cx="17" cy="7" r="2.5" fill="#22c55e" stroke="#1f2937" strokeWidth="2" />
-                            <circle cx="7" cy="17" r="2.5" fill="#22c55e" stroke="#1f2937" strokeWidth="2" />
+                            <circle cx="17" cy="7" r="2.5" fill="#facc15" stroke="#1f2937" strokeWidth="2" />
+                            <circle cx="7" cy="17" r="2.5" fill="#facc15" stroke="#1f2937" strokeWidth="2" />
                             <circle cx="17" cy="17" r="2.5" fill="#1f2937" stroke="#1f2937" strokeWidth="2" />
                           </>
                         ) : (
@@ -762,7 +762,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                               cx="12"
                               cy="8"
                               r="4"
-                              fill="#22c55e"
+                              fill="#facc15"
                               stroke="#1f2937"
                               strokeWidth="2"
                               animate={{
@@ -776,7 +776,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                               }}
                             />
                             {/* Profile body */}
-                            <path d="M4 20c0-4 3.5-7 8-7s8 3 8 7" stroke="#1f2937" strokeWidth="2" strokeLinecap="round" fill="#22c55e" />
+                            <path d="M4 20c0-4 3.5-7 8-7s8 3 8 7" stroke="#1f2937" strokeWidth="2" strokeLinecap="round" fill="#facc15" />
                           </>
                         ) : (
                           <>

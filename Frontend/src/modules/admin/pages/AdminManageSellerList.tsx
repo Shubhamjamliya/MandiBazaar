@@ -289,8 +289,8 @@ export default function AdminManageSellerList() {
         try {
             setIsUpdatingCommission(true);
             const response = await updateSeller(editingSeller._id, {
-            commission: newCommissionRate
-        });
+                commission: newCommissionRate
+            });
             if (response.success) {
                 setEditingSeller({ ...editingSeller, commission: newCommissionRate });
                 setSellers(sellers.map(s => s._id === editingSeller._id ? { ...s, commission: newCommissionRate } : s));
@@ -735,7 +735,7 @@ export default function AdminManageSellerList() {
             {/* Footer */}
             <footer className="text-center py-4 text-sm text-neutral-600 border-t border-neutral-200 bg-white">
                 Copyright 2025. Developed By{' '}
-                <a href="#" className="text-blue-600 hover:underline">Mandi Bazaar - 20 Minute App</a>
+                <a href="#" className="text-blue-600 hover:underline">Mandi Bazaar - Quick Delivery App</a>
             </footer>
 
             {/* Categories Modal */}

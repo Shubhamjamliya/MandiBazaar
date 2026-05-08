@@ -20,7 +20,7 @@ const numberToWords = (n: number): string => {
   if (n === 0) return 'Zero';
   const integerPart = Math.floor(n);
   const decimalPart = Math.round((n - integerPart) * 100);
-  
+
   let str = convert(integerPart) + ' Rupees';
   if (decimalPart > 0) {
     str += ' and ' + convert(decimalPart) + ' Paise';
@@ -56,11 +56,11 @@ export default function SellerOrderDetail() {
 
   const handleResendNotification = async () => {
     if (!id) return;
-    
+
     console.log('📱 Resend Notification - Order ID:', id);
     console.log('📱 Current Path:', window.location.pathname);
     console.log('📱 Full URL:', window.location.href);
-    
+
     setNotificationLoading(true);
     try {
       const response = await resendOrderNotification(id);
@@ -230,11 +230,11 @@ export default function SellerOrderDetail() {
     doc.setDrawColor(0);
     doc.rect(margin, yPos, pageWidth - 2 * margin, 20);
     doc.line(pageWidth / 2, yPos, pageWidth / 2, yPos + 20);
-    
+
     doc.setFontSize(9);
     doc.text(`Invoice No: ${orderDetail.invoiceNumber}`, margin + 5, yPos + 7);
     doc.text('Reverse Charge: No', margin + 5, yPos + 15);
-    
+
     doc.text(`Invoice Date: ${formatDate(orderDetail.orderDate)}`, pageWidth / 2 + 5, yPos + 7);
     doc.text(`State: ${COMPANY_DETAILS.state} (${COMPANY_DETAILS.stateCode})`, pageWidth / 2 + 5, yPos + 15);
     yPos += 25;
@@ -259,7 +259,7 @@ export default function SellerOrderDetail() {
     doc.setFont('helvetica', 'bold');
     doc.rect(margin, yPos, pageWidth - 2 * margin, 80); // Fixed height for table area
     doc.line(margin, yPos + 10, pageWidth - margin, yPos + 10);
-    
+
     const cols = [10, 80, 20, 20, 20, 30]; // Sr, Name, HSN, Qty, Rate, Amount
     let xPos = margin;
     const headers = ['Sr', 'Product Name', 'HSN', 'Qty', 'Rate', 'Amount'];
@@ -295,7 +295,7 @@ export default function SellerOrderDetail() {
     yPos = 135 + 80;
     doc.rect(margin, yPos, pageWidth - 2 * margin, 40);
     doc.text(`Total Amount in words: ${numberToWords(grandTotal)}`, margin + 5, yPos + 7);
-    
+
     doc.line(pageWidth - margin - 60, yPos, pageWidth - margin - 60, yPos + 40);
     doc.text(`Subtotal: ${totalSubtotal.toFixed(2)}`, pageWidth - margin - 5, yPos + 7, { align: 'right' });
     doc.text(`Tax: ${totalTax.toFixed(2)}`, pageWidth - margin - 5, yPos + 15, { align: 'right' });
@@ -391,11 +391,10 @@ export default function SellerOrderDetail() {
             <button
               onClick={handleResendNotification}
               disabled={notificationLoading || orderStatus !== 'Accepted' || !!orderDetail.deliveryBoyName}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium print:hidden ${
-                notificationLoading || orderStatus !== 'Accepted' || !!orderDetail.deliveryBoyName
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium print:hidden ${notificationLoading || orderStatus !== 'Accepted' || !!orderDetail.deliveryBoyName
                   ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
                   : 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
-              }`}
+                }`}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -443,7 +442,7 @@ export default function SellerOrderDetail() {
         <div className="bg-teal-600 text-white px-4 sm:px-6 py-3 print:hidden">
           <h2 className="text-base sm:text-lg font-semibold">Tax Invoice Preview</h2>
         </div>
-        
+
         {/* The Actual Invoice (Styled to match Invoice.tsx) */}
         <div className="p-2 sm:p-[15mm] font-serif text-black max-w-[210mm] mx-auto bg-white print:p-0 overflow-hidden">
           {/* Header Section */}
@@ -456,7 +455,7 @@ export default function SellerOrderDetail() {
                 <p>Phone : {COMPANY_DETAILS.phone}</p>
               </div>
             </div>
-            
+
             <div className="text-center flex-1 w-full sm:w-auto">
               <p className="text-[8px] sm:text-sm font-bold tracking-widest mb-1 underline">TAX INVOICE</p>
               <div className="flex flex-row sm:flex-col items-center justify-center gap-1 sm:gap-0">
@@ -513,7 +512,7 @@ export default function SellerOrderDetail() {
                 const fullAddress = addr.address || addr.street || '-';
                 const city = addr.city || '-';
                 const pincode = addr.pincode || '';
-                
+
                 return (
                   <>
                     <p className="line-clamp-1"><span className="w-16 sm:w-24 inline-block font-bold">Name</span> : <span className="font-bold">{name}</span></p>
@@ -596,7 +595,7 @@ export default function SellerOrderDetail() {
             const totalSubtotal = orderDetail.items.reduce((sum, item) => sum + item.subtotal, 0);
             const totalTax = orderDetail.items.reduce((sum, item) => sum + item.tax, 0);
             const grandTotal = totalSubtotal + totalTax;
-            
+
             const splitAmount = (amt: number) => {
               const rs = Math.floor(amt);
               const p = Math.round((amt - rs) * 100);
@@ -623,7 +622,7 @@ export default function SellerOrderDetail() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-col">
                     <table className="w-full border-collapse text-[7px] sm:text-[10px]">
                       <tbody>
@@ -673,7 +672,7 @@ export default function SellerOrderDetail() {
       <footer className="mt-6 px-4 sm:px-6 text-center py-4 bg-neutral-100 rounded-lg">
         <p className="text-xs sm:text-sm text-neutral-600">
           Copyright 2025. Developed By{' '}
-          <span className="font-semibold text-teal-600">Mandi Bazaar - 20 MIN App</span>
+          <span className="font-semibold text-teal-600">Mandi Bazaar - Delivery at your doorstep App</span>
         </p>
       </footer>
 

@@ -20,7 +20,7 @@ const defaultConfig: AppConfig = {
     taxes: {
         gst: 18
     },
-    estimatedDeliveryTime: '20 MIN'
+    estimatedDeliveryTime: 'Quick Delivery'
 };
 
 /**

@@ -906,7 +906,7 @@ export default function AdminDashboard() {
       <div className="text-center text-sm text-neutral-500 py-4">
         Copyright 2025. Developed By{" "}
         <a href="#" className="text-teal-600 hover:text-teal-700">
-          Mandi Bazaar - 20 Minute App
+          Mandi Bazaar - Quick Delivery App
         </a>
       </div>
     </div>

@@ -445,9 +445,9 @@ export default function Checkout() {
 
     // Check if user needs to complete their profile first
     if (!bypassProfileCheck && isPlaceholderUser) {
-      setProfileFormData({ 
-        name: user?.name === 'User' ? '' : (user?.name || ''), 
-        address: (user as any)?.location?.address || '' 
+      setProfileFormData({
+        name: user?.name === 'User' ? '' : (user?.name || ''),
+        address: (user as any)?.location?.address || ''
       });
       setShowProfileModal(true);
       return;
@@ -1346,7 +1346,7 @@ export default function Checkout() {
 
                     {/* Delivery Time */}
                     <div className="text-[9px] text-neutral-600 mb-0.5">
-                      20 MIN
+                      Quick Delivery
                     </div>
 
                     {/* Discount - Blue Text */}
@@ -2032,7 +2032,7 @@ export default function Checkout() {
                 Premium fresh produce delivered right to your doorstep. Quality you can trust, prices you'll love.
               </p>
             </div>
-            
+
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-10">
               <div>
                 <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wider mb-4">Shop</h4>
@@ -2052,7 +2052,7 @@ export default function Checkout() {
               </div>
             </div>
           </div>
-          
+
           <div className="pt-8 border-t border-neutral-200 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-xs text-neutral-400">
               © {new Date().getFullYear()} MandiBazaar. All rights reserved.

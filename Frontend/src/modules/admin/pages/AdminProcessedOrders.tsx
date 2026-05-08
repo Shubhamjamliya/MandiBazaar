@@ -710,7 +710,7 @@ export default function AdminProcessedOrders() {
       <div className="text-center py-4 text-xs sm:text-sm text-neutral-600">
         Copyright 2025. Developed By{' '}
         <Link to="/" className="text-blue-600 hover:text-blue-700">
-          Mandi Bazaar - 20 Minute App
+          Mandi Bazaar - Quick Delivery App
         </Link>
       </div>
     </div>

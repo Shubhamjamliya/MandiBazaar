@@ -586,7 +586,7 @@ export default function Home() {
 
       <div className="py-6 text-center text-xs text-neutral-500">
         Copyright 2026. Developed By{" "}
-        <span className="text-emerald-700">Mandi Bazaar - 20 Minute App</span>
+        <span className="text-emerald-700">Mandi Bazaar - Quick Delivery App</span>
       </div>
     </div>
   );

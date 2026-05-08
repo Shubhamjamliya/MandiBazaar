@@ -221,7 +221,7 @@ export default function Login() {
                 Mandi Bazaar
               </h2>
               <p className="text-xs text-gray-700 max-w-xs mx-auto leading-relaxed font-medium animate-slide-up" style={{ animationDelay: '0.2s' }}>
-                Fresh groceries delivered in 20 minutes
+                Fresh groceries delivered in few minutes
               </p>
             </div>
 
@@ -240,7 +240,7 @@ export default function Login() {
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <div className="text-white/80 text-[10px] font-semibold mb-0.5 tracking-wide uppercase">Delivery Time</div>
-                        <div className="text-white text-2xl font-black mb-0.5">20 min</div>
+                        <div className="text-white text-2xl font-black mb-0.5">Quick Delivery</div>
                         <div className="text-white/90 text-xs font-medium">To your doorstep</div>
                       </div>
                       <div className="relative">
@@ -441,7 +441,7 @@ export default function Login() {
                 Privacy Policy
               </button>
               {' '}and{' '}
-              <button 
+              <button
                 onClick={() => navigate('/terms-of-service', { state: { from: '/login' } })}
                 className="text-emerald-600 font-bold hover:underline"
               >

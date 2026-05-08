@@ -753,7 +753,7 @@ export default function AdminManageDeliveryBoy() {
             {/* Footer */}
             <footer className="text-center py-4 text-sm text-neutral-600 border-t border-neutral-200 bg-white">
                 Copyright 2025. Developed By{' '}
-                <a href="#" className="text-blue-600 hover:underline">Mandi Bazaar - 20 Minute App</a>
+                <a href="#" className="text-blue-600 hover:underline">Mandi Bazaar - Quick Delivery App</a>
             </footer>
         </div>
     );

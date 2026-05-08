@@ -671,8 +671,8 @@ export default function AdminSystemUser() {
                         onClick={() => setCurrentPage(page)}
                         disabled={loading}
                         className={`px-3 py-1.5 border rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${currentPage === page
-                            ? 'bg-teal-600 text-white border-teal-600'
-                            : 'border-neutral-300 hover:bg-neutral-50'
+                          ? 'bg-teal-600 text-white border-teal-600'
+                          : 'border-neutral-300 hover:bg-neutral-50'
                           }`}
                       >
                         {page}
@@ -699,7 +699,7 @@ export default function AdminSystemUser() {
       <div className="text-center text-sm text-neutral-500 py-4 px-6">
         Copyright 2025. Developed By{' '}
         <a href="#" className="text-teal-600 hover:text-teal-700">
-          Mandi Bazaar - 20 Minute App
+          Mandi Bazaar - Quick Delivery App
         </a>
       </div>
     </div>

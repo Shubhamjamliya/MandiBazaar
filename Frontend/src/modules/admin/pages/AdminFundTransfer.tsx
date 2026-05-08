@@ -112,15 +112,15 @@ export default function AdminFundTransfer() {
               return item.userId === selectedDeliveryBoy;
             })
             .map((item: any) => {
-            return {
-              id: item._id,
-              name: item.userName || 'Unknown',
-              amount: item.amount,
-              type: item.type,
-              message: item.description || 'Admin fund transfer',
-              date: new Date(item.createdAt).toLocaleDateString('en-IN'),
-            };
-          });
+              return {
+                id: item._id,
+                name: item.userName || 'Unknown',
+                amount: item.amount,
+                type: item.type,
+                message: item.description || 'Admin fund transfer',
+                date: new Date(item.createdAt).toLocaleDateString('en-IN'),
+              };
+            });
           setFundTransfers(mapped);
         } else {
           setFundTransfers([]);
@@ -584,7 +584,7 @@ export default function AdminFundTransfer() {
       <div className="text-center text-sm text-neutral-500 py-4">
         Copyright 2025. Developed By{' '}
         <a href="#" className="text-teal-600 hover:text-teal-700">
-          Mandi Bazaar - 20 Minute App
+          Mandi Bazaar - Quick Delivery App
         </a>
       </div>
     </div>

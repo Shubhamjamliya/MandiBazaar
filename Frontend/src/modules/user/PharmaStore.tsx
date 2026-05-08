@@ -164,7 +164,7 @@ export default function PharmaStore() {
 
                     {/* Delivery Time */}
                     <div className="text-[9px] text-neutral-600 mb-0.5">
-                      20 MINS
+                      Quick Delivery
                     </div>
 
                     {/* Discount */}
