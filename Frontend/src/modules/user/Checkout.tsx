@@ -64,7 +64,7 @@ export default function Checkout() {
 
   // Profile completion modal state
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [profileFormData, setProfileFormData] = useState({ name: '', email: '' });
+  const [profileFormData, setProfileFormData] = useState({ name: '', address: '' });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -82,7 +82,7 @@ export default function Checkout() {
 
 
   // Check if user has placeholder data (needs profile completion)
-  const isPlaceholderUser = user?.name === 'User' || user?.email?.endsWith('@mandibazaar.temp');
+  const isPlaceholderUser = user?.name === 'User' || !(user as any)?.location?.address;
 
   // Redirect if empty - only if really empty and not loading and not just placed an order
   useEffect(() => {
@@ -445,7 +445,10 @@ export default function Checkout() {
 
     // Check if user needs to complete their profile first
     if (!bypassProfileCheck && isPlaceholderUser) {
-      setProfileFormData({ name: user?.name === 'User' ? '' : (user?.name || ''), email: user?.email?.endsWith('@mandibazaar.temp') ? '' : (user?.email || '') });
+      setProfileFormData({ 
+        name: user?.name === 'User' ? '' : (user?.name || ''), 
+        address: (user as any)?.location?.address || '' 
+      });
       setShowProfileModal(true);
       return;
     }
@@ -602,15 +605,8 @@ export default function Checkout() {
 
   // Handle profile completion submission
   const handleProfileSubmit = async () => {
-    if (!profileFormData.name.trim() || !profileFormData.email.trim()) {
-      setProfileError('Please enter both name and email');
-      return;
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(profileFormData.email)) {
-      setProfileError('Please enter a valid email address');
+    if (!profileFormData.name.trim() || !profileFormData.address.trim()) {
+      setProfileError('Please enter both name and address');
       return;
     }
 
@@ -620,7 +616,7 @@ export default function Checkout() {
     try {
       const response = await updateProfile({
         name: profileFormData.name.trim(),
-        email: profileFormData.email.trim(),
+        address: profileFormData.address.trim(),
       });
 
       if (response.success) {
@@ -630,10 +626,25 @@ export default function Checkout() {
           id: user?.id || '',
           name: response.data.name,
           email: response.data.email,
+          location: response.data.location,
         });
 
         setShowProfileModal(false);
         showGlobalToast('Profile updated successfully!');
+
+        // Set the address as selected so the order can proceed
+        setSelectedAddress({
+          name: response.data.name,
+          phone: user?.phone || '',
+          flat: '',
+          street: profileFormData.address.trim(),
+          city: response.data.location?.city || 'Default City',
+          state: response.data.location?.state || '',
+          pincode: response.data.location?.pincode || '000000',
+          landmark: '',
+          latitude: response.data.location?.latitude || userLocation?.latitude || 0,
+          longitude: response.data.location?.longitude || userLocation?.longitude || 0,
+        });
 
         // Directly trigger order placement, bypassing the profile check
         handlePlaceOrder(true);
@@ -648,8 +659,7 @@ export default function Checkout() {
 
   return (
     <div
-      className="bg-white min-h-screen flex flex-col opacity-100"
-      style={{ opacity: 1, height: '1250px' }}
+      className="bg-white min-h-screen flex flex-col"
     >
 
 
@@ -678,7 +688,7 @@ export default function Checkout() {
             >
               <h2 className="text-lg font-bold text-neutral-900 mb-2">Complete Your Profile</h2>
               <p className="text-sm text-neutral-600 mb-4">
-                Please provide your name and email to continue with your order.
+                Please provide your name and delivery address to continue with your order.
               </p>
 
               <div className="space-y-3">
@@ -695,13 +705,12 @@ export default function Checkout() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-neutral-700 mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    value={profileFormData.email}
-                    onChange={(e) => setProfileFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="Enter your email"
-                    className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-green-500 transition-colors"
+                  <label className="block text-xs font-medium text-neutral-700 mb-1">Delivery Address</label>
+                  <textarea
+                    value={profileFormData.address}
+                    onChange={(e) => setProfileFormData(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="Enter your house no, street, area details"
+                    className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-green-500 transition-colors resize-none h-20"
                     disabled={isUpdatingProfile}
                   />
                 </div>
@@ -720,8 +729,8 @@ export default function Checkout() {
                   </button>
                   <button
                     onClick={handleProfileSubmit}
-                    disabled={isUpdatingProfile || !profileFormData.name.trim() || !profileFormData.email.trim()}
-                    className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors ${isUpdatingProfile || !profileFormData.name.trim() || !profileFormData.email.trim()
+                    disabled={isUpdatingProfile || !profileFormData.name.trim() || !profileFormData.address.trim()}
+                    className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors ${isUpdatingProfile || !profileFormData.name.trim() || !profileFormData.address.trim()
                       ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
                       : 'bg-green-600 text-white hover:bg-green-700'
                       }`}
@@ -1673,11 +1682,14 @@ export default function Checkout() {
       </div>
 
       {/* Cancellation Policy */}
-      <div className="px-4 py-2">
+      <div className="px-4 py-4 flex justify-center">
         <button
           onClick={() => setShowCancellationPolicy(true)}
-          className="text-xs text-neutral-700 hover:text-neutral-900 transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 rounded-full text-[10px] font-bold text-neutral-600 uppercase tracking-wider transition-all active:scale-95 shadow-sm"
         >
+          <svg className="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
           Cancellation Policy
         </button>
       </div>
@@ -2009,6 +2021,55 @@ export default function Checkout() {
           stroke-dashoffset: 0;
         }
       `}</style>
+
+      {/* Premium Footer */}
+      <footer className="mt-auto bg-neutral-50 border-t border-neutral-200 pt-12 pb-8 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-start gap-10 mb-12">
+            <div className="max-w-xs">
+              <h3 className="text-xl font-bold text-green-600 mb-4 italic">MandiBazaar</h3>
+              <p className="text-sm text-neutral-500 leading-relaxed">
+                Premium fresh produce delivered right to your doorstep. Quality you can trust, prices you'll love.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-10">
+              <div>
+                <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wider mb-4">Shop</h4>
+                <ul className="space-y-2">
+                  <li><button onClick={() => navigate('/')} className="text-sm text-neutral-500 hover:text-green-600 transition-colors">Home</button></li>
+                  <li><button onClick={() => navigate('/categories')} className="text-sm text-neutral-500 hover:text-green-600 transition-colors">Categories</button></li>
+                  <li><button onClick={() => navigate('/cart')} className="text-sm text-neutral-500 hover:text-green-600 transition-colors">My Cart</button></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wider mb-4">Support</h4>
+                <ul className="space-y-2">
+                  <li><button onClick={() => navigate('/faq')} className="text-sm text-neutral-500 hover:text-green-600 transition-colors">FAQ</button></li>
+                  <li><button onClick={() => navigate('/about')} className="text-sm text-neutral-500 hover:text-green-600 transition-colors">About Us</button></li>
+                  <li><button onClick={() => navigate('/terms')} className="text-sm text-neutral-500 hover:text-green-600 transition-colors">Terms</button></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          
+          <div className="pt-8 border-t border-neutral-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p className="text-xs text-neutral-400">
+              © {new Date().getFullYear()} MandiBazaar. All rights reserved.
+            </p>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">100% Safe Payments</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100-2H7a1 1 0 100 2h.01zm3 0a1 1 0 100-2h3a1 1 0 100 2h-3z" clipRule="evenodd" /></svg>
+                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Quality Assured</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
 
       {showHdfcCheckout && pendingOrderId && user && (
         <HdfcCheckout

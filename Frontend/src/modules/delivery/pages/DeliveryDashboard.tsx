@@ -101,6 +101,22 @@ export default function DeliveryDashboard() {
     };
   }, [deliveryStatus]);
 
+  // Auto-dismiss task notifications after 10 seconds
+  useEffect(() => {
+    if (taskNotifications.length > 0) {
+      const timer = setTimeout(() => {
+        // Mark all current task notifications as read in backend so they don't reappear
+        taskNotifications.forEach(notification => {
+          markNotificationRead(notification._id).catch(console.error);
+        });
+        // Clear local state to remove from UI
+        setTaskNotifications([]);
+      }, 10000); // 10 seconds dismiss time
+
+      return () => clearTimeout(timer);
+    }
+  }, [taskNotifications]);
+
   const handleOpenTaskNotification = async (notification: DeliveryNotificationItem) => {
     try {
       await markNotificationRead(notification._id);

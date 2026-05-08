@@ -115,7 +115,7 @@ export default function DeliveryOrderDetail() {
 
     // COD Payment Collection Modal
     const [showPaymentCollectionModal, setShowPaymentCollectionModal] = useState(false);
-    const [paymentCollectionLoading, setPaymentCollectionLoading] = useState(false);
+    const [processingMethod, setProcessingMethod] = useState<'cash' | 'online_scanner' | null>(null);
 
     const fetchOrder = async () => {
         if (!id) return;
@@ -216,7 +216,7 @@ export default function DeliveryOrderDetail() {
     // Handle COD payment collection after OTP verification
     const handlePaymentCollection = async (method: 'cash' | 'online_scanner') => {
         if (!id) return;
-        setPaymentCollectionLoading(true);
+        setProcessingMethod(method);
         try {
             // Update order with the collection method
             await updateOrderStatus(id, 'Delivered', method);
@@ -228,7 +228,7 @@ export default function DeliveryOrderDetail() {
         } catch (err: any) {
             alert(err.message || 'Failed to update payment status');
         } finally {
-            setPaymentCollectionLoading(false);
+            setProcessingMethod(null);
         }
     };
 
@@ -985,25 +985,25 @@ export default function DeliveryOrderDetail() {
                         <div className="space-y-3">
                             <button
                                 onClick={() => handlePaymentCollection('cash')}
-                                disabled={paymentCollectionLoading}
+                                disabled={!!processingMethod}
                                 className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-500 to-green-600 text-white font-bold text-base shadow-lg hover:from-green-600 hover:to-green-700 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                             >
                                 <span className="text-xl">💵</span>
-                                {paymentCollectionLoading ? 'Processing...' : 'Cash Collected'}
+                                {processingMethod === 'cash' ? 'Processing...' : 'Cash Collected'}
                             </button>
 
                             <button
                                 onClick={() => handlePaymentCollection('online_scanner')}
-                                disabled={paymentCollectionLoading}
+                                disabled={!!processingMethod}
                                 className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-base shadow-lg hover:from-blue-600 hover:to-blue-700 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                             >
                                 <span className="text-xl">📱</span>
-                                {paymentCollectionLoading ? 'Processing...' : 'Online / Scanner'}
+                                {processingMethod === 'online_scanner' ? 'Processing...' : 'Online / Scanner'}
                             </button>
 
                             <button
                                 onClick={() => setShowPaymentCollectionModal(false)}
-                                disabled={paymentCollectionLoading}
+                                disabled={!!processingMethod}
                                 className="w-full py-3 rounded-xl bg-neutral-100 text-neutral-600 font-medium text-sm hover:bg-neutral-200 transition-colors disabled:opacity-50"
                             >
                                 Cancel

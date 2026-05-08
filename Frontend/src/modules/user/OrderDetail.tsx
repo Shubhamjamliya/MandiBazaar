@@ -784,7 +784,7 @@ export default function OrderDetail() {
     },
     Delivered: {
       title: "Order delivered",
-      subtitle: "Enjoy your meal!",
+      subtitle: "Freshness delivered!",
       color: "bg-green-600",
     },
     // Backend status mappings

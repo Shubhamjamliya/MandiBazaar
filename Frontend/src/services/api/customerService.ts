@@ -12,6 +12,14 @@ export interface CustomerProfile {
   walletAmount: number;
   totalOrders: number;
   totalSpent: number;
+  location?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
+  };
 }
 
 export interface GetProfileResponse {
@@ -23,6 +31,7 @@ export interface GetProfileResponse {
 export interface UpdateProfileData {
   name?: string;
   email?: string;
+  address?: string;
   dateOfBirth?: string;
 }
 

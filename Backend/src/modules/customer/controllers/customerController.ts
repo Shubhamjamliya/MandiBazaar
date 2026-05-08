@@ -63,7 +63,7 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
 export const updateProfile = asyncHandler(
   async (req: Request, res: Response) => {
     const userId = req.user?.userId;
-    const { name, email, dateOfBirth, notificationPreferences, accountPrivacy } = req.body;
+    const { name, email, address, dateOfBirth, notificationPreferences, accountPrivacy } = req.body;
 
 
     if (!userId || (req as any).user?.userType !== "Customer") {
@@ -84,6 +84,17 @@ export const updateProfile = asyncHandler(
 
     // Update fields if provided
     if (name) customer.name = name;
+    if (address) {
+      if (!customer.location) {
+        customer.location = {
+          address: address,
+          type: 'Point',
+          coordinates: [0, 0]
+        };
+      } else {
+        customer.location.address = address;
+      }
+    }
     if (email) {
       // Check if email is already taken by another customer
       const existingCustomer = await Customer.findOne({
@@ -106,6 +117,25 @@ export const updateProfile = asyncHandler(
 
 
     await customer.save();
+
+    // If an address was provided, also ensure it exists in the Address collection
+    if (address) {
+      const addressCount = await Address.countDocuments({ customer: userId });
+      if (addressCount === 0) {
+        await Address.create({
+          customer: userId,
+          fullName: customer.name,
+          phone: customer.phone,
+          address: address,
+          city: 'Default City', // Placeholder for mandatory field
+          pincode: '000000',    // Placeholder for mandatory field
+          type: 'Home',
+          isDefault: true,
+          latitude: customer.location?.latitude,
+          longitude: customer.location?.longitude
+        });
+      }
+    }
 
     return res.status(200).json({
       success: true,
