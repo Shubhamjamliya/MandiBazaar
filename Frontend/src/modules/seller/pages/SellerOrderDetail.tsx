@@ -30,7 +30,7 @@ const numberToWords = (n: number): string => {
 
 const COMPANY_DETAILS = {
   name: "MANDI BAZAAR",
-  registeredName: "MANDI BAZAAR PRIVATE LIMITED",
+  registeredName: "MANDI BAZAAR",
   gstin: "08DGVPP0057C1Z7",
   fssai: "10020064002537",
   cin: "U74900DL2015PTC286208",
@@ -353,9 +353,9 @@ export default function SellerOrderDetail() {
   };
 
   // Tax Calculations for Invoice Preview
-  const isInterState = orderDetail.deliveryAddress?.state && 
-                      orderDetail.deliveryAddress.state.toLowerCase() !== COMPANY_DETAILS.state.toLowerCase();
-  
+  const isInterState = orderDetail.deliveryAddress?.state &&
+    orderDetail.deliveryAddress.state.toLowerCase() !== COMPANY_DETAILS.state.toLowerCase();
+
   const invoiceItems = orderDetail.items?.map((item: any) => {
     const unitPrice = item.price || 0;
     const quantity = item.qty || 0;
@@ -364,7 +364,7 @@ export default function SellerOrderDetail() {
     const taxableValue = amount / (1 + gstRate / 100);
     const gstAmount = amount - taxableValue;
     const weight = item.unit || '-';
-    
+
     return {
       ...item,
       taxableValue,
@@ -379,11 +379,11 @@ export default function SellerOrderDetail() {
 
   const totalTaxableValue = invoiceItems.reduce((sum: number, item: any) => sum + item.taxableValue, 0);
   const totalGst = invoiceItems.reduce((sum: number, item: any) => sum + item.gstAmount, 0);
-  
+
   const cgst = isInterState ? 0 : totalGst / 2;
   const sgst = isInterState ? 0 : totalGst / 2;
   const igst = isInterState ? totalGst : 0;
-  
+
   const invoiceGrandTotal = orderDetail.grandTotal || (totalTaxableValue + totalGst);
 
   return (
@@ -430,8 +430,8 @@ export default function SellerOrderDetail() {
               onClick={handleResendNotification}
               disabled={notificationLoading || orderStatus !== 'Accepted' || !!orderDetail.deliveryBoyName}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium print:hidden ${notificationLoading || orderStatus !== 'Accepted' || !!orderDetail.deliveryBoyName
-                  ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
-                  : 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
+                ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
+                : 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
                 }`}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -482,10 +482,10 @@ export default function SellerOrderDetail() {
         </div>
 
         {/* The Actual Invoice (Redesigned Layout) */}
-        <div 
+        <div
           id="tax-invoice-container"
           className="w-full max-w-[210mm] mx-auto bg-white border border-gray-300 p-4 sm:p-8 print:border-0 print:p-0 font-sans text-[10px] sm:text-[12px] text-black relative z-10">
-          
+
           {/* Header Section */}
           <div className="flex justify-between items-start mb-6">
             <div className="w-32 sm:w-48">
@@ -494,13 +494,13 @@ export default function SellerOrderDetail() {
             <div className="text-right">
               <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2">Tax Invoice</h1>
               <div className="flex justify-end gap-2 items-start">
-                 <div className="text-right">
-                    <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[10px] mb-1">Invoice Number</p>
-                    <p className="font-bold text-sm sm:text-base">{orderDetail.invoiceNumber || orderDetail.id?.split('-').pop()?.toUpperCase()}</p>
-                 </div>
-                 <div className="w-16 h-16 sm:w-20 sm:h-20 border border-gray-200 bg-gray-50 flex items-center justify-center p-1">
-                   <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${orderDetail.id}`} alt="QR Code" className="w-full h-full" />
-                 </div>
+                <div className="text-right">
+                  <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[10px] mb-1">Invoice Number</p>
+                  <p className="font-bold text-sm sm:text-base">{orderDetail.invoiceNumber || orderDetail.id?.split('-').pop()?.toUpperCase()}</p>
+                </div>
+                <div className="w-16 h-16 sm:w-20 sm:h-20 border border-gray-200 bg-gray-50 flex items-center justify-center p-1">
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${orderDetail.id}`} alt="QR Code" className="w-full h-full" />
+                </div>
               </div>
             </div>
           </div>
@@ -529,19 +529,19 @@ export default function SellerOrderDetail() {
             {/* Invoice To / Order Details */}
             <div className="flex flex-col">
               <div className="p-3 border-b border-gray-400 flex-1">
-                 <p className="font-bold text-gray-700 mb-2 border-b border-gray-200 pb-1 uppercase tracking-wider text-[9px] sm:text-[11px]">Invoice To</p>
-                 <p className="font-bold text-sm mb-1">{orderDetail.customerName}</p>
-                 <p className="text-gray-600 leading-relaxed">
-                   {orderDetail.deliveryAddress?.address || 'N/A'}, {orderDetail.deliveryAddress?.city || ''}
-                 </p>
+                <p className="font-bold text-gray-700 mb-2 border-b border-gray-200 pb-1 uppercase tracking-wider text-[9px] sm:text-[11px]">Invoice To</p>
+                <p className="font-bold text-sm mb-1">{orderDetail.customerName}</p>
+                <p className="text-gray-600 leading-relaxed">
+                  {orderDetail.deliveryAddress?.address || 'N/A'}, {orderDetail.deliveryAddress?.city || ''}
+                </p>
               </div>
               <div className="p-3 bg-gray-50 grid grid-cols-2 gap-y-1">
-                 <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Order Id</p>
-                 <p className="font-bold">: {orderDetail.id?.split('-').pop()?.toUpperCase()}</p>
-                 <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Invoice Date</p>
-                 <p className="font-bold">: {formatDate(orderDetail.orderDate)}</p>
-                 <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Place of Supply</p>
-                 <p className="font-bold">: {orderDetail.deliveryAddress?.state || COMPANY_DETAILS.state}</p>
+                <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Order Id</p>
+                <p className="font-bold">: {orderDetail.id?.split('-').pop()?.toUpperCase()}</p>
+                <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Invoice Date</p>
+                <p className="font-bold">: {formatDate(orderDetail.orderDate)}</p>
+                <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Place of Supply</p>
+                <p className="font-bold">: {orderDetail.deliveryAddress?.state || COMPANY_DETAILS.state}</p>
               </div>
             </div>
           </div>
@@ -622,34 +622,34 @@ export default function SellerOrderDetail() {
           </div>
 
           <div className="border border-gray-400 p-2 mb-4 bg-gray-50">
-             <p className="font-bold mb-1"><span className="text-gray-500 uppercase text-[8px] sm:text-[9px]">Amount in Words:</span> {numberToWords(invoiceGrandTotal)}</p>
+            <p className="font-bold mb-1"><span className="text-gray-500 uppercase text-[8px] sm:text-[9px]">Amount in Words:</span> {numberToWords(invoiceGrandTotal)}</p>
           </div>
 
           {/* Bottom Seller / Signature Section */}
           <div className="grid grid-cols-1 sm:grid-cols-[1.5fr_1fr] border border-gray-400 mb-6">
-             <div className="p-3 border-b sm:border-b-0 sm:border-r border-gray-400">
-                <p className="font-bold text-sm mb-2">{COMPANY_DETAILS.registeredName}</p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[8px] sm:text-[10px]">
-                  <p><span className="font-bold text-gray-500 uppercase">GSTIN</span> : {COMPANY_DETAILS.gstin}</p>
-                  <p><span className="font-bold text-gray-500 uppercase">FSSAI License Number</span> : {COMPANY_DETAILS.fssai}</p>
-                  <p><span className="font-bold text-gray-500 uppercase">CIN</span> : {COMPANY_DETAILS.cin}</p>
-                  <p><span className="font-bold text-gray-500 uppercase">PAN</span> : {COMPANY_DETAILS.pan}</p>
-                </div>
-             </div>
-             <div className="p-3 flex flex-col items-center justify-between min-h-[100px]">
-                <div className="flex-1 flex items-center justify-center">
-                  <img 
-                     src="/assets/signatures/sonupatidar.png" 
-                     alt="Authorised Signatory" 
-                     className="max-h-16 object-contain mix-blend-multiply" 
-                     onError={(e) => {
-                       (e.target as HTMLImageElement).style.display = 'none';
-                     }}
-                  />
-                  <div className="text-xs italic text-gray-400 signature-placeholder">Sonu Patidar</div>
-                </div>
-                <p className="font-bold border-t border-gray-300 w-full text-center pt-1 mt-2 text-[9px] sm:text-[11px]">Authorised Signatory</p>
-             </div>
+            <div className="p-3 border-b sm:border-b-0 sm:border-r border-gray-400">
+              <p className="font-bold text-sm mb-2">{COMPANY_DETAILS.registeredName}</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[8px] sm:text-[10px]">
+                <p><span className="font-bold text-gray-500 uppercase">GSTIN</span> : {COMPANY_DETAILS.gstin}</p>
+                <p><span className="font-bold text-gray-500 uppercase">FSSAI License Number</span> : {COMPANY_DETAILS.fssai}</p>
+                <p><span className="font-bold text-gray-500 uppercase">CIN</span> : {COMPANY_DETAILS.cin}</p>
+                <p><span className="font-bold text-gray-500 uppercase">PAN</span> : {COMPANY_DETAILS.pan}</p>
+              </div>
+            </div>
+            <div className="p-3 flex flex-col items-center justify-between min-h-[100px]">
+              <div className="flex-1 flex items-center justify-center">
+                <img
+                  src="/assets/signatures/sonupatidar.png"
+                  alt="Authorised Signatory"
+                  className="max-h-16 object-contain mix-blend-multiply"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <div className="text-xs italic text-gray-400 signature-placeholder">Sonu Patidar</div>
+              </div>
+              <p className="font-bold border-t border-gray-300 w-full text-center pt-1 mt-2 text-[9px] sm:text-[11px]">Authorised Signatory</p>
+            </div>
           </div>
 
           <div className="mb-4 text-[8px] sm:text-[10px] font-bold">

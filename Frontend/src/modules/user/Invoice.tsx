@@ -70,7 +70,7 @@ const numberToWords = (n: number): string => {
   if (n === 0) return 'Zero';
   const integerPart = Math.floor(n);
   const decimalPart = Math.round((n - integerPart) * 100);
-  
+
   let str = convert(integerPart) + ' Rupees';
   if (decimalPart > 0) {
     str += ' and ' + convert(decimalPart) + ' Paise';
@@ -157,7 +157,7 @@ export default function Invoice() {
   // Company Details (Refined for Mandi Bazaar)
   const company = {
     name: "MANDI BAZAAR",
-    registeredName: "MANDI BAZAAR PRIVATE LIMITED",
+    registeredName: "MANDI BAZAAR",
     gstin: "08DGVPP0057C1Z7",
     fssai: "10020064002537",
     cin: "U74900DL2015PTC286208",
@@ -170,7 +170,7 @@ export default function Invoice() {
 
   // Tax Calculations
   const isInterState = order.address?.state && order.address.state.toLowerCase() !== company.state.toLowerCase();
-  
+
   const items = order.items?.map((item: any) => {
     const unitPrice = item.unitPrice || item.product?.price || item.price || 0;
     const quantity = item.quantity || item.qty || 0;
@@ -178,10 +178,10 @@ export default function Invoice() {
     const gstRate = item.gstPercentage || item.taxPercent || 5; // Default 5% for groceries
     const taxableValue = amount / (1 + gstRate / 100);
     const gstAmount = amount - taxableValue;
-    const weight = item.variation 
+    const weight = item.variation
       ? (item.variation.startsWith('wv_') ? item.variation.replace('wv_', '') : item.variation)
       : (item.product?.pack || item.product?.unit || '-');
-    
+
     return {
       ...item,
       taxableValue,
@@ -196,11 +196,11 @@ export default function Invoice() {
 
   const totalTaxableValue = items.reduce((sum: number, item: any) => sum + item.taxableValue, 0);
   const totalGst = items.reduce((sum: number, item: any) => sum + item.gstAmount, 0);
-  
+
   const cgst = isInterState ? 0 : totalGst / 2;
   const sgst = isInterState ? 0 : totalGst / 2;
   const igst = isInterState ? totalGst : 0;
-  
+
   const grandTotal = order.grandTotal || order.totalAmount || (totalTaxableValue + totalGst + (order.fees?.deliveryFee || 0) + (order.fees?.platformFee || 0));
 
   return (
@@ -231,11 +231,11 @@ export default function Invoice() {
       </div>
 
       {/* The Invoice Container (Blinkit Style) */}
-      <div 
+      <div
         ref={invoiceRef}
         id="tax-invoice-container"
         className="w-full max-w-[210mm] bg-white border border-gray-300 p-4 sm:p-8 print:border-0 print:p-0 font-sans text-[10px] sm:text-[12px] text-black shadow-sm relative z-10">
-        
+
         {/* Header Section */}
         <div className="flex justify-between items-start mb-6">
           <div className="w-32 sm:w-48">
@@ -244,14 +244,14 @@ export default function Invoice() {
           <div className="text-right">
             <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2">Tax Invoice</h1>
             <div className="flex justify-end gap-2 items-start">
-               <div className="text-right">
-                  <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[10px] mb-1">Invoice Number</p>
-                  <p className="font-bold text-sm sm:text-base">{order.id?.split('-').pop()?.toUpperCase() || 'ORD12345678'}</p>
-               </div>
-               {/* Placeholder for QR Code */}
-               <div className="w-16 h-16 sm:w-20 sm:h-20 border border-gray-200 bg-gray-50 flex items-center justify-center p-1">
-                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${order.id}`} alt="QR Code" className="w-full h-full" />
-               </div>
+              <div className="text-right">
+                <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[10px] mb-1">Invoice Number</p>
+                <p className="font-bold text-sm sm:text-base">{order.id?.split('-').pop()?.toUpperCase() || 'ORD12345678'}</p>
+              </div>
+              {/* Placeholder for QR Code */}
+              <div className="w-16 h-16 sm:w-20 sm:h-20 border border-gray-200 bg-gray-50 flex items-center justify-center p-1">
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${order.id}`} alt="QR Code" className="w-full h-full" />
+              </div>
             </div>
           </div>
         </div>
@@ -280,20 +280,20 @@ export default function Invoice() {
           {/* Invoice To / Order Details */}
           <div className="flex flex-col">
             <div className="p-3 border-b border-gray-400 flex-1">
-               <p className="font-bold text-gray-700 mb-2 border-b border-gray-200 pb-1 uppercase tracking-wider text-[9px] sm:text-[11px]">Invoice To</p>
-               <p className="font-bold text-sm mb-1">{order.address?.name || order.customerName || order.customer?.name || 'Customer'}</p>
-               <p className="text-gray-600 leading-relaxed">
-                 {order.address?.address || order.address?.street || order.deliveryAddress?.address || 'N/A'}, {order.address?.city || order.deliveryAddress?.city || ''}
-               </p>
-               {/* Pin code and State removed as per user request */}
+              <p className="font-bold text-gray-700 mb-2 border-b border-gray-200 pb-1 uppercase tracking-wider text-[9px] sm:text-[11px]">Invoice To</p>
+              <p className="font-bold text-sm mb-1">{order.address?.name || order.customerName || order.customer?.name || 'Customer'}</p>
+              <p className="text-gray-600 leading-relaxed">
+                {order.address?.address || order.address?.street || order.deliveryAddress?.address || 'N/A'}, {order.address?.city || order.deliveryAddress?.city || ''}
+              </p>
+              {/* Pin code and State removed as per user request */}
             </div>
             <div className="p-3 bg-gray-50 grid grid-cols-2 gap-y-1">
-               <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Order Id</p>
-               <p className="font-bold">: {order.id?.split('-').pop()?.toUpperCase() || 'ORD123'}</p>
-               <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Invoice Date</p>
-               <p className="font-bold">: {order.createdAt || order.orderDate ? new Date(order.createdAt || order.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-') : '-'}</p>
-               <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Place of Supply</p>
-               <p className="font-bold">: {order.address?.state || order.deliveryAddress?.state || company.state}</p>
+              <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Order Id</p>
+              <p className="font-bold">: {order.id?.split('-').pop()?.toUpperCase() || 'ORD123'}</p>
+              <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Invoice Date</p>
+              <p className="font-bold">: {order.createdAt || order.orderDate ? new Date(order.createdAt || order.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-') : '-'}</p>
+              <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Place of Supply</p>
+              <p className="font-bold">: {order.address?.state || order.deliveryAddress?.state || company.state}</p>
             </div>
           </div>
         </div>
@@ -325,9 +325,9 @@ export default function Invoice() {
                   <td className="border-r border-gray-400 p-1 text-center">{item.product?.id?.slice(-6) || '123456'}</td>
                   <td className="border-r border-gray-400 p-1 text-left">
                     <p className="font-bold">
-                      {item.product?.name || 
-                       item.product?.productName || 
-                       (typeof item.product === 'string' ? item.product : 'Item Name')}
+                      {item.product?.name ||
+                        item.product?.productName ||
+                        (typeof item.product === 'string' ? item.product : 'Item Name')}
                     </p>
                     <p className="text-[7px] sm:text-[8px] text-gray-500">(HSN-{item.hsnCode || '00000000'})</p>
                   </td>
@@ -379,35 +379,35 @@ export default function Invoice() {
         </div>
 
         <div className="border border-gray-400 p-2 mb-4 bg-gray-50">
-           <p className="font-bold mb-1"><span className="text-gray-500 uppercase text-[8px] sm:text-[9px]">Amount in Words:</span> {numberToWords(grandTotal)}</p>
+          <p className="font-bold mb-1"><span className="text-gray-500 uppercase text-[8px] sm:text-[9px]">Amount in Words:</span> {numberToWords(grandTotal)}</p>
         </div>
 
         {/* Bottom Seller / Signature Section */}
         <div className="grid grid-cols-1 sm:grid-cols-[1.5fr_1fr] border border-gray-400 mb-6">
-           <div className="p-3 border-b sm:border-b-0 sm:border-r border-gray-400">
-              <p className="font-bold text-sm mb-2">{company.registeredName}</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[8px] sm:text-[10px]">
-                <p><span className="font-bold text-gray-500 uppercase">GSTIN</span> : {company.gstin}</p>
-                <p><span className="font-bold text-gray-500 uppercase">FSSAI License Number</span> : {company.fssai}</p>
-                <p><span className="font-bold text-gray-500 uppercase">CIN</span> : {company.cin}</p>
-                <p><span className="font-bold text-gray-500 uppercase">PAN</span> : {company.pan}</p>
-              </div>
-           </div>
-           <div className="p-3 flex flex-col items-center justify-between min-h-[100px]">
-              <div className="flex-1 flex items-center justify-center">
-                {/* Signature Image from User */}
-                <img 
-                   src="/assets/signatures/sonupatidar.png" 
-                   alt="Authorised Signatory" 
-                   className="max-h-16 object-contain mix-blend-multiply" 
-                   onError={(e) => {
-                     (e.target as HTMLImageElement).style.display = 'none';
-                   }}
-                />
-                <div className="text-xs italic text-gray-400 signature-placeholder">Sonu Patidar</div>
-              </div>
-              <p className="font-bold border-t border-gray-300 w-full text-center pt-1 mt-2 text-[9px] sm:text-[11px]">Authorised Signatory</p>
-           </div>
+          <div className="p-3 border-b sm:border-b-0 sm:border-r border-gray-400">
+            <p className="font-bold text-sm mb-2">{company.registeredName}</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[8px] sm:text-[10px]">
+              <p><span className="font-bold text-gray-500 uppercase">GSTIN</span> : {company.gstin}</p>
+              <p><span className="font-bold text-gray-500 uppercase">FSSAI License Number</span> : {company.fssai}</p>
+              <p><span className="font-bold text-gray-500 uppercase">CIN</span> : {company.cin}</p>
+              <p><span className="font-bold text-gray-500 uppercase">PAN</span> : {company.pan}</p>
+            </div>
+          </div>
+          <div className="p-3 flex flex-col items-center justify-between min-h-[100px]">
+            <div className="flex-1 flex items-center justify-center">
+              {/* Signature Image from User */}
+              <img
+                src="/assets/signatures/sonupatidar.png"
+                alt="Authorised Signatory"
+                className="max-h-16 object-contain mix-blend-multiply"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+              <div className="text-xs italic text-gray-400 signature-placeholder">Sonu Patidar</div>
+            </div>
+            <p className="font-bold border-t border-gray-300 w-full text-center pt-1 mt-2 text-[9px] sm:text-[11px]">Authorised Signatory</p>
+          </div>
         </div>
 
         <div className="mb-4 text-[8px] sm:text-[10px] font-bold">
