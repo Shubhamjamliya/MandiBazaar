@@ -33,7 +33,6 @@ const COMPANY_DETAILS = {
   registeredName: "MANDI BAZAAR",
   gstin: "08DGVPP0057C1Z7",
   fssai: "10020064002537",
-  cin: "U74900DL2015PTC286208",
   pan: "DGVPP0057C",
   address: "Krishna Vila, 75 D, E Block, Pratap Nagar, Udaipur, Rajasthan 313001",
   phone: "91 8959522509",
@@ -519,8 +518,6 @@ export default function SellerOrderDetail() {
                 <p className="font-bold">: {COMPANY_DETAILS.gstin}</p>
                 <p className="font-bold text-gray-500">FSSAI License Number</p>
                 <p className="font-bold">: {COMPANY_DETAILS.fssai}</p>
-                <p className="font-bold text-gray-500">CIN</p>
-                <p className="font-bold">: {COMPANY_DETAILS.cin}</p>
                 <p className="font-bold text-gray-500">PAN</p>
                 <p className="font-bold">: {COMPANY_DETAILS.pan}</p>
               </div>
@@ -632,7 +629,6 @@ export default function SellerOrderDetail() {
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[8px] sm:text-[10px]">
                 <p><span className="font-bold text-gray-500 uppercase">GSTIN</span> : {COMPANY_DETAILS.gstin}</p>
                 <p><span className="font-bold text-gray-500 uppercase">FSSAI License Number</span> : {COMPANY_DETAILS.fssai}</p>
-                <p><span className="font-bold text-gray-500 uppercase">CIN</span> : {COMPANY_DETAILS.cin}</p>
                 <p><span className="font-bold text-gray-500 uppercase">PAN</span> : {COMPANY_DETAILS.pan}</p>
               </div>
             </div>
