@@ -250,7 +250,9 @@ export default function Checkout() {
                 imageUrl: p.mainImage || p.imageUrl || p.mainImageUrl || '',
                 price: displayPrice,
                 mrp: mrp,
-                pack: p.pack || p.variations?.[0]?.title || p.variations?.[0]?.name || 'Standard',
+                pack: p.sellingUnit === 'weight'
+                  ? (p.weightVariants?.find((v: any) => v.isDefault)?.label || p.weightVariants?.[0]?.label || p.pack || '1 unit')
+                  : (p.pack || p.variations?.[0]?.title || p.variations?.[0]?.name || 'Standard'),
               };
             })
             .slice(0, 6);
@@ -1104,7 +1106,7 @@ export default function Checkout() {
                     <h3 className="text-xs font-semibold text-neutral-900 mb-0.5 line-clamp-2">
                       {item.product?.name}
                     </h3>
-                    <p className="text-[10px] text-neutral-600 mb-0.5">{item.quantity} × {item.product?.pack}</p>
+                    <p className="text-[10px] text-neutral-600 mb-0.5">{item.quantity} × {variantTitle}</p>
                     <p className="text-[10px] text-neutral-700 font-medium mb-0.5">Quantity: {item.quantity}</p>
                     <button
                       onClick={(e) => {

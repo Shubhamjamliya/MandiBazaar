@@ -102,7 +102,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
             sellingUnit: item.product.sellingUnit,
             weightVariants: item.product.weightVariants,
             imageUrl: item.product.mainImage || item.product.imageUrl,
-            pack: item.product.pack || '1 unit',
+            pack: item.variation?.startsWith('wv_') 
+              ? item.variation.replace('wv_', '') 
+              : (item.product.pack || '1 unit'),
             categoryId: item.product.category || '',
             description: item.product.description,
             variantId: item.variation // Preserving variation ID/value

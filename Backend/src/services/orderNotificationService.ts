@@ -329,23 +329,26 @@ export async function findDeliveryBoysNearSellerLocations(
 /**
  * Emit new order notification to delivery boys near seller locations
  * Prioritizes delivery boys within the seller's service radius
+ * Returns the number of delivery boys who were actually notified
  */
 export async function notifyDeliveryBoysOfNewOrder(
     io: SocketIOServer,
     order: any
-): Promise<void> {
+): Promise<number> {
     try {
+        console.log(`🔍 BROADCAST: Starting notification process for order ${order.orderNumber}`);
+        
         // Find delivery boys near seller locations (within service radius)
         let nearbyDeliveryBoyIds = await findDeliveryBoysNearSellerLocations(order);
 
         if (nearbyDeliveryBoyIds.length === 0) {
-            return;
+            console.log(`⚠️ BROADCAST: No available and online delivery boys found for order ${order.orderNumber}`);
+            return 0;
         }
 
+        console.log(`📍 BROADCAST: Found ${nearbyDeliveryBoyIds.length} delivery boys in service radius or system fallback.`);
+
         // --- FILTER BUSY DELIVERY BOYS ---
-        // Check if any of these delivery boys already have an active order
-        // Active = deliveryBoyStatus is Assigned, Picked Up, or In Transit
-        // Only count RECENT orders (last 24 hours) as busy to avoid blocking on stale orders
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
         const busyDeliveryBoys = await Order.find({
             deliveryBoy: { $in: nearbyDeliveryBoyIds },
@@ -356,14 +359,16 @@ export async function notifyDeliveryBoysOfNewOrder(
 
         if (busyDeliveryBoys.length > 0) {
             const busyIdsSet = new Set(busyDeliveryBoys.map(id => id.toString()));
+            const totalBeforeFilter = nearbyDeliveryBoyIds.length;
             nearbyDeliveryBoyIds = nearbyDeliveryBoyIds.filter(id => !busyIdsSet.has(id.toString()));
+            
+            console.log(`🚫 BROADCAST: Filtered out ${busyIdsSet.size} busy delivery boys. Remaining: ${nearbyDeliveryBoyIds.length}/${totalBeforeFilter}`);
 
             if (nearbyDeliveryBoyIds.length === 0) {
-                console.log('⚠️ All nearby delivery boys are currently busy with other orders.');
-                return;
+                console.log('⚠️ BROADCAST: All potential delivery boys are currently busy with other active orders.');
+                return 0;
             }
         }
-        // ---------------------------------
 
         // Prepare order data for notification
         const orderData = {
@@ -388,33 +393,33 @@ export async function notifyDeliveryBoysOfNewOrder(
             createdAt: order.createdAt,
         };
 
-        // Initialize notification state
         const orderId = order._id.toString();
         const notifiedIds = new Set<string>();
 
-        // Notify all nearby delivery boys
+        // Notify all available and non-busy delivery boys
         for (const id of nearbyDeliveryBoyIds) {
             const idString = id.toString().trim();
             notifiedIds.add(idString);
 
             const roomName = `delivery-${idString}`;
 
-            // Emit socket event (if they are connected, they get it immediately)
+            // Emit socket event to individual room
             io.to(roomName).emit('new-order', orderData);
 
-            // Also emit to the general delivery-notifications room so anyone listening there (debugging/admin) 
-            // can see orders being broadcasted
-            // io.to('delivery-notifications').emit('new-order', { ...orderData, targetedTo: idString });
+            // ALSO emit to general delivery-notifications room as a backup
+            // This ensures any delivery boy connected to the general channel gets it
+            io.to('delivery-notifications').emit('new-order', { ...orderData, targetedTo: idString });
 
-            // Send push notification to delivery partner
+            console.log(`📡 BROADCAST: Emitted new-order to room ${roomName} and general channel`);
+
+            // Send push notification
             try {
-                // We do this for all nearby boys so they get the push even if app is closed/backgrounded
                 await sendDeliveryTaskNotification(idString, order.orderNumber);
             } catch (notifyError) {
-                console.error(`Error sending push notification to delivery partner ${idString}:`, notifyError);
+                console.error(`❌ BROADCAST: Push notification failed for ${idString}:`, notifyError);
             }
 
-            // Persist in-app notification so it appears on home and notifications page.
+            // Persist in-app notification
             try {
                 await Notification.create({
                     recipientType: 'Delivery',
@@ -427,26 +432,27 @@ export async function notifyDeliveryBoysOfNewOrder(
                     actionLabel: 'View Task',
                 });
             } catch (notificationError) {
-                console.error(`Error creating in-app notification for delivery partner ${idString}:`, notificationError);
+                console.error(`❌ BROADCAST: DB notification failed for ${idString}:`, notificationError);
             }
         }
 
-        if (notifiedIds.size === 0) {
-            console.log('⚠️ No nearby delivery boys found to notify');
-            return;
+        if (notifiedIds.size > 0) {
+            notificationStates.set(orderId, {
+                orderId,
+                orderData,
+                notifiedDeliveryBoys: notifiedIds,
+                rejectedDeliveryBoys: new Set(),
+                acceptedBy: null,
+                createdAt: new Date(),
+            });
+            console.log(`✅ BROADCAST: Successfully notified ${notifiedIds.size} delivery partners for order ${order.orderNumber}`);
         }
 
-        notificationStates.set(orderId, {
-            orderId,
-            orderData,
-            notifiedDeliveryBoys: notifiedIds,
-            rejectedDeliveryBoys: new Set(),
-            acceptedBy: null,
-            createdAt: new Date(),
-        });
+        return notifiedIds.size;
 
     } catch (error) {
-        console.error('Error notifying delivery boys:', error);
+        console.error('❌ BROADCAST: Critical error in notification process:', error);
+        return 0;
     }
 }
 
@@ -471,8 +477,11 @@ export async function handleOrderAcceptance(
 
             // Check if this delivery boy was notified
             if (!state.notifiedDeliveryBoys.has(normalizedDeliveryBoyId)) {
-                console.warn(`⚠️ Delivery boy ${normalizedDeliveryBoyId} not in notified list for acceptance of order ${orderId}. Notified:`, Array.from(state.notifiedDeliveryBoys));
-                return { success: false, message: 'You were not notified about this order' };
+                // Leniency: If it's a broadcast or fallback, allow any active delivery boy to accept
+                // if they are online and the order is still available.
+                console.log(`📡 BROADCAST ACCEPT: Delivery boy ${normalizedDeliveryBoyId} accepting order ${orderId} via broadcast/fallback.`);
+                // Add them to the notified list now so they can proceed
+                state.notifiedDeliveryBoys.add(normalizedDeliveryBoyId);
             }
 
             // Check if this delivery boy already rejected
