@@ -318,15 +318,15 @@ export default function SellerProductList() {
 
         {/* Filters and Controls */}
         <div className="p-4 flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center justify-between border-b border-neutral-100">
-          <div className="flex flex-wrap gap-3">
-            <div>
+          <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:flex gap-3 w-full sm:w-auto">
+            <div className="w-full">
               <label className="block text-xs text-neutral-600 mb-1">
                 Filter By Category
               </label>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="bg-white border border-neutral-300 rounded py-1.5 px-3 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none cursor-pointer">
+                className="bg-white border border-neutral-300 rounded py-1.5 px-3 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none cursor-pointer w-full">
                 <option value="All Category">All Category</option>
                 {categories.map((cat) => (
                   <option key={cat} value={cat}>
@@ -335,34 +335,34 @@ export default function SellerProductList() {
                 ))}
               </select>
             </div>
-            <div>
+            <div className="w-full">
               <label className="block text-xs text-neutral-600 mb-1">
                 Filter by Status
               </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-white border border-neutral-300 rounded py-1.5 px-3 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none cursor-pointer">
+                className="bg-white border border-neutral-300 rounded py-1.5 px-3 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none cursor-pointer w-full">
                 <option value="All Products">All Products</option>
                 <option value="Published">Published</option>
                 <option value="Unpublished">Unpublished</option>
               </select>
             </div>
-            <div>
+            <div className="w-full">
               <label className="block text-xs text-neutral-600 mb-1">
                 Filter by Stock
               </label>
               <select
                 value={stockFilter}
                 onChange={(e) => setStockFilter(e.target.value)}
-                className="bg-white border border-neutral-300 rounded py-1.5 px-3 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none cursor-pointer">
+                className="bg-white border border-neutral-300 rounded py-1.5 px-3 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none cursor-pointer w-full">
                 <option value="All Products">All Products</option>
                 <option value="In Stock">In Stock</option>
                 <option value="Out of Stock">Out of Stock</option>
               </select>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <div className="flex items-center gap-2">
               <span className="text-sm text-neutral-600">Show</span>
               <select
@@ -448,13 +448,13 @@ export default function SellerProductList() {
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </button>
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <span className="absolute left-2 top-1/2 -translate-y-1/2 text-neutral-400 text-xs">
                 Search:
               </span>
               <input
                 type="text"
-                className="pl-14 pr-3 py-1.5 bg-neutral-100 border-none rounded text-sm focus:ring-1 focus:ring-teal-500 w-48"
+                className="pl-14 pr-3 py-1.5 bg-neutral-100 border-none rounded text-sm focus:ring-1 focus:ring-teal-500 w-full sm:w-48"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value.replace(/\s+/g, ''))}
                 placeholder=""
