@@ -445,7 +445,7 @@ export default function AdminManageDeliveryBoy() {
 
                     {/* Table */}
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
+                        <table className="w-full text-left border-collapse whitespace-nowrap md:whitespace-normal min-w-[1200px] md:min-w-0">
                             <thead>
                                 <tr className="bg-neutral-50 text-xs font-bold text-neutral-800 border-b border-neutral-200">
                                     <th
@@ -482,6 +482,9 @@ export default function AdminManageDeliveryBoy() {
                                         <div className="flex items-center">
                                             City <SortIcon column="city" />
                                         </div>
+                                    </th>
+                                    <th className="p-4">
+                                        Documents
                                     </th>
                                     <th className="p-4">
                                         Commission
@@ -561,6 +564,36 @@ export default function AdminManageDeliveryBoy() {
                                             <td className="p-4 align-middle">{deliveryBoy.mobile}</td>
                                             <td className="p-4 align-middle">{deliveryBoy.address}</td>
                                             <td className="p-4 align-middle">{deliveryBoy.city}</td>
+                                            <td className="p-4 align-middle">
+                                                <div className="flex items-center gap-2">
+                                                    {deliveryBoy.drivingLicense ? (
+                                                        <a
+                                                            href={deliveryBoy.drivingLicense}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 rounded hover:bg-indigo-100"
+                                                            title="View Driving License"
+                                                        >
+                                                            DL
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-xs text-neutral-400">DL -</span>
+                                                    )}
+                                                    {deliveryBoy.nationalIdentityCard ? (
+                                                        <a
+                                                            href={deliveryBoy.nationalIdentityCard}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded hover:bg-emerald-100"
+                                                            title="View National ID"
+                                                        >
+                                                            ID
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-xs text-neutral-400">ID -</span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className="p-4 align-middle">
                                                 {deliveryBoy.commissionType === 'Percentage' ? (
                                                     <div className="text-xs">

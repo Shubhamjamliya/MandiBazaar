@@ -260,7 +260,7 @@ export default function SellerAddProduct() {
               gstPercentage: (product.gstPercentage || 0).toString(),
             });
             const su = (product as any).sellingUnit || "weight";
-            setSellingUnit(su === "weight" ? "weight" : "weight");
+            setSellingUnit(su === "weight" ? "weight" : "quantity");
             if (su === "weight") {
               setPricePerKg(String((product as any).pricePerKg || ""));
 
@@ -335,7 +335,7 @@ export default function SellerAddProduct() {
       return;
     }
     if (name === "fssaiLicNo") {
-      const cleaned = value.replace(/[^0-9/]/g, "");
+      const cleaned = value.replace(/[^0-9]/g, "");
       setFormData((prev) => ({ ...prev, [name]: cleaned }));
       return;
     }
@@ -417,8 +417,8 @@ export default function SellerAddProduct() {
       setUploadError("HSN code should be in format (ex- 6109 10 00)");
       return;
     }
-    if (fssaiLicNo && !/^\d{2}\/\d{3}\/\d{8}$/.test(fssaiLicNo)) {
-      setUploadError("FSSAI lic no. should be in format (ex- 21/001/00012345)");
+    if (fssaiLicNo && !/^\d{14}$/.test(fssaiLicNo)) {
+      setUploadError("FSSAI lic no. should be 14 digits (ex- 2100100012345)");
       return;
     }
 
@@ -428,8 +428,7 @@ export default function SellerAddProduct() {
       const enabled = weightVariants.filter((v) => v.isEnabled);
       if (!enabled.length) { setUploadError("Enable at least one weight variant."); return; }
     } else {
-      setUploadError("By quantity mode has been removed. Please use weight variants.");
-      return;
+      if (!variations.length) { setUploadError("Add at least one piece variant."); return; }
     }
 
     setUploading(true);
@@ -471,10 +470,10 @@ export default function SellerAddProduct() {
         shopId: formData.isShopByStoreOnly === "Yes" && formData.shopId ? formData.shopId : undefined,
         hsnCode: hsnCode || undefined,
         gstPercentage: parseFloat(formData.gstPercentage) || 0,
-        sellingUnit: "weight",
-        pricePerKg: parseFloat(pricePerKg) || 0,
-        weightVariants: weightVariants.filter(v => v.isEnabled),
-        variations: [],
+        sellingUnit,
+        pricePerKg: sellingUnit === "weight" ? (parseFloat(pricePerKg) || 0) : 0,
+        weightVariants: sellingUnit === "weight" ? weightVariants.filter(v => v.isEnabled) : [],
+        variations: sellingUnit === "quantity" ? variations : [],
       };
 
       const response = id ? await updateProduct(id, productData) : await createProduct(productData);
@@ -558,6 +557,15 @@ export default function SellerAddProduct() {
                   </select>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">HSN Code</label>
+                  <input type="text" name="hsnCode" value={formData.hsnCode} onChange={handleChange} placeholder="e.g. 6109 10 00" className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">GST Percentage (%)</label>
+                  <input type="number" name="gstPercentage" value={formData.gstPercentage} onChange={handleChange} placeholder="e.g. 5" className={inputCls} />
+                  <p className="text-xs text-neutral-400 mt-1">Leave 0 if tax-free</p>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">Tags</label>
                   <input type="text" name="tags" value={formData.tags} onChange={handleChange} placeholder="fresh, organic, local" className={inputCls} />
                   <p className="text-xs text-neutral-500 mt-1">Comma separated — helps search</p>
@@ -584,6 +592,7 @@ export default function SellerAddProduct() {
                 <div className="flex gap-3">
                   {[
                     { mode: "weight" as const, emoji: "⚖️", label: "By Weight", sub: "KG / GM variants" },
+                    { mode: "quantity" as const, emoji: "🧮", label: "By Pieces", sub: "Piece variants" },
                   ].map(({ mode, emoji, label, sub }) => (
                     <button
                       key={mode}
@@ -776,7 +785,7 @@ export default function SellerAddProduct() {
               )}
 
               {/* ── QUANTITY MODE ────────────────────────────────────────── */}
-              {false && sellingUnit === "quantity" && (
+              {sellingUnit === "quantity" && (
                 <div className="space-y-4">
                   {/* Add Variation Row */}
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
@@ -784,7 +793,7 @@ export default function SellerAddProduct() {
                       <label className="block text-xs font-semibold text-neutral-600 mb-1.5">Title <span className="text-red-500">*</span></label>
                       <input type="text" value={variationForm.title}
                         onChange={(e) => setVariationForm({ ...variationForm, title: e.target.value })}
-                        placeholder="e.g. 500g" className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                        placeholder="e.g. 1 pc" className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-neutral-600 mb-1.5">Sale Price (₹) <span className="text-red-500">*</span></label>
@@ -920,7 +929,7 @@ export default function SellerAddProduct() {
                 )}
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">FSSAI Lic. No.</label>
-                  <input type="text" name="fssaiLicNo" value={formData.fssaiLicNo} onChange={handleChange} placeholder="FSSAI License Number" className={inputCls} />
+                  <input type="text" name="fssaiLicNo" value={formData.fssaiLicNo} onChange={handleChange} placeholder="e.g. 2100100012345" className={inputCls} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">Max Qty per Order</label>

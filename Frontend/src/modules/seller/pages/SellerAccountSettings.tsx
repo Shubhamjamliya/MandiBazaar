@@ -627,20 +627,17 @@ const SellerAccountSettings = () => {
                                                         <label className="text-sm font-semibold text-gray-700 ml-1">
                                                             Service Radius (KM) <span className="text-red-500">*</span>
                                                         </label>
-                                                        <select
+                                                        <input
+                                                            type="number"
                                                             name="serviceRadiusKm"
                                                             value={sellerData.serviceRadiusKm}
                                                             onChange={handleInputChange}
                                                             disabled={!isEditing}
-                                                            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none disabled:bg-gray-50/50 disabled:text-gray-500 transition-all appearance-none bg-white"
-                                                        >
-                                                            <option value="1">1 km</option>
-                                                            <option value="2">2 km</option>
-                                                            <option value="5">5 km</option>
-                                                            <option value="10">10 km</option>
-                                                            <option value="20">20 km</option>
-                                                            <option value="50">50 km</option>
-                                                        </select>
+                                                            min={0.1}
+                                                            step={0.1}
+                                                            placeholder="e.g. 10"
+                                                            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none disabled:bg-gray-50/50 disabled:text-gray-500 transition-all bg-white"
+                                                        />
                                                         {isEditing && (
                                                             <p className="mt-1 text-xs text-gray-500">
                                                                 Products will be shown to users within this radius from your store location

@@ -424,20 +424,11 @@ export const resendOrderNotification = asyncHandler(
 
         if (fullOrder) {
           console.log(`📡 Manually re-triggering delivery notification for order ${order.orderNumber}`);
-          const notifiedCount = await notifyDeliveryBoysOfNewOrder(io, fullOrder as any);
+          await notifyDeliveryBoysOfNewOrder(io, fullOrder as any);
           
-          if (notifiedCount === 0) {
-            return res.status(200).json({
-              success: true, // Success because the request was valid, but let them know why 0
-              message: "No available delivery partners are currently online or nearby.",
-              notifiedCount: 0
-            });
-          }
-
           return res.status(200).json({
             success: true,
-            message: `Notification sent successfully to ${notifiedCount} delivery partner(s).`,
-            notifiedCount
+            message: "Notification sent successfully to delivery partners",
           });
         }
       }

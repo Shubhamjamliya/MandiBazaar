@@ -64,7 +64,7 @@ export default function Checkout() {
 
   // Profile completion modal state
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [profileFormData, setProfileFormData] = useState({ name: '', address: '' });
+  const [profileFormData, setProfileFormData] = useState({ name: '' });
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -82,7 +82,7 @@ export default function Checkout() {
 
 
   // Check if user has placeholder data (needs profile completion)
-  const isPlaceholderUser = user?.name === 'User' || !(user as any)?.location?.address;
+  const isPlaceholderUser = !user?.name || user?.name === 'User';
 
   // Redirect if empty - only if really empty and not loading and not just placed an order
   useEffect(() => {
@@ -448,8 +448,7 @@ export default function Checkout() {
     // Check if user needs to complete their profile first
     if (!bypassProfileCheck && isPlaceholderUser) {
       setProfileFormData({
-        name: user?.name === 'User' ? '' : (user?.name || ''),
-        address: (user as any)?.location?.address || ''
+        name: user?.name === 'User' ? '' : (user?.name || '')
       });
       setShowProfileModal(true);
       return;
@@ -607,8 +606,8 @@ export default function Checkout() {
 
   // Handle profile completion submission
   const handleProfileSubmit = async () => {
-    if (!profileFormData.name.trim() || !profileFormData.address.trim()) {
-      setProfileError('Please enter both name and address');
+    if (!profileFormData.name.trim()) {
+      setProfileError('Please enter your name');
       return;
     }
 
@@ -618,7 +617,6 @@ export default function Checkout() {
     try {
       const response = await updateProfile({
         name: profileFormData.name.trim(),
-        address: profileFormData.address.trim(),
       });
 
       if (response.success) {
@@ -633,20 +631,6 @@ export default function Checkout() {
 
         setShowProfileModal(false);
         showGlobalToast('Profile updated successfully!');
-
-        // Set the address as selected so the order can proceed
-        setSelectedAddress({
-          name: response.data.name,
-          phone: user?.phone || '',
-          flat: '',
-          street: profileFormData.address.trim(),
-          city: response.data.location?.city || 'Default City',
-          state: response.data.location?.state || '',
-          pincode: response.data.location?.pincode || '000000',
-          landmark: '',
-          latitude: response.data.location?.latitude || userLocation?.latitude || 0,
-          longitude: response.data.location?.longitude || userLocation?.longitude || 0,
-        });
 
         // Directly trigger order placement, bypassing the profile check
         handlePlaceOrder(true);
@@ -690,7 +674,7 @@ export default function Checkout() {
             >
               <h2 className="text-lg font-bold text-neutral-900 mb-2">Complete Your Profile</h2>
               <p className="text-sm text-neutral-600 mb-4">
-                Please provide your name and delivery address to continue with your order.
+                Please provide your name to continue with your order.
               </p>
 
               <div className="space-y-3">
@@ -702,17 +686,6 @@ export default function Checkout() {
                     onChange={(e) => setProfileFormData(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Enter your full name"
                     className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-green-500 transition-colors"
-                    disabled={isUpdatingProfile}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-neutral-700 mb-1">Delivery Address</label>
-                  <textarea
-                    value={profileFormData.address}
-                    onChange={(e) => setProfileFormData(prev => ({ ...prev, address: e.target.value }))}
-                    placeholder="Enter your house no, street, area details"
-                    className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:border-green-500 transition-colors resize-none h-20"
                     disabled={isUpdatingProfile}
                   />
                 </div>
@@ -731,8 +704,8 @@ export default function Checkout() {
                   </button>
                   <button
                     onClick={handleProfileSubmit}
-                    disabled={isUpdatingProfile || !profileFormData.name.trim() || !profileFormData.address.trim()}
-                    className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors ${isUpdatingProfile || !profileFormData.name.trim() || !profileFormData.address.trim()
+                    disabled={isUpdatingProfile || !profileFormData.name.trim()}
+                    className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors ${isUpdatingProfile || !profileFormData.name.trim()
                       ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
                       : 'bg-green-600 text-white hover:bg-green-700'
                       }`}

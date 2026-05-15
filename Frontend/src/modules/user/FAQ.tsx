@@ -1,258 +1,124 @@
+import React from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-
-interface FAQItem {
-  id: string;
-  question: string;
-  answer: string;
-}
-
-const faqData: FAQItem[] = [
-  {
-    id: '1',
-    question: 'How do I place an order?',
-    answer: 'To place an order, simply browse our products, add items to your cart, and proceed to checkout. You\'ll need to provide your delivery address and payment details. Once confirmed, your order will be processed and delivered to you.',
-  },
-  {
-    id: '2',
-    question: 'What are the delivery charges?',
-    answer: 'Delivery charges vary based on your location and order value. We offer free delivery on orders above ₹199. For orders below this threshold, a nominal delivery fee applies. You can check the exact charges during checkout.',
-  },
-  {
-    id: '3',
-    question: 'How long does delivery take?',
-    answer: 'We typically deliver within 17-20 minutes for most locations. Delivery time may vary based on your location, order size, and current demand. You\'ll receive real-time updates about your order status.',
-  },
-  {
-    id: '4',
-    question: 'Can I cancel my order?',
-    answer: 'Yes, you can cancel your order before it\'s confirmed by the seller. Once confirmed, cancellation may not be possible. Please check our cancellation policy for more details. Refunds are processed within 5-7 business days.',
-  },
-  {
-    id: '5',
-    question: 'What payment methods do you accept?',
-    answer: 'We accept various payment methods including credit/debit cards, UPI, net banking, and digital wallets. Cash on delivery (COD) is also available for select locations.',
-  },
-  {
-    id: '6',
-    question: 'How do I track my order?',
-    answer: 'You can track your order in real-time through the Orders section in your account. We also send SMS and email notifications with order updates. For detailed tracking, visit the order details page.',
-  },
-  {
-    id: '7',
-    question: 'What is your return policy?',
-    answer: 'Most products are returnable within 2 days of delivery. Some items like perishables may not be returnable. Please check the product details for specific return policies. Returns are subject to our terms and conditions.',
-  },
-  {
-    id: '8',
-    question: 'How do I apply a coupon code?',
-    answer: 'During checkout, you\'ll see an option to "See all coupons". Click on it, browse available coupons, and click "Apply" on the coupon you want to use. The discount will be automatically applied to your order.',
-  },
-  {
-    id: '9',
-    question: 'Can I modify my delivery address?',
-    answer: 'Yes, you can modify your delivery address before placing the order. You can also save multiple addresses in your Address Book for quick selection during checkout.',
-  },
-  {
-    id: '10',
-    question: 'What if I receive a damaged or wrong item?',
-    answer: 'If you receive a damaged or incorrect item, please contact our customer support immediately. You can report the issue through the order details page or contact us at help@mandibazaar.com.',
-  },
-  {
-    id: '11',
-    question: 'How do I add items to my wishlist?',
-    answer: 'Simply click the heart icon on any product to add it to your wishlist. You can access your wishlist from the Account page. Items in your wishlist can be easily added to cart when you\'re ready to purchase.',
-  },
-  {
-    id: '12',
-    question: 'Is my personal information secure?',
-    answer: 'Yes, we take your privacy seriously. All personal information is encrypted and stored securely. We never share your data with third parties without your consent. Please review our Privacy Policy for more details.',
-  },
-];
 
 export default function FAQ() {
   const navigate = useNavigate();
-  const [openItems, setOpenItems] = useState<Set<string>>(new Set());
-
-  const toggleItem = (id: string) => {
-    const newOpenItems = new Set(openItems);
-    if (newOpenItems.has(id)) {
-      newOpenItems.delete(id);
-    } else {
-      newOpenItems.add(id);
-    }
-    setOpenItems(newOpenItems);
-  };
+  const supportInfo = [
+    {
+      title: 'Mobile Support',
+      value: '8279281172',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        </svg>
+      ),
+      link: 'tel:8279281172',
+      color: 'bg-blue-50 text-blue-600 border-blue-100',
+      actionName: 'Call Now'
+    },
+    {
+      title: 'Email Support',
+      value: 'mandibazaar67@gmail.com',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      ),
+      link: 'mailto:mandibazaar67@gmail.com',
+      color: 'bg-purple-50 text-purple-600 border-purple-100',
+      actionName: 'Send Email'
+    },
+    {
+      title: 'WhatsApp Support',
+      value: 'Direct Chat with Support',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      ),
+      link: 'https://wa.me/918279281172',
+      color: 'bg-green-50 text-green-600 border-green-100',
+      actionName: 'Chat on WhatsApp'
+    },
+  ];
 
   return (
-    <div className="pb-24 md:pb-8 bg-white min-h-screen">
-      {/* Header */}
-      <div className="bg-gradient-to-b from-green-200 via-green-100 to-white pb-6 md:pb-8 pt-12 md:pt-16">
-        <div className="px-4 md:px-6 lg:px-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="mb-4 text-neutral-900"
-            aria-label="Back"
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
+      <header className="mb-10 text-left">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center justify-center mb-4 text-neutral-900"
+          aria-label="Back"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M15 18L9 12L15 6"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+        <h1 className="text-2xl sm:text-3xl font-black text-[#1f2937]">Help & Support</h1>
+        <p className="text-neutral-500 mt-2 text-sm sm:text-base">Get in touch with us for any assistance or queries.</p>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {supportInfo.map((info, index) => (
+          <motion.div
+            key={info.title}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className={`p-6 rounded-2xl border-2 ${info.color} shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between`}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M15 18L9 12L15 6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-          <div className="flex flex-col items-center mb-4 md:mb-6">
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white flex items-center justify-center mb-3 md:mb-4 border-2 border-white shadow-sm">
-              <svg
-                width="40"
-                height="40"
-                viewBox="0 0 24 24"
-                fill="none"
-                className="text-green-600 md:w-12 md:h-12"
-              >
-                <path
-                  d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+            <div>
+              <div className={`p-3 rounded-xl inline-flex mb-4 bg-white shadow-sm border ${info.color.split(' ')[0]}`}>
+                {info.icon}
+              </div>
+              <h3 className="text-lg font-bold text-[#1f2937] mb-1">{info.title}</h3>
+              <p className="text-neutral-500 text-sm break-all mb-6">{info.value}</p>
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-neutral-900 mb-2">
-              Help & Support
-            </h1>
-            <p className="text-sm md:text-base text-neutral-600 text-center px-4">
-              We're here to help you with any questions or concerns
-            </p>
-          </div>
-        </div>
+
+            <a
+              href={info.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-black uppercase tracking-wider text-center py-3 bg-white rounded-xl border border-inherit hover:bg-neutral-50 active:scale-95 transition-all shadow-sm"
+            >
+              {info.actionName}
+            </a>
+          </motion.div>
+        ))}
       </div>
 
-      {/* FAQ Content */}
-      <div className="px-4 md:px-6 lg:px-8 py-6">
-        <div className="max-w-3xl mx-auto">
-          {/* Contact Support Section - MOVED TO TOP */}
-          <div className="mb-8 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200 shadow-sm">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-4 text-green-600 shadow-sm">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  <path d="M13 8H7M17 12H7M17 16H7" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-neutral-900 mb-1">
-                Contact Customer Support
-              </h3>
-              <p className="text-sm text-neutral-600 mb-6">
-                Our team is available to assist you
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <a
-                  href="mailto:mandibazaar67@gmail.com"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all text-sm shadow-lg shadow-green-200 active:scale-95"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-                  Email Us
-                </a>
-                <a
-                  href="tel:8279281172"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-green-600 border-2 border-green-600 rounded-xl font-semibold hover:bg-green-50 transition-all text-sm active:scale-95"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                  </svg>
-                  Call: 8279281172
-                </a>
-              </div>
-            </div>
+      <div className="mt-12 p-8 rounded-3xl bg-neutral-900 overflow-hidden relative group">
+        <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity">
+          <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <defs>
+              <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100" height="100" fill="url(#grid)" />
+          </svg>
+        </div>
+
+        <div className="relative z-10 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-8">
+          <div className="max-w-md">
+            <h2 className="text-xl font-bold text-white mb-2">Frequently Asked Questions</h2>
+            <p className="text-neutral-400 text-sm">Find quick answers to common questions about your orders and account.</p>
           </div>
-
-          <div className="mb-4">
-            <h2 className="text-lg font-bold text-neutral-900 px-1">Common Questions</h2>
-          </div>
-
-          <div className="space-y-3">
-            {faqData.map((item) => {
-              const isOpen = openItems.has(item.id);
-              return (
-                <div
-                  key={item.id}
-                  className="bg-white rounded-lg border border-neutral-200 overflow-hidden transition-all"
-                >
-                  <button
-                    onClick={() => toggleItem(item.id)}
-                    className="w-full flex items-center justify-between px-4 py-4 hover:bg-neutral-50 transition-colors text-left"
-                  >
-                    <span className="text-sm md:text-base font-semibold text-neutral-900 pr-4">
-                      {item.question}
-                    </span>
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className={`flex-shrink-0 text-neutral-500 transition-transform ${isOpen ? 'rotate-180' : ''
-                        }`}
-                    >
-                      <path
-                        d="M6 9l6 6 6-6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                  {isOpen && (
-                    <div className="px-4 pb-4 pt-0">
-                      <p className="text-sm md:text-base text-neutral-600 leading-relaxed">
-                        {item.answer}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-
+          <button
+            onClick={() => navigate('/support')}
+            className="px-8 py-3 bg-white text-neutral-900 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-neutral-100 transition-colors shadow-lg active:scale-95"
+          >
+            Browse FAQs
+          </button>
         </div>
       </div>
     </div>
   );
 }
-

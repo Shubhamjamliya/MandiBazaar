@@ -1,13 +1,15 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Product from "../../../models/Product";
 import Shop from "../../../models/Shop";
 import Seller from "../../../models/Seller";
+import Category from "../../../models/Category";
 import { asyncHandler } from "../../../utils/asyncHandler";
 
 const validateOptionalProductFormats = (data: any): string | null => {
   const madeIn = (data?.madeIn || "").toString().trim();
   const hsnCode = (data?.hsnCode || "").toString().trim();
-  const fssaiLicNo = (data?.fssaiLicNo || "").toString().trim();
+  const fssaiLicNo = (data?.fssaiLicNo || "").toString().replace(/\D/g, "").trim();
 
   if (madeIn && !/^[A-Za-z\s]+$/.test(madeIn)) {
     return "Made In should contain only alphabets";
@@ -15,8 +17,8 @@ const validateOptionalProductFormats = (data: any): string | null => {
   if (hsnCode && !/^\d{4}(?:\s?\d{2}){0,2}$/.test(hsnCode)) {
     return "HSN code should be in format (ex- 6109 10 00)";
   }
-  if (fssaiLicNo && !/^\d{2}\/\d{3}\/\d{8}$/.test(fssaiLicNo)) {
-    return "FSSAI lic no. should be in format (ex- 21/001/00012345)";
+  if (fssaiLicNo && !/^\d{14}$/.test(fssaiLicNo)) {
+    return "FSSAI lic no. should be 14 digits (ex- 2100100012345)";
   }
 
   return null;
@@ -197,9 +199,26 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
     ];
   }
 
-  // Category filter
+  // Category filter - Handle both ObjectId and category name
   if (category) {
-    query.category = category;
+    if (mongoose.Types.ObjectId.isValid(category as string)) {
+      // It's a valid ObjectId
+      query.category = category;
+    } else {
+      // Treat it as a category name and look it up
+      try {
+        const foundCategory = await Category.findOne({ name: category });
+        if (foundCategory) {
+          query.category = foundCategory._id;
+        } else {
+          // Category not found, return empty result
+          query.category = null;
+        }
+      } catch (err) {
+        console.error("Error looking up category:", err);
+        // If lookup fails, skip category filter
+      }
+    }
   }
 
   // Status filter (publish, popular, dealOfDay)
@@ -488,7 +507,7 @@ export const deleteProduct = asyncHandler(
 );
 
 /**
- * Update stock for a product variation
+ * Update stock for a product variation or weight variant
  */
 export const updateStock = asyncHandler(async (req: Request, res: Response) => {
   const sellerId = (req as any).user.userId;
@@ -508,9 +527,24 @@ export const updateStock = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  const variation: any = product.variations?.find(
-    (v: any) => v._id?.toString() === variationId
-  );
+  // Check for weight variants first (if product uses weight mode)
+  let variation: any = null;
+  let isWeightVariant = false;
+
+  if (product.sellingUnit === "weight" && product.weightVariants) {
+    variation = product.weightVariants.find(
+      (v: any) => v._id?.toString() === variationId
+    );
+    isWeightVariant = true;
+  }
+
+  // Fallback to regular variations
+  if (!variation && product.variations) {
+    variation = product.variations.find(
+      (v: any) => v._id?.toString() === variationId
+    );
+  }
+
   if (!variation) {
     return res.status(404).json({
       success: false,
@@ -531,8 +565,8 @@ export const updateStock = asyncHandler(async (req: Request, res: Response) => {
     variation.status = status;
   }
 
-  // Mark variations as modified since we updated a sub-document field
-  product.markModified("variations");
+  // Mark appropriate field as modified
+  product.markModified(isWeightVariant ? "weightVariants" : "variations");
   await product.save();
 
   return res.status(200).json({
@@ -610,15 +644,31 @@ export const bulkUpdateStock = asyncHandler(
 
       const product = await Product.findOne(queryCond);
       if (product) {
-        const variation: any = product.variations?.find(
-          (v: any) => v._id?.toString() === variationId
-        );
+        // Check for weight variants first
+        let variation: any = null;
+        let isWeightVariant = false;
+
+        if (product.sellingUnit === "weight" && product.weightVariants) {
+          variation = product.weightVariants.find(
+            (v: any) => v._id?.toString() === variationId
+          );
+          isWeightVariant = true;
+        }
+
+        // Fallback to regular variations
+        if (!variation && product.variations) {
+          variation = product.variations.find(
+            (v: any) => v._id?.toString() === variationId
+          );
+        }
+
         if (variation) {
           variation.stock = stock;
           if (stock === 0) variation.status = "Sold out";
           else if (stock > 0 && variation.status === "Sold out")
-            variation.status = "In stock";
+            variation.status = "Available";
 
+          product.markModified(isWeightVariant ? "weightVariants" : "variations");
           await product.save();
           results.push({ productId, variationId, success: true });
         } else {

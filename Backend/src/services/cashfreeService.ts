@@ -25,7 +25,13 @@ export const createCashfreeOrder = async (
             environment = 'PRODUCTION';
         }
 
-        console.log(`Cashfree Service: Mode=${environment}, AppID=${appId ? appId.substring(0, 8) + '...' : 'MISSING'}`);
+        console.log(`[Cashfree Debug] Initializing order ${orderId}`);
+        console.log(`[Cashfree Debug] Environment: ${environment}`);
+        console.log(`[Cashfree Debug] AppID Source: ${process.env.CASHFREE_APP_ID ? 'ENV' : 'DB'}`);
+        console.log(`[Cashfree Debug] SecretKey Source: ${process.env.CASHFREE_SECRET_KEY ? 'ENV' : 'DB'}`);
+        console.log(`[Cashfree Debug] AppID (masked): ${appId ? appId.substring(0, 6) + '...' + appId.substring(appId.length - 4) : 'MISSING'}`);
+        console.log(`[Cashfree Debug] SecretKey (masked): ${secretKey ? secretKey.substring(0, 10) + '...' : 'MISSING'}`);
+        console.log(`[Cashfree Debug] SecretKey Prefix: ${secretKey ? secretKey.substring(0, 15) : 'N/A'}`);
 
         if (!appId || !secretKey) {
             throw new Error('Cashfree credentials not configured (Check .env or DB settings)');
@@ -35,12 +41,18 @@ export const createCashfreeOrder = async (
             ? 'https://api.cashfree.com/pg' 
             : 'https://sandbox.cashfree.com/pg';
 
+        console.log(`[Cashfree Debug] Base URL: ${baseUrl}`);
+
         // Cashfree Production STRICTLY requires HTTPS for the return URL.
         // Even for localhost, we MUST send an 'https://' prefix or the API will return 400.
         let finalRedirectUrl = redirectUrl;
         if (environment === 'PRODUCTION' && finalRedirectUrl.startsWith('http://')) {
+            console.log(`[Cashfree Debug] Converting HTTP to HTTPS for production return URL`);
             finalRedirectUrl = finalRedirectUrl.replace('http://', 'https://');
         }
+        
+        console.log(`[Cashfree Debug] Original Return URL: ${redirectUrl}`);
+        console.log(`[Cashfree Debug] Final Return URL: ${finalRedirectUrl}`);
 
         const payload = {
             order_id: orderId,
@@ -57,6 +69,18 @@ export const createCashfreeOrder = async (
             }
         };
 
+        console.log(`[Cashfree Debug] Request payload:`, JSON.stringify({
+            order_id: payload.order_id,
+            order_amount: payload.order_amount,
+            order_currency: payload.order_currency,
+            customer_id: payload.customer_details.customer_id,
+            return_url: payload.order_meta.return_url,
+            headers_used: {
+                'x-client-id': appId?.substring(0, 6) + '...',
+                'x-api-version': '2023-08-01'
+            }
+        }, null, 2));
+
         const response = await axios.post(`${baseUrl}/orders`, payload, {
             headers: {
                 'x-client-id': appId,
@@ -65,6 +89,8 @@ export const createCashfreeOrder = async (
                 'Content-Type': 'application/json'
             }
         });
+
+        console.log(`[Cashfree Debug] Order created successfully:`, response.data.order_id);
 
         return {
             success: true,
@@ -77,17 +103,26 @@ export const createCashfreeOrder = async (
 
     } catch (error: any) {
         const errorData = error.response?.data;
-        console.error('Cashfree API Error Details:', JSON.stringify(errorData, null, 2));
+        console.error('[Cashfree Error] Full error response:', JSON.stringify(errorData, null, 2));
+        console.error('[Cashfree Error] HTTP Status:', error.response?.status);
+        console.error('[Cashfree Error] Environment Used:', environment === 'PRODUCTION' ? 'PRODUCTION' : 'SANDBOX');
         
         let message = error.message;
         if (errorData) {
             message = errorData.message || message;
+            console.error('[Cashfree Error] Message:', message);
+            console.error('[Cashfree Error] Code:', errorData.code);
+            
             // If it's a 400 error about return_url or whitelisting, give a helpful hint
             if (errorData.code === 'invalid_request' || error.response?.status === 400) {
                 if (message.toLowerCase().includes('return_url')) {
-                    message = "Cashfree Production requires an HTTPS return URL. For localhost, please use SANDBOX mode.";
+                    message = "PRODUCTION Issue: Cashfree Production requires HTTPS return URL. Current URL was converted to HTTPS. If still failing, check domain is whitelisted in Production Account Settings.";
                 } else if (message.toLowerCase().includes('whitelist')) {
-                    message = "Domain not whitelisted in Cashfree Dashboard. Please whitelist http://localhost:5173";
+                    message = "PRODUCTION Issue: Your domain is not whitelisted in Cashfree Production Account. Go to Dashboard > Settings > Whitelisted URLs and add your domain.";
+                } else if (message.toLowerCase().includes('transaction')) {
+                    message = "PRODUCTION Issue: Transactions feature not enabled in your Production account. Enable it in Cashfree Dashboard > Settings > Features > Payments.";
+                } else if (message.toLowerCase().includes('invalid') || message.toLowerCase().includes('auth')) {
+                    message = "PRODUCTION Issue: Check if App ID and Secret Key are correct for PRODUCTION environment. Test Key and Production Key are different.";
                 }
             }
         }

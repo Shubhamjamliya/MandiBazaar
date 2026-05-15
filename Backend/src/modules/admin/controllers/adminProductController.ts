@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import { asyncHandler } from "../../../utils/asyncHandler";
 import Category from "../../../models/Category";
 import SubCategory from "../../../models/SubCategory";
@@ -745,9 +746,61 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
       { sku: { $regex: search as string, $options: "i" } },
     ];
   }
-  if (category) query.category = category;
-  if (subcategory) query.subcategory = subcategory;
-  if (brand) query.brand = brand;
+
+  // Handle category filter - support both ObjectId and category name
+  if (category) {
+    if (mongoose.Types.ObjectId.isValid(category as string)) {
+      query.category = category;
+    } else {
+      try {
+        const foundCategory = await Category.findOne({ name: category });
+        if (foundCategory) {
+          query.category = foundCategory._id;
+        } else {
+          query.category = null;
+        }
+      } catch (err) {
+        console.error("Error looking up category:", err);
+      }
+    }
+  }
+
+  // Handle subcategory filter - support both ObjectId and subcategory name
+  if (subcategory) {
+    if (mongoose.Types.ObjectId.isValid(subcategory as string)) {
+      query.subcategory = subcategory;
+    } else {
+      try {
+        const foundSubcategory = await SubCategory.findOne({ name: subcategory });
+        if (foundSubcategory) {
+          query.subcategory = foundSubcategory._id;
+        } else {
+          query.subcategory = null;
+        }
+      } catch (err) {
+        console.error("Error looking up subcategory:", err);
+      }
+    }
+  }
+
+  // Handle brand filter - support both ObjectId and brand name
+  if (brand) {
+    if (mongoose.Types.ObjectId.isValid(brand as string)) {
+      query.brand = brand;
+    } else {
+      try {
+        const foundBrand = await Brand.findOne({ name: brand });
+        if (foundBrand) {
+          query.brand = foundBrand._id;
+        } else {
+          query.brand = null;
+        }
+      } catch (err) {
+        console.error("Error looking up brand:", err);
+      }
+    }
+  }
+
   if (seller) query.seller = seller;
 
   // Only filter by status if explicitly provided
