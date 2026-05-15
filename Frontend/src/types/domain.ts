@@ -55,6 +55,14 @@ export interface Product {
   isReturnable?: boolean;
   maxReturnDays?: number;
   sellerId?: string;
+  seller?: {
+    workingHours?: {
+      open?: string;
+      close?: string;
+      offDays?: string[];
+    };
+    isShopOpen?: boolean;
+  };
   isAvailable?: boolean;
   hsnCode?: string;
   gstPercentage?: number;

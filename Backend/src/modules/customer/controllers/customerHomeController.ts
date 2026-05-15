@@ -114,6 +114,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
 
       const products = await Product.find(productQuery)
         .select("productName mainImage price mrp discount pack variations smallDescription seller rating reviewsCount")
+        .populate("seller", "workingHours isShopOpen")
         .sort({ createdAt: -1 })
         .limit(100)
         .lean();
@@ -156,7 +157,10 @@ export const getHomeContent = async (req: Request, res: Response) => {
         path: "product",
         select:
           "productName mainImage price mrp compareAtPrice discount status publish category subcategory seller weightVariants variations sellingUnit pack smallDescription rating reviewsCount",
-        populate: { path: "category", select: "name slug" },
+        populate: [
+          { path: "category", select: "name slug" },
+          { path: "seller", select: "workingHours isShopOpen" },
+        ],
         match: {
           status: "Active",
           publish: true,
@@ -351,6 +355,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
               .sort({ createdAt: -1 })
               .limit(100)
               .select("productName mainImage price mrp compareAtPrice discount rating reviewsCount pack variations weightVariants sellingUnit seller")
+              .populate("seller", "workingHours isShopOpen")
               .lean();
 
             const availableProducts = products.filter((p: any) => {
@@ -412,6 +417,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
           .sort({ createdAt: -1 })
           .limit(100)
           .select("productName mainImage price mrp compareAtPrice discount rating reviewsCount pack variations weightVariants sellingUnit seller")
+          .populate("seller", "workingHours isShopOpen")
           .lean();
 
         const availableDirectProducts = directProducts.filter((p: any) => {
@@ -649,7 +655,7 @@ export const getStoreProducts = async (req: Request, res: Response) => {
       .populate("category", "name icon image")
       .populate("subcategory", "name")
       .populate("brand", "name")
-      .populate("seller", "storeName")
+      .populate("seller", "storeName workingHours isShopOpen")
       .sort({ createdAt: -1 })
       .limit(50)
       .lean({ virtuals: true });

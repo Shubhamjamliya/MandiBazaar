@@ -14,6 +14,69 @@ import { useWishlist } from '../../../hooks/useWishlist';
 import VariantSelectorModal from './VariantSelectorModal';
 import { getVariantStyle } from '../../../utils/variantStyleUtils';
 
+const formatTime12 = (timeValue: string) => {
+  if (!/^\d{2}:\d{2}$/.test(timeValue)) return '';
+  const [hourText, minuteText] = timeValue.split(':');
+  const hour24 = Number(hourText);
+  const minute = Number(minuteText);
+  const period = hour24 >= 12 ? 'PM' : 'AM';
+  const hour12 = hour24 % 12 || 12;
+  return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
+};
+
+const parseTimeToMinutes = (timeValue: string) => {
+  if (!/^\d{2}:\d{2}$/.test(timeValue)) return null;
+  const [hourText, minuteText] = timeValue.split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+};
+
+const getIndiaTimeSnapshot = () => {
+  const now = new Date();
+  const timeFormatter = new Intl.DateTimeFormat('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Kolkata',
+  });
+  const timeParts = timeFormatter.formatToParts(now);
+  const hour = Number(timeParts.find((part) => part.type === 'hour')?.value || 0);
+  const minute = Number(timeParts.find((part) => part.type === 'minute')?.value || 0);
+  const day = new Intl.DateTimeFormat('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' }).format(now);
+  return { minutes: hour * 60 + minute, day };
+};
+
+const getShopStatus = (seller: any) => {
+  const workingHours = seller?.workingHours;
+  if (!workingHours?.open || !workingHours?.close) return null;
+
+  if (seller?.isShopOpen === false) {
+    return { isOpen: false, label: 'Closed by seller' };
+  }
+
+  const offDays = Array.isArray(workingHours.offDays) ? workingHours.offDays : [];
+  const { minutes, day } = getIndiaTimeSnapshot();
+  if (offDays.includes(day)) {
+    return { isOpen: false, label: 'Closed today' };
+  }
+
+  const openMinutes = parseTimeToMinutes(workingHours.open);
+  const closeMinutes = parseTimeToMinutes(workingHours.close);
+  if (openMinutes === null || closeMinutes === null) return null;
+
+  let isOpen = false;
+  if (openMinutes < closeMinutes) {
+    isOpen = minutes >= openMinutes && minutes < closeMinutes;
+  } else if (openMinutes > closeMinutes) {
+    isOpen = minutes >= openMinutes || minutes < closeMinutes;
+  }
+
+  return { isOpen, label: isOpen ? 'Open now' : 'Closed now' };
+};
+
 interface ProductCardProps {
   product: Product;
   showBadge?: boolean;
@@ -103,6 +166,15 @@ function ProductCard({
 
   const inCartQty = cartItem?.quantity || 0;
 
+  const sellerInfo = (product as any).seller;
+  const workingHours = sellerInfo?.workingHours;
+  const workingHoursText = workingHours?.open && workingHours?.close
+    ? `${formatTime12(workingHours.open)} - ${formatTime12(workingHours.close)}`
+    : '';
+  const shopStatus = getShopStatus(sellerInfo);
+  const isShopClosed = shopStatus?.isOpen === false;
+  const isActionDisabled = product.isAvailable === false || isShopClosed;
+
   if (isWeightMode && actingWeightVariant) {
     const vPrice = Number(actingWeightVariant.price) || 0;
     const vMrp = Number(actingWeightVariant.mrp) || Number(product.mrp) || Number(product.compareAtPrice) || vPrice;
@@ -176,7 +248,7 @@ function ProductCard({
     e.stopPropagation();
     e.preventDefault();
 
-    if (product.isAvailable === false) return;
+    if (isActionDisabled) return;
     if (isOperationPendingRef.current) return;
 
     const variationsCount = (product.variations?.length || 0);
@@ -239,7 +311,7 @@ function ProductCard({
   const handleIncrease = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    if (product.isAvailable === false) return;
+    if (isActionDisabled) return;
     if (isOperationPendingRef.current) return;
     isOperationPendingRef.current = true;
     try {
@@ -368,17 +440,17 @@ function ProductCard({
               ref={addButtonRef}
               variant="outline"
               size="sm"
-              disabled={product.isAvailable === false}
+              disabled={isActionDisabled}
               onClick={(e) => {
                 e.stopPropagation();
                 handleAdd(e);
               }}
-              className={`w-full border rounded-full font-bold text-[10px] h-7 px-3 flex items-center justify-center uppercase tracking-wide transition-all ${product.isAvailable === false
+              className={`w-full border rounded-full font-bold text-[10px] h-7 px-3 flex items-center justify-center uppercase tracking-wide transition-all ${isActionDisabled
                 ? 'border-neutral-200 text-neutral-400 bg-neutral-50 cursor-not-allowed'
                 : 'border-green-600 text-green-600 bg-white hover:bg-green-50 shadow-sm'
                 }`}
             >
-              {product.isAvailable === false ? 'Out of Range' : 'ADD'}
+              {product.isAvailable === false ? 'Out of Range' : isShopClosed ? 'Closed' : 'ADD'}
             </Button>
           ) : (
             <div className="flex items-center justify-center gap-2 bg-white border border-green-600 rounded-full px-1.5 py-0.5 h-7 w-full shadow-sm">
@@ -399,12 +471,12 @@ function ProductCard({
               <Button
                 variant="default"
                 size="icon"
-                disabled={product.isAvailable === false}
+                disabled={isActionDisabled}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleIncrease(e);
                 }}
-                className={`w-5 h-5 p-0 bg-transparent text-green-600 shadow-none font-bold ${product.isAvailable === false ? 'text-neutral-300' : 'hover:bg-green-50'
+                className={`w-5 h-5 p-0 bg-transparent text-green-600 shadow-none font-bold ${isActionDisabled ? 'text-neutral-300' : 'hover:bg-green-50'
                   }`}
               >
                 +
@@ -412,6 +484,14 @@ function ProductCard({
             </div>
           )}
         </div>
+
+        {isShopClosed && workingHoursText && (
+          <div className="px-2.5 pb-2">
+            <div className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+              Opens {workingHoursText}. Try when shop is online.
+            </div>
+          </div>
+        )}
 
         {/* Product Info (Style 1 Sequence) */}
         <div className="px-2.5 pt-1.5 md:pt-2 pb-2 md:pb-3 flex-1 flex flex-col">

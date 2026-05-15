@@ -14,6 +14,25 @@ import {
 import { generateToken } from "../../../services/jwtService";
 import { asyncHandler } from "../../../utils/asyncHandler";
 
+const WORKING_HOUR_DAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
+const isValidTimeString = (value: unknown) => {
+  if (typeof value !== "string") return false;
+  if (!/^\d{2}:\d{2}$/.test(value)) return false;
+  const [hourText, minuteText] = value.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  return Number.isInteger(hour) && Number.isInteger(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+};
+
 /**
  * Send OTP to seller mobile number
  */
@@ -341,7 +360,7 @@ export const updateProfile = asyncHandler(
     // Filter out restricted fields and separate normal updates from location updates
     const normalUpdates: any = {};
     Object.keys(updates).forEach(key => {
-      if (!restrictedFields.includes(key) && key !== 'location' && key !== 'address' && key !== 'city' && key !== 'state' && key !== 'pincode' && key !== 'latitude' && key !== 'longitude' && key !== 'searchLocation') {
+      if (!restrictedFields.includes(key) && key !== 'location' && key !== 'address' && key !== 'city' && key !== 'state' && key !== 'pincode' && key !== 'latitude' && key !== 'longitude' && key !== 'searchLocation' && key !== 'workingHours') {
         normalUpdates[key] = updates[key];
       }
     });
@@ -396,6 +415,32 @@ export const updateProfile = asyncHandler(
           message: "Service radius must be between 0.1 and 100 kilometers",
         });
       }
+    }
+
+    if (updates.workingHours) {
+      const { open, close, offDays } = updates.workingHours;
+      const normalizedOffDays = Array.isArray(offDays) ? offDays : [];
+      const invalidDay = normalizedOffDays.find((day: string) => !WORKING_HOUR_DAYS.includes(day));
+
+      if (!isValidTimeString(open) || !isValidTimeString(close)) {
+        return res.status(400).json({
+          success: false,
+          message: "Opening and closing time must be in HH:mm format",
+        });
+      }
+
+      if (invalidDay) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid off day: ${invalidDay}`,
+        });
+      }
+
+      finalUpdate.$set.workingHours = {
+        open,
+        close,
+        offDays: normalizedOffDays,
+      };
     }
 
     // Remove empty operators to avoid Mongoose errors

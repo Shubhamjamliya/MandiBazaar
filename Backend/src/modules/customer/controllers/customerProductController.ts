@@ -172,7 +172,7 @@ export const getProducts = async (req: Request, res: Response) => {
       .populate("category", "name icon image")
       .populate("subcategory", "name")
       .populate("brand", "name")
-      .populate("seller", "storeName")
+      .populate("seller", "storeName workingHours isShopOpen")
       .sort(sortOptions)
       .skip(skip)
       .limit(Number(limit));
@@ -239,7 +239,7 @@ export const getProductById = async (req: Request, res: Response) => {
       .populate("brand", "name")
       .populate(
         "seller",
-        "storeName city fssaiLicNo address location serviceRadiusKm"
+        "storeName city fssaiLicNo address location serviceRadiusKm workingHours isShopOpen"
       );
 
     if (!product) {

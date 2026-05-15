@@ -24,6 +24,69 @@ const truncateText = (text: string, maxLength: number = 60): string => {
   return text.substring(0, maxLength).trim() + '...';
 };
 
+const formatTime12 = (timeValue: string) => {
+  if (!/^\d{2}:\d{2}$/.test(timeValue)) return '';
+  const [hourText, minuteText] = timeValue.split(':');
+  const hour24 = Number(hourText);
+  const minute = Number(minuteText);
+  const period = hour24 >= 12 ? 'PM' : 'AM';
+  const hour12 = hour24 % 12 || 12;
+  return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
+};
+
+const parseTimeToMinutes = (timeValue: string) => {
+  if (!/^\d{2}:\d{2}$/.test(timeValue)) return null;
+  const [hourText, minuteText] = timeValue.split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+};
+
+const getIndiaTimeSnapshot = () => {
+  const now = new Date();
+  const timeFormatter = new Intl.DateTimeFormat('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Kolkata',
+  });
+  const timeParts = timeFormatter.formatToParts(now);
+  const hour = Number(timeParts.find((part) => part.type === 'hour')?.value || 0);
+  const minute = Number(timeParts.find((part) => part.type === 'minute')?.value || 0);
+  const day = new Intl.DateTimeFormat('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' }).format(now);
+  return { minutes: hour * 60 + minute, day };
+};
+
+const getShopStatus = (seller: any) => {
+  const workingHours = seller?.workingHours;
+  if (!workingHours?.open || !workingHours?.close) return null;
+
+  if (seller?.isShopOpen === false) {
+    return { isOpen: false, label: 'Closed by seller' };
+  }
+
+  const offDays = Array.isArray(workingHours.offDays) ? workingHours.offDays : [];
+  const { minutes, day } = getIndiaTimeSnapshot();
+  if (offDays.includes(day)) {
+    return { isOpen: false, label: 'Closed today' };
+  }
+
+  const openMinutes = parseTimeToMinutes(workingHours.open);
+  const closeMinutes = parseTimeToMinutes(workingHours.close);
+  if (openMinutes === null || closeMinutes === null) return null;
+
+  let isOpen = false;
+  if (openMinutes < closeMinutes) {
+    isOpen = minutes >= openMinutes && minutes < closeMinutes;
+  } else if (openMinutes > closeMinutes) {
+    isOpen = minutes >= openMinutes || minutes < closeMinutes;
+  }
+
+  return { isOpen, label: isOpen ? 'Open now' : 'Closed now' };
+};
+
 // Product Card Component - Defined outside to prevent recreation on every render
 const ProductCard = memo(({
   product,
@@ -99,11 +162,20 @@ const ProductCard = memo(({
   const variantLabel = actingVariantTitle || '1 piece';
   const variantStyle = getVariantStyle(variantLabel);
 
+  const sellerInfo = (product as any).seller;
+  const workingHours = sellerInfo?.workingHours;
+  const workingHoursText = workingHours?.open && workingHours?.close
+    ? `${formatTime12(workingHours.open)} - ${formatTime12(workingHours.close)}`
+    : '';
+  const shopStatus = getShopStatus(sellerInfo);
+  const isShopClosed = shopStatus?.isOpen === false;
+  const isActionDisabled = product.isAvailable === false || isShopClosed;
+
   const handleAddClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (product.isAvailable === false) return;
+    if (isActionDisabled) return;
 
     if (optionsCount > 1) {
       onShowVariants(product);
@@ -246,14 +318,14 @@ const ProductCard = memo(({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.2 }}
-                  disabled={product.isAvailable === false}
+                  disabled={isActionDisabled}
                   onClick={handleAddClick}
-                  className={`w-full h-8 text-[11px] font-bold rounded-full uppercase tracking-wider transition-all shadow-sm ${product.isAvailable === false
+                  className={`w-full h-8 text-[11px] font-bold rounded-full uppercase tracking-wider transition-all shadow-sm ${isActionDisabled
                     ? 'bg-neutral-50 text-neutral-400 border border-neutral-200 cursor-not-allowed'
                     : 'bg-white text-green-600 border border-green-600 hover:bg-green-50'
                     }`}
                 >
-                  {product.isAvailable === false ? 'Out of Range' : 'ADD'}
+                  {product.isAvailable === false ? 'Out of Range' : isShopClosed ? 'Closed' : 'ADD'}
                 </motion.button>
               ) : (
                 <motion.div
@@ -286,14 +358,14 @@ const ProductCard = memo(({
                     {inCartQty}
                   </motion.span>
                   <motion.button
-                    whileTap={product.isAvailable === false ? {} : { scale: 0.9 }}
-                    disabled={product.isAvailable === false}
+                    whileTap={isActionDisabled ? {} : { scale: 0.9 }}
+                    disabled={isActionDisabled}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       onUpdateQuantity(product.id, inCartQty + 1, actingVariantId, actingVariantTitle);
                     }}
-                    className={`w-6 h-6 flex items-center justify-center font-bold rounded-full transition-colors leading-none ${product.isAvailable === false
+                    className={`w-6 h-6 flex items-center justify-center font-bold rounded-full transition-colors leading-none ${isActionDisabled
                       ? 'text-neutral-300 cursor-not-allowed'
                       : 'text-white hover:bg-green-700'
                       }`}
@@ -304,6 +376,12 @@ const ProductCard = memo(({
               )}
             </AnimatePresence>
           </div>
+
+          {isShopClosed && workingHoursText && (
+            <div className="mt-2 text-[9px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+              Opens {workingHoursText}. Try when shop is online.
+            </div>
+          )}
         </div>
       </div>
     </div>

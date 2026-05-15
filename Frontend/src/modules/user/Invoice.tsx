@@ -159,7 +159,7 @@ export default function Invoice() {
     name: "MANDI BAZAAR",
     registeredName: "MANDI BAZAAR",
     gstin: "08DGVPP0057C1Z7",
-    fssai: "10020064002537",
+    fssai: "22225088001352",
     pan: "DGVPP0057C",
     address: "Krishna Vila, 75 D, E Block, Pratap Nagar, Udaipur, Rajasthan 313001",
     phone: "91 8959522509",

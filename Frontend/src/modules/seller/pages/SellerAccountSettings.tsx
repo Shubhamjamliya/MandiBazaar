@@ -18,6 +18,37 @@ const SellerAccountSettings = () => {
     const [saveLoading, setSaveLoading] = useState(false);
 
     // Initial state with empty values
+const TIME_HOURS = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'));
+const TIME_MINUTES = ['00', '15', '30', '45'];
+const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+const getTimeParts = (timeValue: string, fallback: string) => {
+    const safeValue = timeValue && /^\d{2}:\d{2}$/.test(timeValue) ? timeValue : fallback;
+    const [hourText, minuteText] = safeValue.split(':');
+    const hour24 = Number(hourText);
+    const minute = Number(minuteText);
+    const period = hour24 >= 12 ? 'PM' : 'AM';
+    const hour12 = hour24 % 12 || 12;
+    return {
+        hour: String(hour12).padStart(2, '0'),
+        minute: String(minute).padStart(2, '0'),
+        period,
+    };
+};
+
+const buildTimeValue = (hour: string, minute: string, period: string) => {
+    const hourNumber = Number(hour) % 12;
+    const hour24 = period === 'PM' ? hourNumber + 12 : hourNumber;
+    return `${String(hour24).padStart(2, '0')}:${minute}`;
+};
+
+const isValidTimeValue = (value: string) => {
+    if (!/^\d{2}:\d{2}$/.test(value)) return false;
+    const [hourText, minuteText] = value.split(':');
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    return Number.isInteger(hour) && Number.isInteger(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+};
     const [sellerData, setSellerData] = useState({
         sellerName: '',
         email: '',
@@ -43,6 +74,9 @@ const SellerAccountSettings = () => {
         storeBanner: '',
         storeDescription: '',
         fssaiLicNo: '',
+        workingHoursOpen: '09:00',
+        workingHoursClose: '21:00',
+        workingHoursOffDays: [] as string[],
         commission: 0,
         status: ''
     });
@@ -78,6 +112,9 @@ const SellerAccountSettings = () => {
                     address: loc.address || '',
                     city: loc.city || '',
                     serviceRadiusKm: (data.serviceRadiusKm || 10).toString(),
+                    workingHoursOpen: data.workingHours?.open || '09:00',
+                    workingHoursClose: data.workingHours?.close || '21:00',
+                    workingHoursOffDays: data.workingHours?.offDays || [],
                 });
             } else {
                 setError(response.message || 'Failed to fetch profile');
@@ -199,6 +236,12 @@ const SellerAccountSettings = () => {
                 return;
             }
 
+            if (!isValidTimeValue(sellerData.workingHoursOpen) || !isValidTimeValue(sellerData.workingHoursClose)) {
+                setError('Please select valid opening and closing times');
+                setSaveLoading(false);
+                return;
+            }
+
             const updateData: any = {
                 sellerName: sellerData.sellerName,
                 storeName: sellerData.storeName,
@@ -219,6 +262,11 @@ const SellerAccountSettings = () => {
                 ifsc: sellerData.ifsc,
                 storeDescription: sellerData.storeDescription,
                 fssaiLicNo: sellerData.fssaiLicNo,
+                workingHours: {
+                    open: sellerData.workingHoursOpen,
+                    close: sellerData.workingHoursClose,
+                    offDays: sellerData.workingHoursOffDays,
+                },
             };
 
             const response = await updateSellerProfile(updateData);
@@ -235,6 +283,9 @@ const SellerAccountSettings = () => {
                     address: data.address || loc.address || '',
                     city: loc.city || data.city || '',
                     serviceRadiusKm: (data.serviceRadiusKm || 10).toString(),
+                    workingHoursOpen: data.workingHours?.open || '09:00',
+                    workingHoursClose: data.workingHours?.close || '21:00',
+                    workingHoursOffDays: data.workingHours?.offDays || [],
                 });
                 if (updateUser) {
                     updateUser({
@@ -261,6 +312,21 @@ const SellerAccountSettings = () => {
             </div>
         );
     }
+
+    const openTimeParts = getTimeParts(sellerData.workingHoursOpen, '09:00');
+    const closeTimeParts = getTimeParts(sellerData.workingHoursClose, '21:00');
+
+    const toggleOffDay = (day: string) => {
+        setSellerData(prev => {
+            const hasDay = prev.workingHoursOffDays.includes(day);
+            return {
+                ...prev,
+                workingHoursOffDays: hasDay
+                    ? prev.workingHoursOffDays.filter((d) => d !== day)
+                    : [...prev.workingHoursOffDays, day],
+            };
+        });
+    };
 
     const tabs = [
         {
@@ -643,6 +709,126 @@ const SellerAccountSettings = () => {
                                                                 Products will be shown to users within this radius from your store location
                                                             </p>
                                                         )}
+                                                    </div>
+
+                                                    <div className="md:col-span-2 space-y-4">
+                                                        <label className="text-sm font-semibold text-gray-700 ml-1">
+                                                            Shop Hours <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-xs font-bold text-gray-500 uppercase ml-1">Opens At</label>
+                                                                <div className="grid grid-cols-3 gap-2">
+                                                                    <select
+                                                                        value={openTimeParts.hour}
+                                                                        onChange={(e) => {
+                                                                            const nextValue = buildTimeValue(e.target.value, openTimeParts.minute, openTimeParts.period);
+                                                                            setSellerData(prev => ({ ...prev, workingHoursOpen: nextValue }));
+                                                                        }}
+                                                                        disabled={!isEditing}
+                                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none disabled:bg-gray-50/50 disabled:text-gray-500 transition-all bg-white"
+                                                                    >
+                                                                        {TIME_HOURS.map(hour => (
+                                                                            <option key={hour} value={hour}>{hour}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <select
+                                                                        value={openTimeParts.minute}
+                                                                        onChange={(e) => {
+                                                                            const nextValue = buildTimeValue(openTimeParts.hour, e.target.value, openTimeParts.period);
+                                                                            setSellerData(prev => ({ ...prev, workingHoursOpen: nextValue }));
+                                                                        }}
+                                                                        disabled={!isEditing}
+                                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none disabled:bg-gray-50/50 disabled:text-gray-500 transition-all bg-white"
+                                                                    >
+                                                                        {TIME_MINUTES.map(minute => (
+                                                                            <option key={minute} value={minute}>{minute}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <select
+                                                                        value={openTimeParts.period}
+                                                                        onChange={(e) => {
+                                                                            const nextValue = buildTimeValue(openTimeParts.hour, openTimeParts.minute, e.target.value);
+                                                                            setSellerData(prev => ({ ...prev, workingHoursOpen: nextValue }));
+                                                                        }}
+                                                                        disabled={!isEditing}
+                                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none disabled:bg-gray-50/50 disabled:text-gray-500 transition-all bg-white"
+                                                                    >
+                                                                        <option value="AM">AM</option>
+                                                                        <option value="PM">PM</option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-xs font-bold text-gray-500 uppercase ml-1">Closes At</label>
+                                                                <div className="grid grid-cols-3 gap-2">
+                                                                    <select
+                                                                        value={closeTimeParts.hour}
+                                                                        onChange={(e) => {
+                                                                            const nextValue = buildTimeValue(e.target.value, closeTimeParts.minute, closeTimeParts.period);
+                                                                            setSellerData(prev => ({ ...prev, workingHoursClose: nextValue }));
+                                                                        }}
+                                                                        disabled={!isEditing}
+                                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none disabled:bg-gray-50/50 disabled:text-gray-500 transition-all bg-white"
+                                                                    >
+                                                                        {TIME_HOURS.map(hour => (
+                                                                            <option key={hour} value={hour}>{hour}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <select
+                                                                        value={closeTimeParts.minute}
+                                                                        onChange={(e) => {
+                                                                            const nextValue = buildTimeValue(closeTimeParts.hour, e.target.value, closeTimeParts.period);
+                                                                            setSellerData(prev => ({ ...prev, workingHoursClose: nextValue }));
+                                                                        }}
+                                                                        disabled={!isEditing}
+                                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none disabled:bg-gray-50/50 disabled:text-gray-500 transition-all bg-white"
+                                                                    >
+                                                                        {TIME_MINUTES.map(minute => (
+                                                                            <option key={minute} value={minute}>{minute}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <select
+                                                                        value={closeTimeParts.period}
+                                                                        onChange={(e) => {
+                                                                            const nextValue = buildTimeValue(closeTimeParts.hour, closeTimeParts.minute, e.target.value);
+                                                                            setSellerData(prev => ({ ...prev, workingHoursClose: nextValue }));
+                                                                        }}
+                                                                        disabled={!isEditing}
+                                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none disabled:bg-gray-50/50 disabled:text-gray-500 transition-all bg-white"
+                                                                    >
+                                                                        <option value="AM">AM</option>
+                                                                        <option value="PM">PM</option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs font-bold text-gray-500 uppercase ml-1">Off Days</label>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {WEEK_DAYS.map((day) => {
+                                                                    const isSelected = sellerData.workingHoursOffDays.includes(day);
+                                                                    return (
+                                                                        <button
+                                                                            key={day}
+                                                                            type="button"
+                                                                            onClick={() => toggleOffDay(day)}
+                                                                            disabled={!isEditing}
+                                                                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${isSelected
+                                                                                ? 'bg-teal-600 border-teal-600 text-white'
+                                                                                : 'bg-white border-gray-300 text-gray-600 hover:border-teal-300'} ${!isEditing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                                                        >
+                                                                            {day.slice(0, 3)}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                            {isEditing && (
+                                                                <p className="text-xs text-gray-500">Shops marked off will show as closed for the full day.</p>
+                                                            )}
+                                                        </div>
                                                     </div>
 
                                                 </div>
