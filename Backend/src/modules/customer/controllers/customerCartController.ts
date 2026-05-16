@@ -386,6 +386,16 @@ export const updateCartItem = async (req: Request, res: Response) => {
 
         // Verify item is still available at location
         const product = cartItem.product as any;
+        
+        // Check if seller's shop is open
+        const seller = await Seller.findById(product.seller);
+        if (seller && seller.isShopOpen === false) {
+            return res.status(400).json({
+                success: false,
+                message: 'Seller is not available at this moment'
+            });
+        }
+
         const isAvailable = product && (!hasValidLocation || nearbySellerIds.some(id => id.toString() === product.seller.toString()));
 
         if (!isAvailable) {

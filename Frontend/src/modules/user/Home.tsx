@@ -414,19 +414,6 @@ export default function Home() {
       {/* Spacer for fixed header */}
       <div className="h-[168px]"></div>
 
-      {/* Wallet Shortcut */}
-      <div className="px-4 pb-2">
-        <button
-          onClick={() => navigate('/wallet')}
-          className="w-full bg-white border border-emerald-100 rounded-xl p-3 shadow-sm flex items-center justify-between hover:bg-emerald-50 transition-colors"
-        >
-          <div className="text-left">
-            <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-wide">Wallet</p>
-            <p className="text-sm font-semibold text-neutral-900">₹{Number(user?.walletAmount || 0).toFixed(2)}</p>
-          </div>
-          <span className="text-xs font-semibold text-emerald-700">View</span>
-        </button>
-      </div>
 
       {/* Marquee Announcement Strip - Moved above banner */}
       {homeData.marqueeText && !activeInlineCategory && (

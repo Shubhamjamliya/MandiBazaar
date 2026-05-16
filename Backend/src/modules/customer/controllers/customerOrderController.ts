@@ -394,6 +394,14 @@ export const createOrder = async (req: Request, res: Response) => {
                     });
                 }
 
+                if (seller.isShopOpen === false) {
+                    if (session) await session.abortTransaction();
+                    return res.status(400).json({
+                        success: false,
+                        message: `Seller ${seller.storeName} is currently offline. Order cannot be placed.`,
+                    });
+                }
+
                 const sellerLng = seller.location.coordinates[0];
                 const sellerLat = seller.location.coordinates[1];
                 const distance = calculateDistance(deliveryLat, deliveryLng, sellerLat, sellerLng);

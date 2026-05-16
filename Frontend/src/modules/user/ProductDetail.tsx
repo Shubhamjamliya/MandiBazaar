@@ -271,6 +271,7 @@ export default function ProductDetail() {
     ? `${formatTime12(workingHours.open)} - ${formatTime12(workingHours.close)}`
     : '';
   const shopStatus = getShopStatus(sellerInfo);
+  const isShopClosed = shopStatus?.isOpen === false;
 
   if (loading && !product) {
     return null; // Let the global IconLoader handle this
@@ -318,6 +319,10 @@ export default function ProductDetail() {
   const handleAddToCart = () => {
     if (!isAvailableAtLocation) {
       alert("This product is not available for delivery at your location.");
+      return;
+    }
+    if (isShopClosed) {
+      alert("Seller is currently offline. Order cannot be placed.");
       return;
     }
     if (isWeightMode) {
@@ -421,6 +426,24 @@ export default function ProductDetail() {
                   This product cannot be delivered to your current location. You
                   can browse but cannot add to cart.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Shop Closed Banner */}
+        {isShopClosed && (
+          <div className="bg-amber-50 border-l-4 border-amber-500 px-4 py-3 mx-4 mt-4 rounded-r-lg">
+            <div className="flex items-start gap-2">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">
+                  {shopStatus?.label || "Closed by seller"}
+                </p>
+                {workingHoursText && (
+                  <p className="text-xs text-amber-800 mt-1">
+                    Opens {workingHoursText}. Try when shop is online.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -1305,20 +1328,24 @@ export default function ProductDetail() {
                     variant="default"
                     size="default"
                     onClick={handleAddToCart}
-                    disabled={!isAvailableAtLocation || (!isVariantAvailable && variantStock !== 0)}
-                    className={`px-6 py-2 text-sm font-semibold h-[36px] ${!isAvailableAtLocation || (!isVariantAvailable && variantStock !== 0)
+                    disabled={!isAvailableAtLocation || isShopClosed || (!isVariantAvailable && variantStock !== 0)}
+                    className={`px-6 py-2 text-sm font-semibold h-[36px] ${!isAvailableAtLocation || isShopClosed || (!isVariantAvailable && variantStock !== 0)
                       ? "opacity-50 cursor-not-allowed"
                       : ""
                       }`}
                     title={
                       !isAvailableAtLocation
                         ? "Not available at your location"
+                        : isShopClosed
+                          ? "Shop is closed"
                         : !isVariantAvailable && variantStock !== 0
                           ? "This variant is out of stock"
                           : ""
                     }>
                     {!isAvailableAtLocation
                       ? "Unavailable"
+                      : isShopClosed
+                        ? "Closed"
                       : !isVariantAvailable && variantStock !== 0
                         ? "Out of Stock"
                         : "Add to cart"}
@@ -1352,13 +1379,17 @@ export default function ProductDetail() {
                     {inCartQty}
                   </motion.span>
                   <motion.button
-                    whileTap={{ scale: 0.9 }}
+                    whileTap={!isShopClosed ? { scale: 0.9 } : undefined}
                     onClick={() => {
+                      if (isShopClosed) {
+                        alert("Seller is currently offline.");
+                        return;
+                      }
                       const productId = product.id || product._id;
                       const variantId = selectedVariant?._id;
                       updateQuantity(productId, inCartQty + 1, variantId, variantTitle);
                     }}
-                    className="w-6 h-6 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors border border-green-600 p-0 leading-none text-base"
+                    className={`w-6 h-6 flex items-center justify-center text-green-600 font-bold rounded-full transition-colors border border-green-600 p-0 leading-none text-base ${isShopClosed ? "opacity-50 cursor-not-allowed" : "hover:bg-green-50"}`}
                     style={{ lineHeight: 1 }}>
                     <span className="relative top-[-1px]">+</span>
                   </motion.button>
