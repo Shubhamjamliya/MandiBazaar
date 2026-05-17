@@ -31,7 +31,7 @@ console.log('🔍 hostname:', window.location.hostname);
 export const getSocketBaseURL = (): string => {
   // Use VITE_API_URL if explicitly set (for socket connections)
   if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+    return import.meta.env.VITE_API_URL.replace(/\/api\/v\d+$|\/api$/, '');
   }
 
   // Check if we're in production

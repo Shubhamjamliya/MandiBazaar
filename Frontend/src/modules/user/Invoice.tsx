@@ -174,7 +174,18 @@ export default function Invoice() {
     const unitPrice = item.unitPrice || item.product?.price || item.price || 0;
     const quantity = item.quantity || item.qty || 0;
     const amount = unitPrice * quantity;
-    const gstRate = item.gstPercentage || item.taxPercent || 5; // Default 5% for groceries
+    let gstRate = 0;
+    if (typeof item.gstPercentage === 'number') {
+      gstRate = item.gstPercentage;
+    } else if (typeof item.taxPercent === 'number') {
+      gstRate = item.taxPercent;
+    } else if (item.gstPercentage !== undefined && item.gstPercentage !== null) {
+      gstRate = Number(item.gstPercentage) || 0;
+    } else if (item.taxPercent !== undefined && item.taxPercent !== null) {
+      gstRate = Number(item.taxPercent) || 0;
+    } else if (item.product?.gstPercentage !== undefined && item.product?.gstPercentage !== null) {
+      gstRate = Number(item.product.gstPercentage) || 0;
+    }
     const taxableValue = amount / (1 + gstRate / 100);
     const gstAmount = amount - taxableValue;
     const weight = item.variation

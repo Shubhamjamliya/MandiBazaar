@@ -174,26 +174,52 @@ export function setupForegroundNotificationHandler(handler?: (payload: any) => v
         if ('Notification' in window && Notification.permission === 'granted') {
             const title = payload.notification?.title || payload.data?.title || 'New Notification';
             const body = payload.notification?.body || payload.data?.body || '';
-            const notification = new Notification(title, {
+            const options = {
                 body: body,
                 icon: payload.notification?.icon || payload.data?.icon || '/favicon.png',
                 badge: '/favicon.png',
                 tag: payload.data?.orderId || payload.data?.type || 'notification',
-                requireInteraction: false,
+                requireInteraction: true,
                 silent: false,
                 data: payload.data
-            });
-
-            // Handle notification click
-            notification.onclick = (event) => {
-                event.preventDefault();
-                const link = payload.data?.link || '/';
-                window.focus();
-                window.location.href = link;
-                notification.close();
             };
 
-            console.log('✅ Foreground notification displayed');
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then((registration) => {
+                    registration.showNotification(title, options)
+                        .then(() => console.log('✅ Foreground notification displayed via Service Worker'))
+                        .catch((err) => {
+                            console.warn('⚠️ Failed to show notification via SW, falling back to new Notification:', err);
+                            const notification = new Notification(title, options);
+                            notification.onclick = (event) => {
+                                event.preventDefault();
+                                const link = payload.data?.link || '/';
+                                window.focus();
+                                window.location.href = link;
+                                notification.close();
+                            };
+                        });
+                }).catch(() => {
+                    const notification = new Notification(title, options);
+                    notification.onclick = (event) => {
+                        event.preventDefault();
+                        const link = payload.data?.link || '/';
+                        window.focus();
+                        window.location.href = link;
+                        notification.close();
+                    };
+                });
+            } else {
+                const notification = new Notification(title, options);
+                notification.onclick = (event) => {
+                    event.preventDefault();
+                    const link = payload.data?.link || '/';
+                    window.focus();
+                    window.location.href = link;
+                    notification.close();
+                };
+                console.log('✅ Foreground notification displayed via standard Notification');
+            }
         }
 
         // Call custom handler

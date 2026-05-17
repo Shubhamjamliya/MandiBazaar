@@ -48,10 +48,11 @@ export const sendNotification = async (
     await sendNotificationToUser(recipientId, recipientType, {
       title,
       body: message,
-      data: options?.data || {
+      data: {
         type: options?.type || "Info",
         link: options?.link || "",
-        notificationId: notification._id.toString()
+        notificationId: notification._id.toString(),
+        ...(options?.data || {})
       },
     });
     

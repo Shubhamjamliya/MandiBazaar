@@ -1,6 +1,6 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { Server as HttpServer } from 'http';
-import jwt from 'jsonwebtoken';
+import { verifyToken } from '../services/jwtService';
 import { handleOrderAcceptance, handleOrderRejection } from '../services/orderNotificationService';
 import Order from '../models/Order';
 import DeliveryTracking from '../models/DeliveryTracking';
@@ -126,7 +126,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
         }
 
         try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+            const decoded = verifyToken(token);
             (socket as any).user = decoded;
             next();
         } catch (error) {

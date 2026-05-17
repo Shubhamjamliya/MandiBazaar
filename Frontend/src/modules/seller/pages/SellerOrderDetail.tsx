@@ -359,7 +359,18 @@ export default function SellerOrderDetail() {
     const unitPrice = item.price || 0;
     const quantity = item.qty || 0;
     const amount = item.subtotal || (unitPrice * quantity);
-    const gstRate = item.taxPercent || item.gstPercentage || 5;
+    let gstRate = 0;
+    if (typeof item.taxPercent === 'number') {
+      gstRate = item.taxPercent;
+    } else if (typeof item.gstPercentage === 'number') {
+      gstRate = item.gstPercentage;
+    } else if (item.taxPercent !== undefined && item.taxPercent !== null) {
+      gstRate = Number(item.taxPercent) || 0;
+    } else if (item.gstPercentage !== undefined && item.gstPercentage !== null) {
+      gstRate = Number(item.gstPercentage) || 0;
+    } else if (item.product?.gstPercentage !== undefined && item.product?.gstPercentage !== null) {
+      gstRate = Number(item.product.gstPercentage) || 0;
+    }
     const taxableValue = amount / (1 + gstRate / 100);
     const gstAmount = amount - taxableValue;
     const weight = item.unit || '-';

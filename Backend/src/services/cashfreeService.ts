@@ -7,6 +7,7 @@ export const createCashfreeOrder = async (
     redirectUrl: string,
     customerDetails: { customer_id: string; customer_phone: string; customer_email?: string; customer_name?: string }
 ) => {
+    let environment = 'SANDBOX';
     try {
         const settings = await AppSettings.getSettings();
         const cashfreeConfig = settings.paymentGateways?.cashfree;
@@ -17,7 +18,7 @@ export const createCashfreeOrder = async (
         let env = process.env.CASHFREE_ENVIRONMENT?.trim() || cashfreeConfig?.environment?.trim();
 
         // Default to SANDBOX if still not set
-        let environment = (env || 'SANDBOX').toUpperCase();
+        environment = (env || 'SANDBOX').toUpperCase();
 
         // AUTO-DETECTION: If the secret key is a production key, force PRODUCTION mode
         // Cashfree production keys usually start with 'cfsk_ma_prod_'
