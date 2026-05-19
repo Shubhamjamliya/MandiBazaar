@@ -211,7 +211,11 @@ export default function Invoice() {
   const sgst = isInterState ? 0 : totalGst / 2;
   const igst = isInterState ? totalGst : 0;
 
-  const grandTotal = order.grandTotal || order.totalAmount || (totalTaxableValue + totalGst + (order.fees?.deliveryFee || 0) + (order.fees?.platformFee || 0));
+  const platformFee = order.fees?.platformFee ?? order.platformFee ?? 0;
+  const deliveryFee = order.fees?.deliveryFee ?? order.shipping ?? 0;
+  const discount = order.discount || order.couponDiscount || 0;
+
+  const grandTotal = order.grandTotal || order.totalAmount || (totalTaxableValue + totalGst + deliveryFee + platformFee - discount);
 
   return (
     <div className="min-h-screen bg-neutral-100 flex flex-col items-center py-4 sm:py-8 px-2 sm:px-4 print:bg-white print:p-0 overflow-x-hidden">
@@ -372,7 +376,7 @@ export default function Invoice() {
             </tbody>
             <tfoot>
               <tr className="bg-gray-100 border-t border-gray-400 font-bold">
-                <td className="border-r border-gray-400 p-1 text-left" colSpan={5}>Total</td>
+                <td className="border-r border-gray-400 p-1 text-left" colSpan={5}>Items Subtotal</td>
                 <td className="border-r border-gray-400 p-1 text-center">{items.reduce((s: number, i: any) => s + (i.quantity || 0), 0)}</td>
                 <td className="border-r border-gray-400 p-1 text-center">{totalTaxableValue.toFixed(2)}</td>
                 <td className="border-r border-gray-400"></td>
@@ -380,7 +384,29 @@ export default function Invoice() {
                 <td className="border-r border-gray-400"></td>
                 <td className="border-r border-gray-400 p-1 text-center">{sgst.toFixed(2)}</td>
                 <td className="border-r border-gray-400"></td>
-                <td className="p-1 text-center">{grandTotal.toFixed(2)}</td>
+                <td className="p-1 text-center">{(totalTaxableValue + totalGst).toFixed(2)}</td>
+              </tr>
+              {platformFee > 0 && (
+                <tr className="border-t border-gray-400 font-bold">
+                  <td className="border-r border-gray-400 p-1 text-left" colSpan={12}>Handling Charges</td>
+                  <td className="p-1 text-center">{platformFee.toFixed(2)}</td>
+                </tr>
+              )}
+              {deliveryFee > 0 && (
+                <tr className="border-t border-gray-400 font-bold">
+                  <td className="border-r border-gray-400 p-1 text-left" colSpan={12}>Delivery Charges</td>
+                  <td className="p-1 text-center">{deliveryFee.toFixed(2)}</td>
+                </tr>
+              )}
+              {discount > 0 && (
+                <tr className="border-t border-gray-400 font-bold text-red-600 bg-red-50">
+                  <td className="border-r border-gray-400 p-1 text-left" colSpan={12}>Discount</td>
+                  <td className="p-1 text-center">-{discount.toFixed(2)}</td>
+                </tr>
+              )}
+              <tr className="bg-gray-100 border-t border-gray-400 font-bold">
+                <td className="border-r border-gray-400 p-1 text-left" colSpan={12}>Grand Total</td>
+                <td className="p-1 text-center font-extrabold text-green-700">₹{grandTotal.toFixed(2)}</td>
               </tr>
             </tfoot>
           </table>
