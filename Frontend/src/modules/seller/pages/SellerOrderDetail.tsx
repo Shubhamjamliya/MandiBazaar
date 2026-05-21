@@ -235,7 +235,19 @@ export default function SellerOrderDetail() {
     doc.line(pageWidth / 2, yPos, pageWidth / 2, yPos + 20);
 
     doc.setFontSize(9);
-    doc.text(`Invoice No: ${orderDetail.invoiceNumber}`, margin + 5, yPos + 7);
+    const getSequenceFromOrder = (value?: string): number => {
+      if (!value) return 1;
+      const digits = value.replace(/\D/g, '');
+      if (!digits) return 1;
+      const lastThree = digits.slice(-3);
+      const parsed = parseInt(lastThree, 10);
+      return Number.isNaN(parsed) ? 1 : parsed;
+    };
+    const orderSequence = getSequenceFromOrder(orderDetail.invoiceNumber || orderDetail.id);
+    const orderIdDisplay = `UDP-${String(orderSequence).padStart(3, '0')}`;
+    const invoiceNumberDisplay = `MB-${String(orderSequence).padStart(2, '0')}`;
+
+    doc.text(`Invoice No: ${invoiceNumberDisplay}`, margin + 5, yPos + 7);
     doc.text('Reverse Charge: No', margin + 5, yPos + 15);
 
     doc.text(`Invoice Date: ${formatDate(orderDetail.orderDate)}`, pageWidth / 2 + 5, yPos + 7);
@@ -300,8 +312,13 @@ export default function SellerOrderDetail() {
     doc.text(`Total Amount in words: ${numberToWords(grandTotal)}`, margin + 5, yPos + 7);
 
     doc.line(pageWidth - margin - 60, yPos, pageWidth - margin - 60, yPos + 40);
+    const pdfPlatformFee = (orderDetail as any)?.platformFee ?? (orderDetail as any)?.fees?.platformFee ?? 0;
+    const pdfDeliveryFee = (orderDetail as any)?.shipping ?? (orderDetail as any)?.deliveryFee ?? (orderDetail as any)?.fees?.deliveryFee ?? 0;
+
     doc.text(`Subtotal: ${totalSubtotal.toFixed(2)}`, pageWidth - margin - 5, yPos + 7, { align: 'right' });
     doc.text(`Tax: ${totalTax.toFixed(2)}`, pageWidth - margin - 5, yPos + 15, { align: 'right' });
+    doc.text(`Handling Charges: ${Number(pdfPlatformFee).toFixed(2)}`, pageWidth - margin - 5, yPos + 23, { align: 'right' });
+    doc.text(`Delivery Charges: ${Number(pdfDeliveryFee).toFixed(2)}`, pageWidth - margin - 5, yPos + 31, { align: 'right' });
     doc.setFont('helvetica', 'bold');
     doc.text(`Grand Total: ${grandTotal.toFixed(2)}`, pageWidth - margin - 5, yPos + 25, { align: 'right' });
 
@@ -394,7 +411,23 @@ export default function SellerOrderDetail() {
   const sgst = isInterState ? 0 : totalGst / 2;
   const igst = isInterState ? totalGst : 0;
 
-  const invoiceGrandTotal = orderDetail.grandTotal || (totalTaxableValue + totalGst);
+  const platformFee = (orderDetail as any)?.platformFee ?? (orderDetail as any)?.fees?.platformFee ?? 0;
+  const deliveryFee = (orderDetail as any)?.shipping ?? (orderDetail as any)?.deliveryFee ?? (orderDetail as any)?.fees?.deliveryFee ?? 0;
+
+  const invoiceGrandTotal = orderDetail.grandTotal || (totalTaxableValue + totalGst + deliveryFee + platformFee);
+
+  const getSequenceFromOrder = (value?: string): number => {
+    if (!value) return 1;
+    const digits = value.replace(/\D/g, '');
+    if (!digits) return 1;
+    const lastThree = digits.slice(-3);
+    const parsed = parseInt(lastThree, 10);
+    return Number.isNaN(parsed) ? 1 : parsed;
+  };
+
+  const orderSequence = getSequenceFromOrder(orderDetail.invoiceNumber || orderDetail.id);
+  const orderIdDisplay = `UDP-${String(orderSequence).padStart(3, '0')}`;
+  const invoiceNumberDisplay = `MB-${String(orderSequence).padStart(2, '0')}`;
 
   return (
     <div className="min-h-screen bg-neutral-50 pb-8">
@@ -506,7 +539,7 @@ export default function SellerOrderDetail() {
               <div className="flex justify-end gap-2 items-start">
                 <div className="text-right">
                   <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[10px] mb-1">Invoice Number</p>
-                  <p className="font-bold text-sm sm:text-base">{orderDetail.invoiceNumber || orderDetail.id?.split('-').pop()?.toUpperCase()}</p>
+                  <p className="font-bold text-sm sm:text-base">{invoiceNumberDisplay}</p>
                 </div>
                 <div className="w-16 h-16 sm:w-20 sm:h-20 border border-gray-200 bg-gray-50 flex items-center justify-center p-1">
                   <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${orderDetail.id}`} alt="QR Code" className="w-full h-full" />
@@ -545,7 +578,7 @@ export default function SellerOrderDetail() {
               </div>
               <div className="p-3 bg-gray-50 grid grid-cols-2 gap-y-1">
                 <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Order Id</p>
-                <p className="font-bold">: {orderDetail.id?.split('-').pop()?.toUpperCase()}</p>
+                <p className="font-bold">: {orderIdDisplay}</p>
                 <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Invoice Date</p>
                 <p className="font-bold">: {formatDate(orderDetail.orderDate)}</p>
                 <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Place of Supply</p>
@@ -624,6 +657,14 @@ export default function SellerOrderDetail() {
                   <td className="border-r border-gray-400 p-1 text-center">{sgst.toFixed(2)}</td>
                   <td className="border-r border-gray-400"></td>
                   <td className="p-1 text-center">{invoiceGrandTotal.toFixed(2)}</td>
+                </tr>
+                <tr className="border-t border-gray-400 font-bold">
+                  <td className="border-r border-gray-400 p-1 text-left" colSpan={12}>Handling Charges</td>
+                  <td className="p-1 text-center">{Number(platformFee).toFixed(2)}</td>
+                </tr>
+                <tr className="border-t border-gray-400 font-bold">
+                  <td className="border-r border-gray-400 p-1 text-left" colSpan={12}>Delivery Charges</td>
+                  <td className="p-1 text-center">{Number(deliveryFee).toFixed(2)}</td>
                 </tr>
               </tfoot>
             </table>
