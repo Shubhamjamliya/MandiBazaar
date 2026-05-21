@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../context/CartContext';
@@ -43,6 +43,9 @@ export default function Checkout() {
   const [showPartyPopper, setShowPartyPopper] = useState(false);
   const [hasAppliedCouponBefore, setHasAppliedCouponBefore] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const placingOrderRef = useRef(false);
+  const clientOrderIdRef = useRef<string | null>(null);
 
   // Refresh cart delivery fee when selected address changes
   useEffect(() => {
@@ -470,6 +473,12 @@ export default function Checkout() {
       return;
     }
 
+    if (placingOrderRef.current) {
+      return;
+    }
+    placingOrderRef.current = true;
+    setIsPlacingOrder(true);
+
     // Final address setup
 
     // Create address object with location data (use fallback if needed)
@@ -479,7 +488,9 @@ export default function Checkout() {
       longitude: finalLongitude,
     };
 
-    const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+    const orderId = clientOrderIdRef.current
+      || `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+    clientOrderIdRef.current = orderId;
 
     const order: Order = {
       id: orderId,
@@ -522,6 +533,9 @@ export default function Checkout() {
       // Show user-friendly error message
       const errorMessage = error.message || error.response?.data?.message || "Failed to place order. Please try again.";
       alert(errorMessage);
+    } finally {
+      placingOrderRef.current = false;
+      setIsPlacingOrder(false);
     }
   };
 
@@ -1888,13 +1902,13 @@ export default function Checkout() {
         {selectedAddress ? (
           <button
             onClick={handlePlaceOrder}
-            disabled={cart.items.length === 0 || discountedTotal < minimumOrderValue}
-            className={`w-full py-3 px-4 font-bold text-sm uppercase tracking-wide transition-colors ${cart.items.length > 0 && discountedTotal >= minimumOrderValue
+            disabled={cart.items.length === 0 || discountedTotal < minimumOrderValue || isPlacingOrder || !!pendingOrderId || !!placedOrderId}
+            className={`w-full py-3 px-4 font-bold text-sm uppercase tracking-wide transition-colors ${cart.items.length > 0 && discountedTotal >= minimumOrderValue && !isPlacingOrder && !pendingOrderId && !placedOrderId
               ? 'bg-green-600 text-white hover:bg-green-700'
               : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
               }`}
           >
-            Place Order
+            {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
           </button>
         ) : (
           <button

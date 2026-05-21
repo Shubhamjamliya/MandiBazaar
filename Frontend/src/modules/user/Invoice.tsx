@@ -217,6 +217,19 @@ export default function Invoice() {
 
   const grandTotal = order.grandTotal || order.totalAmount || (totalTaxableValue + totalGst + deliveryFee + platformFee - discount);
 
+  const getSequenceFromOrder = (value?: string): number => {
+    if (!value) return 1;
+    const digits = value.replace(/\D/g, '');
+    if (!digits) return 1;
+    const lastThree = digits.slice(-3);
+    const parsed = parseInt(lastThree, 10);
+    return Number.isNaN(parsed) ? 1 : parsed;
+  };
+
+  const orderSequence = getSequenceFromOrder(order.orderNumber || order.id);
+  const orderIdDisplay = `UDP-${String(orderSequence).padStart(3, '0')}`;
+  const invoiceNumberDisplay = `MB-${String(orderSequence).padStart(2, '0')}`;
+
   return (
     <div className="min-h-screen bg-neutral-100 flex flex-col items-center py-4 sm:py-8 px-2 sm:px-4 print:bg-white print:p-0 overflow-x-hidden">
       {/* Top Action Bar */}
@@ -260,7 +273,7 @@ export default function Invoice() {
             <div className="flex justify-end gap-2 items-start">
               <div className="text-right">
                 <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[10px] mb-1">Invoice Number</p>
-                <p className="font-bold text-sm sm:text-base">{order.id?.split('-').pop()?.toUpperCase() || 'ORD12345678'}</p>
+                <p className="font-bold text-sm sm:text-base">{invoiceNumberDisplay}</p>
               </div>
               {/* Placeholder for QR Code */}
               <div className="w-16 h-16 sm:w-20 sm:h-20 border border-gray-200 bg-gray-50 flex items-center justify-center p-1">
@@ -301,7 +314,7 @@ export default function Invoice() {
             </div>
             <div className="p-3 bg-gray-50 grid grid-cols-2 gap-y-1">
               <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Order Id</p>
-              <p className="font-bold">: {order.id?.split('-').pop()?.toUpperCase() || 'ORD123'}</p>
+              <p className="font-bold">: {orderIdDisplay}</p>
               <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Invoice Date</p>
               <p className="font-bold">: {order.createdAt || order.orderDate ? new Date(order.createdAt || order.orderDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-') : '-'}</p>
               <p className="font-bold text-gray-500 uppercase text-[8px] sm:text-[9px]">Place of Supply</p>
@@ -386,18 +399,14 @@ export default function Invoice() {
                 <td className="border-r border-gray-400"></td>
                 <td className="p-1 text-center">{(totalTaxableValue + totalGst).toFixed(2)}</td>
               </tr>
-              {platformFee > 0 && (
-                <tr className="border-t border-gray-400 font-bold">
-                  <td className="border-r border-gray-400 p-1 text-left" colSpan={12}>Handling Charges</td>
-                  <td className="p-1 text-center">{platformFee.toFixed(2)}</td>
-                </tr>
-              )}
-              {deliveryFee > 0 && (
-                <tr className="border-t border-gray-400 font-bold">
-                  <td className="border-r border-gray-400 p-1 text-left" colSpan={12}>Delivery Charges</td>
-                  <td className="p-1 text-center">{deliveryFee.toFixed(2)}</td>
-                </tr>
-              )}
+              <tr className="border-t border-gray-400 font-bold">
+                <td className="border-r border-gray-400 p-1 text-left" colSpan={12}>Handling Charges</td>
+                <td className="p-1 text-center">{platformFee.toFixed(2)}</td>
+              </tr>
+              <tr className="border-t border-gray-400 font-bold">
+                <td className="border-r border-gray-400 p-1 text-left" colSpan={12}>Delivery Charges</td>
+                <td className="p-1 text-center">{deliveryFee.toFixed(2)}</td>
+              </tr>
               {discount > 0 && (
                 <tr className="border-t border-gray-400 font-bold text-red-600 bg-red-50">
                   <td className="border-r border-gray-400 p-1 text-left" colSpan={12}>Discount</td>

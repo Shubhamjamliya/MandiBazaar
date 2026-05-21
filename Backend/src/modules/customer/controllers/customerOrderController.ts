@@ -16,6 +16,11 @@ import { Server as SocketIOServer } from "socket.io";
 // Create a new order
 export const createOrder = async (req: Request, res: Response) => {
     let session: mongoose.ClientSession | null = null;
+    const userId = req.user!.userId;
+    const rawClientOrderId = typeof req.body.clientOrderId === "string"
+        ? req.body.clientOrderId.trim()
+        : undefined;
+    const clientOrderId = rawClientOrderId ? rawClientOrderId : undefined;
     try {
         // Only start session if we are on a replica set (required for transactions)
         // For simplicity in local dev, we check and fallback if it fails
@@ -28,7 +33,17 @@ export const createOrder = async (req: Request, res: Response) => {
         }
 
         const { items, address, paymentMethod, fees, specialRequests, couponCode, giftPackaging } = req.body;
-        const userId = req.user!.userId;
+
+        if (clientOrderId) {
+            const existingOrder = await Order.findOne({ customer: userId, clientOrderId });
+            if (existingOrder) {
+                return res.status(200).json({
+                    success: true,
+                    message: "Order already created",
+                    data: existingOrder,
+                });
+            }
+        }
 
         // Log incoming request for debugging
         console.log("DEBUG: Order creation request:", {
@@ -129,6 +144,7 @@ export const createOrder = async (req: Request, res: Response) => {
             customerName: customer.name,
             customerEmail: customer.email,
             customerPhone: customer.phone,
+            clientOrderId: clientOrderId || undefined,
             deliveryAddress: {
                 address: address.address || address.street || 'N/A',
                 city: address.city || 'N/A',
@@ -644,6 +660,17 @@ export const createOrder = async (req: Request, res: Response) => {
                 await session.abortTransaction();
             } catch (abortError) {
                 console.error("Error aborting transaction:", abortError);
+            }
+        }
+
+        if (error?.code === 11000 && clientOrderId) {
+            const existingOrder = await Order.findOne({ customer: userId, clientOrderId });
+            if (existingOrder) {
+                return res.status(200).json({
+                    success: true,
+                    message: "Order already created",
+                    data: existingOrder,
+                });
             }
         }
 

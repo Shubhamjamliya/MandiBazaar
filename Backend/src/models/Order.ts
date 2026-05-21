@@ -4,6 +4,7 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface IOrder extends Document {
   // Order Info
   orderNumber: string;
+  clientOrderId?: string;
   orderDate: Date;
 
   // Customer Info
@@ -111,6 +112,10 @@ const OrderSchema = new Schema<IOrder>(
       type: String,
       required: [true, "Order number is required"],
       unique: true,
+      trim: true,
+    },
+    clientOrderId: {
+      type: String,
       trim: true,
     },
     orderDate: {
@@ -383,6 +388,7 @@ OrderSchema.pre("validate", async function (this: IOrder, next) {
 
 // Indexes for faster queries
 OrderSchema.index({ customer: 1, orderDate: -1 });
+OrderSchema.index({ customer: 1, clientOrderId: 1 }, { unique: true, sparse: true });
 OrderSchema.index({ status: 1 });
 OrderSchema.index({ orderDate: -1 });
 OrderSchema.index({ deliveryBoy: 1 });

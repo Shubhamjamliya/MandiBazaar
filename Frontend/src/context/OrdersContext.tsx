@@ -99,6 +99,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     try {
       // Construct payload
       const payload = {
+        clientOrderId: order.id,
         address: {
           address: order.address.street || order.address.address || "",
           city: order.address.city,
