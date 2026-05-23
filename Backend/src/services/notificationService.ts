@@ -45,7 +45,7 @@ export const sendNotification = async (
 
   // Send push notification via FCM
   try {
-    await sendNotificationToUser(recipientId, recipientType, {
+    const pushResult = await sendNotificationToUser(recipientId, recipientType, {
       title,
       body: message,
       data: {
@@ -56,12 +56,17 @@ export const sendNotification = async (
       },
     });
     
-    // Update sent status
-    notification.sentAt = new Date();
-    await notification.save();
+    // Update sent status only if push was actually sent
+    if (pushResult && (pushResult.successCount > 0 || pushResult.failureCount > 0)) {
+      notification.sentAt = new Date();
+    } else {
+      console.warn(`⚠️  No push delivery confirmation for notification ${notification._id}`);
+    }
   } catch (error) {
-    console.error("Error sending push notification:", error);
+    console.error(`❌ Error sending push notification for ${notificationId}:`, error);
   }
+
+  await notification.save();
 
   return notification;
 };

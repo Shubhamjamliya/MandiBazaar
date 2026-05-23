@@ -74,15 +74,12 @@ export async function sendPushNotification(
     }
 ) {
     if (!firebaseInitialized) {
-        console.warn('Firebase Admin not initialized. Skipping notification send.');
-        return {
-            successCount: 0,
-            failureCount: tokens ? tokens.length : 0,
-            responses: (tokens || []).map(() => ({
-                success: false,
-                error: { code: 'messaging/internal-error', message: 'Firebase Admin not initialized' }
-            }))
-        };
+        const errorMsg = 'Firebase Admin not initialized. Skipping notification send.';
+        console.error('❌ ' + errorMsg);
+        const error = new Error(errorMsg);
+        (error as any).code = 'FIREBASE_NOT_INITIALIZED';
+        (error as any).failureCount = tokens ? tokens.length : 0;
+        throw error;
     }
 
     try {
@@ -116,20 +113,24 @@ export async function sendPushNotification(
                 fcm_options: {
                     link: payload.data?.link || '/'
                 }
-            },
-            tokens: tokens
+            }
         };
 
-        const response = await admin.messaging().sendEachForMulticast(message);
+        // sendEachForMulticast expects tokens as a separate parameter
+        const response = await admin.messaging().sendEachForMulticast(message, tokens);
 
         console.log(`✅ Successfully sent: ${response.successCount} messages`);
-        console.log(`❌ Failed: ${response.failureCount} messages`);
+        if (response.failureCount > 0) {
+            console.log(`⚠️  Failed: ${response.failureCount} messages`);
+        }
 
         // Log individual failures for debugging
-        if (response.failureCount > 0) {
-            response.responses.forEach((resp, idx) => {
-                if (!resp.success) {
-                    console.error(`Failed to send to token ${idx}:`, resp.error?.message);
+        if (response.failureCount > 0 && response.responses && response.responses.length > 0) {
+            response.responses.forEach((resp: any, idx: number) => {
+                if (!resp.success && resp.error) {
+                    const errorCode = (resp.error as any).code || 'UNKNOWN';
+                    const errorMsg = (resp.error as any).message || 'Unknown error';
+                    console.error(`  Token ${idx}: [${errorCode}] ${errorMsg}`);
                 }
             });
         }
@@ -204,13 +205,24 @@ export async function sendNotificationToUser(
             return;
         }
 
-        console.log(`Sending notification to ${uniqueTokens.length} device(s) for user ${userId}`);
+        console.log(`📤 Sending notification to ${uniqueTokens.length} device(s) for user ${userId}`);
 
         // Send notification
-        const response = await sendPushNotification(uniqueTokens, payload);
+        let response;
+        try {
+            response = await sendPushNotification(uniqueTokens, payload);
+        } catch (pushError: any) {
+            console.error(`📡 Push send error for user ${userId}:`, pushError.message);
+            throw pushError;
+        }
+
+        if (!response) {
+            console.warn(`📡 No response from push service for user ${userId}`);
+            return undefined;
+        }
 
         // Clean up invalid tokens
-        if (response.failureCount > 0) {
+        if (response.failureCount > 0 && response.responses && Array.isArray(response.responses)) {
             const invalidTokens: string[] = [];
             response.responses.forEach((resp: any, idx: number) => {
                 if (!resp.success && uniqueTokens[idx]) {
@@ -222,16 +234,18 @@ export async function sendNotificationToUser(
                         errorCode === 'messaging/mismatched-credential' ||
                         errorMsg?.includes('SenderId mismatch')) {
                         invalidTokens.push(uniqueTokens[idx]);
+                        console.warn(`🗑️  Invalid token removed: ${uniqueTokens[idx].substring(0, 20)}...`);
                     }
                 }
             });
 
             // Remove invalid tokens from database
             if (invalidTokens.length > 0) {
-                console.log(`Removing ${invalidTokens.length} invalid token(s) from database`);
+                console.log(`🗑️  Removing ${invalidTokens.length} invalid token(s) from database`);
                 user.fcmTokens = user.fcmTokens?.filter((t: string) => !invalidTokens.includes(t)) || [];
                 user.fcmTokenMobile = user.fcmTokenMobile?.filter((t: string) => !invalidTokens.includes(t)) || [];
                 await user.save();
+                console.log(`✅ Cleaned up invalid tokens for user ${userId}`);
             }
         }
 
