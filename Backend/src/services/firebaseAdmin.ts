@@ -83,8 +83,10 @@ export async function sendPushNotification(
     }
 
     try {
-        if (!tokens || tokens.length === 0) {
-            console.log('No tokens provided for notification');
+        const validTokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+
+        if (validTokens.length === 0) {
+            console.log('No valid tokens provided for notification');
             return {
                 successCount: 0,
                 failureCount: 0,
@@ -93,6 +95,7 @@ export async function sendPushNotification(
         }
 
         const message: any = {
+            tokens: validTokens,
             notification: {
                 title: payload.title,
                 body: payload.body
@@ -116,8 +119,8 @@ export async function sendPushNotification(
             }
         };
 
-        // sendEachForMulticast expects tokens as a separate parameter
-        const response = await admin.messaging().sendEachForMulticast(message, tokens);
+        // sendEachForMulticast expects tokens as a property of the message object
+        const response = await admin.messaging().sendEachForMulticast(message);
 
         console.log(`✅ Successfully sent: ${response.successCount} messages`);
         if (response.failureCount > 0) {

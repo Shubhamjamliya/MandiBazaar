@@ -10,8 +10,39 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.mandibaza
 async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
     if ('serviceWorker' in navigator) {
         try {
-            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+            // Force unregister any stale service workers first
+            const SW_VERSION = 'v2'; // Bump this to force SW update
+            const SW_VERSION_KEY = 'fcm_sw_version';
+            const currentVersion = localStorage.getItem(SW_VERSION_KEY);
+
+            if (currentVersion !== SW_VERSION) {
+                console.log(`🔄 Service Worker version changed (${currentVersion} -> ${SW_VERSION}), clearing stale registrations...`);
+                const existingRegistrations = await navigator.serviceWorker.getRegistrations();
+                for (const reg of existingRegistrations) {
+                    await reg.unregister();
+                    console.log('🗑️ Unregistered stale service worker:', reg.scope);
+                }
+                localStorage.setItem(SW_VERSION_KEY, SW_VERSION);
+            }
+
+            const firebaseConfigStr = new URLSearchParams({
+                apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+                authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+                projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+                storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+                messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+                appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+                measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || ''
+            }).toString();
+
+            const registration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?${firebaseConfigStr}`, {
+                updateViaCache: 'none' // Never use cached SW
+            });
             console.log('✅ Service Worker registered:', registration);
+
+            // Force update check
+            registration.update();
+
             return registration;
         } catch (error) {
             console.error('❌ Service Worker registration failed:', error);
@@ -96,17 +127,45 @@ async function getFCMToken(): Promise<string | null> {
 export async function registerFCMToken(forceUpdate: boolean = false): Promise<string | null> {
     try {
         // Check if already registered for the correct project
-        const TOKEN_KEY = 'fcm_token_mandibazaar_6c730';
+        const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || 'default_project';
+        const TOKEN_KEY = `fcm_token_${projectId.replace(/-/g, '_')}`;
         const savedToken = localStorage.getItem(TOKEN_KEY);
 
-        // If old project token exists, remove it
-        if (localStorage.getItem('fcm_token_web')) {
+        // If old project token exists, remove it and force reset
+        if (localStorage.getItem('fcm_token_web') || localStorage.getItem('fcm_token_mandibazaar_6c730')) {
             localStorage.removeItem('fcm_token_web');
+            localStorage.removeItem('fcm_token_mandibazaar_6c730');
             forceUpdate = true;
+            
+            // Unregister old service workers to clear cached sender IDs
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const reg of registrations) {
+                    await reg.unregister();
+                }
+            }
         }
 
         if (savedToken && !forceUpdate) {
-            console.log('ℹ️ FCM token already registered for current project');
+            console.log('ℹ️ FCM token found in local storage. Syncing with backend for current user...');
+            const authToken = getAuthToken();
+            if (authToken) {
+                try {
+                    await fetch(`${API_BASE_URL}/fcm-tokens/save`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({
+                            token: savedToken,
+                            platform: 'web'
+                        })
+                    });
+                } catch (err) {
+                    console.error('Failed to sync token with backend', err);
+                }
+            }
             return savedToken;
         }
 
@@ -145,7 +204,7 @@ export async function registerFCMToken(forceUpdate: boolean = false): Promise<st
 
         if (response.ok) {
             localStorage.setItem(TOKEN_KEY, token);
-            console.log('✅ FCM token registered with backend for project 6c730');
+            console.log(`✅ FCM token registered with backend for project ${projectId}`);
             return token;
         } else {
             const error = await response.json();

@@ -14,6 +14,8 @@ export default function DeliveryMenu() {
     { id: "menu-3", title: "Settings", route: "/delivery/settings" },
     { id: "menu-4", title: "Help & Support", route: "/delivery/help" },
     { id: "menu-5", title: "About", route: "/delivery/about" },
+    { id: "menu-test-notif", title: "Test Firebase FCM All", route: "test-notif" },
+    { id: "menu-reset-notif", title: "Reset Notifications", route: "reset-notif" },
     { id: "menu-delete", title: "Delete Account", route: "/delivery/delete-account" },
     { id: "menu-6", title: "Logout", route: "/delivery/login" },
   ];
@@ -217,6 +219,20 @@ export default function DeliveryMenu() {
             />
           </svg>
         );
+      case "menu-test-notif":
+        return (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+        );
+      case "menu-reset-notif":
+        return (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg>
+        );
       case "menu-6": // Logout
         return (
           <svg
@@ -256,11 +272,61 @@ export default function DeliveryMenu() {
     }
   };
 
+  const handleTestNotification = async () => {
+    try {
+      const { sendSelfTestNotification } = await import('../../../services/api/notificationService');
+      const res = await sendSelfTestNotification();
+      if (res.success) {
+        console.log('Test notification request successful');
+        alert(`✅ Request sent to ${res.details?.successCount || 0} device(s) via Firebase FCM.`);
+      } else {
+        alert(res.message || 'Failed to send test notification');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error sending Firebase FCM test notification');
+    }
+  };
+
+  const handleResetNotifications = async () => {
+    try {
+      // 1. Unregister all service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+      }
+      
+      // 2. Clear local storage tokens
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('fcm_token')) {
+          localStorage.removeItem(key);
+        }
+      });
+
+      // 3. Delete Firebase IndexedDB databases
+      const req = indexedDB.deleteDatabase('firebase-messaging-database');
+      req.onsuccess = () => {
+        console.log('Deleted firebase-messaging-database');
+      };
+
+      alert('Notifications have been hard reset! Please refresh the page or log out and log back in to register your device again.');
+      window.location.reload();
+    } catch (error) {
+      console.error('Error resetting notifications:', error);
+      alert('Failed to reset notifications completely.');
+    }
+  };
+
   const handleMenuClick = (route: string) => {
     if (route === "/delivery/login") {
       // Handle logout logic here
       logout();
       navigate(route);
+    } else if (route === "test-notif") {
+      handleTestNotification();
+    } else if (route === "reset-notif") {
+      handleResetNotifications();
     } else {
       // Navigate to the selected route
       navigate(route);

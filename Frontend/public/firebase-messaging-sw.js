@@ -2,38 +2,81 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 
+const urlParams = new URL(location).searchParams;
+
 // Firebase configuration (Production credentials)
 const firebaseConfig = {
-    apiKey: 'AIzaSyDZOWhiIdZ32WLxh9z5jw9x_F9BsdLNCmE',
-    authDomain: 'mandibazaar-6c730.firebaseapp.com',
-    projectId: 'mandibazaar-6c730',
-    storageBucket: 'mandibazaar-6c730.firebasestorage.app',
-    messagingSenderId: '1009195769964',
-    appId: '1:1009195769964:web:06129c5bee4687ad3ef849',
-    measurementId: 'G-NH1P7LMDDL'
+    apiKey: urlParams.get('apiKey') || 'AIzaSyAheFx12XK5fPg0NnXuR-w6gXHxWvdGOlM',
+    authDomain: urlParams.get('authDomain') || 'mandibazaar-4817a.firebaseapp.com',
+    projectId: urlParams.get('projectId') || 'mandibazaar-4817a',
+    storageBucket: urlParams.get('storageBucket') || 'mandibazaar-4817a.firebasestorage.app',
+    messagingSenderId: urlParams.get('messagingSenderId') || '774530696489',
+    appId: urlParams.get('appId') || '1:774530696489:web:493042b38f91c57aab2338',
+    measurementId: urlParams.get('measurementId') || 'G-BB2ZY97ZS7'
 };
 
-// Initialize Firebase in service worker
-firebase.initializeApp(firebaseConfig);
+// Force the new service worker to take over immediately
+self.addEventListener('install', (event) => {
+    console.log('[firebase-messaging-sw.js] Service worker installing, forcing skipWaiting...');
+    self.skipWaiting();
+});
 
-// Get messaging instance
-const messaging = firebase.messaging();
+// Claim all clients immediately on activation
+self.addEventListener('activate', (event) => {
+    console.log('[firebase-messaging-sw.js] Service worker activated, claiming clients...');
+    event.waitUntil(clients.claim());
+});
 
-// Handle background messages
-messaging.onBackgroundMessage((payload) => {
-    console.log('[firebase-messaging-sw.js] Received background message', payload);
+// ALWAYS handle push events manually to guarantee delivery
+// We attach this before Firebase initializes so it runs first!
+self.addEventListener('push', (event) => {
+    console.log('[firebase-messaging-sw.js] Push event intercepted manually!');
+    
+    // Stop Firebase SDK from processing this event to prevent conflicting handlers
+    // which cause the "This site has been updated in the background" error
+    event.stopImmediatePropagation();
 
-    const notificationTitle = payload.notification?.title || 'New Notification';
+    let data = {};
+    let title = '🔔 Mandi Bazaar';
+    let body = 'You have a new notification';
+    let icon = '/favicon.png';
+    let link = '/';
+
+    try {
+        if (event.data) {
+            data = event.data.json();
+            console.log('[firebase-messaging-sw.js] Parsed push data:', data);
+
+            // Extract from standard FCM payload structure
+            if (data.notification) {
+                title = data.notification.title || title;
+                body = data.notification.body || body;
+                icon = data.notification.icon || icon;
+            } 
+            
+            // Extract from data payload
+            if (data.data) {
+                title = data.data.title || title;
+                body = data.data.body || body;
+                icon = data.data.icon || icon;
+                link = data.data.link || link;
+            }
+        }
+    } catch (e) {
+        console.warn('[firebase-messaging-sw.js] Could not parse push data:', e);
+    }
+
     const notificationOptions = {
-        body: payload.notification?.body || '',
-        icon: payload.notification?.icon || '/favicon.png',
+        body: body,
+        icon: icon,
         badge: '/favicon.png',
-        data: payload.data || {},
-        tag: payload.data?.type || 'default',
+        data: { ...data, link: link },
+        tag: 'mandi-bazaar-' + Date.now(),
         requireInteraction: false
     };
 
-    self.registration.showNotification(notificationTitle, notificationOptions);
+    const promiseChain = self.registration.showNotification(title, notificationOptions);
+    event.waitUntil(promiseChain);
 });
 
 // Handle notification click
@@ -61,7 +104,7 @@ self.addEventListener('notificationclick', (event) => {
     );
 });
 
-// Service worker activation
-self.addEventListener('activate', (event) => {
-    console.log('[firebase-messaging-sw.js] Service worker activated');
-});
+// Initialize Firebase in service worker (Needed for getToken to work in the frontend)
+firebase.initializeApp(firebaseConfig);
+const messaging = firebase.messaging();
+

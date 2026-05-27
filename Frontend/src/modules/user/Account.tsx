@@ -133,6 +133,21 @@ export default function Account() {
     setShowGstModal(false);
   };
 
+  const handleTestNotification = async () => {
+    try {
+      const { sendSelfTestNotification } = await import('../../services/api/notificationService');
+      const res = await sendSelfTestNotification();
+      if (res.success) {
+        console.log('Test notification request successful');
+        alert(`✅ Request sent to ${res.details?.successCount || 0} device(s) via Firebase FCM.`);
+      } else {
+        alert(res.message || 'Failed to send test notification');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error sending Firebase FCM test notification');
+    }
+  };
+
   // Show login/signup prompt for unregistered users
   if (!user) {
     return (
@@ -321,6 +336,11 @@ export default function Account() {
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>}
               label="GST Details"
               onClick={() => setShowGstModal(true)}
+            />
+            <MenuLink
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>}
+              label="Test Firebase FCM All"
+              onClick={handleTestNotification}
             />
             <MenuLink
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>}

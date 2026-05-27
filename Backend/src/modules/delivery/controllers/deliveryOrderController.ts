@@ -303,6 +303,23 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
             });
         }
 
+        // Trigger push notification to customer
+        try {
+            const { sendCustomerOrderNotification } = await import("../../../services/notificationService");
+            let notifStatus = status;
+            if (status === 'Picked up') notifStatus = 'Shipped';
+            
+            await sendCustomerOrderNotification(
+                order._id.toString(),
+                order.orderNumber,
+                (order.customer as any).toString(),
+                order.total,
+                notifStatus
+            );
+        } catch (error) {
+            console.error("Error sending push notification to customer:", error);
+        }
+
         // Trigger notification to sellers for payment status change or specific transitions
         if (order.paymentStatus === 'Paid' || status === 'Delivered') {
             notifySellersOfOrderUpdate(io, order, 'STATUS_UPDATE');
@@ -540,6 +557,20 @@ export const verifyDeliveryOtpController = asyncHandler(async (req: Request, res
             notifySellersOfOrderUpdate(io, updatedOrder, 'STATUS_UPDATE');
         }
 
+        // Trigger push notification to customer
+        try {
+            const { sendCustomerOrderNotification } = await import("../../../services/notificationService");
+            await sendCustomerOrderNotification(
+                updatedOrder._id.toString(),
+                updatedOrder.orderNumber,
+                (updatedOrder.customer as any).toString(),
+                updatedOrder.total,
+                'Delivered'
+            );
+        } catch (error) {
+            console.error("Error sending delivery push notification to customer:", error);
+        }
+
         return res.status(200).json({
             success: true,
             message: result.message,
@@ -721,6 +752,20 @@ export const confirmSellerPickup = asyncHandler(async (req: Request, res: Respon
                 orderNumber: order.orderNumber,
                 message: 'All items picked up. Order is now Out for Delivery.'
             });
+
+            // Trigger push notification to customer
+            try {
+                const { sendCustomerOrderNotification } = await import("../../../services/notificationService");
+                await sendCustomerOrderNotification(
+                    order._id.toString(),
+                    order.orderNumber,
+                    (order.customer as any).toString(),
+                    order.total,
+                    'Out for Delivery'
+                );
+            } catch (error) {
+                console.error("Error sending Out for Delivery push notification to customer:", error);
+            }
         }
     }
 

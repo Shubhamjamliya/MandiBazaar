@@ -406,11 +406,7 @@ export async function notifyDeliveryBoysOfNewOrder(
             // Emit socket event to individual room
             io.to(roomName).emit('new-order', orderData);
 
-            // ALSO emit to general delivery-notifications room as a backup
-            // This ensures any delivery boy connected to the general channel gets it
-            io.to('delivery-notifications').emit('new-order', { ...orderData, targetedTo: idString });
-
-            console.log(`📡 BROADCAST: Emitted new-order to room ${roomName} and general channel`);
+            console.log(`📡 BROADCAST: Emitted new-order to room ${roomName}`);
 
             // Send push notification
             try {
