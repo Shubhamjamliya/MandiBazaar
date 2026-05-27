@@ -12,9 +12,22 @@ export function initializeFirebaseAdmin() {
     try {
         let credential;
 
-        // Check if Firebase credentials are provided via environment variables (production)
         let envCredentials = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_CREDENTIALS;
-        if (envCredentials) {
+        let base64Credentials = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+        
+        if (base64Credentials) {
+            console.log('🔧 Using Base64 encoded Firebase credentials from environment variable');
+            const decodedJson = Buffer.from(base64Credentials, 'base64').toString('utf8');
+            const serviceAccount = JSON.parse(decodedJson);
+            
+            // Fix private_key if it contains escaped newlines
+            if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
+                serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+            }
+            
+            credential = admin.credential.cert(serviceAccount);
+        }
+        else if (envCredentials) {
             console.log('🔧 Using Firebase credentials from environment variable');
 
             // Clean up the string to ensure it is valid JSON
