@@ -4,6 +4,8 @@ import path from 'path';
 // Initialize Firebase Admin SDK
 let firebaseInitialized = false;
 
+export let firebaseInitializationError: string | null = null;
+
 export function initializeFirebaseAdmin() {
     if (firebaseInitialized) {
         return;
@@ -65,8 +67,10 @@ export function initializeFirebaseAdmin() {
         });
 
         firebaseInitialized = true;
+        firebaseInitializationError = null;
         console.log('✅ Firebase Admin SDK initialized successfully');
     } catch (error: any) {
+        firebaseInitializationError = error.message;
         console.error('❌ Failed to initialize Firebase Admin SDK:', error.message);
         console.log('⚠️  Push notifications will not work until Firebase is properly configured');
     }

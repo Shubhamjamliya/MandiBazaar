@@ -96,6 +96,19 @@ app.use((req: Request, _res: Response, next) => {
 });
 
 // API Routes
+import { firebaseInitializationError } from './services/firebaseAdmin';
+
+app.get('/api/v1/firebase-debug', (req: Request, res: Response) => {
+    res.json({
+        firebaseInitializationError: firebaseInitializationError || "No error (Initialized successfully)",
+        envVars: {
+            hasServiceAccount: !!process.env.FIREBASE_SERVICE_ACCOUNT,
+            hasServiceAccountBase64: !!process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
+            base64Length: process.env.FIREBASE_SERVICE_ACCOUNT_BASE64?.length || 0
+        }
+    });
+});
+
 app.use("/api/v1", routes);
 
 // Error handling middleware (must be last)
