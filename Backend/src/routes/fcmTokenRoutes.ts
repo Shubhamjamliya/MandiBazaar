@@ -296,10 +296,12 @@ router.post("/test", async (req: Request, res: Response): Promise<void> => {
       icon: "/favicon.png",
     });
 
-    if (!response) {
+    if (!response || response.error) {
       res.json({
         success: false,
-        message: "Failed to process test notification. No valid tokens found for this device.",
+        message: response?.error 
+          ? `Push notification failed: ${response.error}`
+          : "Failed to process test notification. The user might not have valid tokens or an internal error occurred.",
       });
       return;
     }

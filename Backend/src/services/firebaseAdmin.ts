@@ -255,8 +255,8 @@ export async function sendNotificationToUser(
         return response;
     } catch (error: any) {
         console.error('❌ Error sending notification to user:', error.message);
-        // Don't throw - notifications are non-critical
-        return undefined;
+        // Return the error so the caller knows what failed
+        return { error: error.message || 'Unknown push notification error' };
     }
 }
 
