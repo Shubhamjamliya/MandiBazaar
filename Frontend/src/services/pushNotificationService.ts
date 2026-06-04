@@ -1,8 +1,7 @@
 import { messaging, getToken, onMessage } from './firebase';
-import { getAuthToken } from './api/config';
+import { API_BASE_URL, getAuthToken } from './api/config';
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || 'BO3Sg4gAQOyEZLqVAUSIGJQi5rVLqpUTgGxOEdCN23xLHqZ0k0Z54FlY_sZJXY1vUKeoJZKFCVhuUrbE7MANm30';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.mandibazaar.com/api/v1';
 
 /**
  * Register service worker for Firebase messaging

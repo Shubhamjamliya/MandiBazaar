@@ -6,6 +6,7 @@ import {
   ReactNode,
 } from "react";
 import {
+  API_BASE_URL,
   getUserData,
   getAuthToken,
   removeAuthToken,
@@ -99,9 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       registerFCMToken(true)
         .then(() => {
           // Send test notification after successful token registration
-          const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
-
-          fetch(`${apiUrl}/fcm-tokens/test`, {
+          fetch(`${API_BASE_URL}/fcm-tokens/test`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${newToken}`,

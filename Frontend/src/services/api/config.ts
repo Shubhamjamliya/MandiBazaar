@@ -2,7 +2,7 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 
 // Base API URL - adjust based on your backend URL
 // Temporary fix: Use production URL if environment variable is not set correctly
-const getApiBaseUrl = () => {
+export const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
 
   // Check if we're in production (Vercel)
@@ -19,7 +19,7 @@ const getApiBaseUrl = () => {
   return envUrl || "http://localhost:5000/api/v1";
 };
 
-const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = getApiBaseUrl();
 
 // Debug: Log the API URL to console
 console.log('🔍 API_BASE_URL:', API_BASE_URL);
