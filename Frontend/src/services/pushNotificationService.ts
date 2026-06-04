@@ -3,25 +3,143 @@ import { API_BASE_URL, getAuthToken } from './api/config';
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || 'BO3Sg4gAQOyEZLqVAUSIGJQi5rVLqpUTgGxOEdCN23xLHqZ0k0Z54FlY_sZJXY1vUKeoJZKFCVhuUrbE7MANm30';
 
+declare global {
+    interface Window {
+        setNativeFcmToken?: (token: string) => Promise<boolean>;
+        FlutterFCM?: {
+            postMessage?: (message: string) => void;
+        };
+        webkit?: {
+            messageHandlers?: {
+                flutterFcm?: {
+                    postMessage?: (message: { type: string }) => void;
+                };
+            };
+        };
+    }
+}
+
+function getProjectId(): string {
+    return import.meta.env.VITE_FIREBASE_PROJECT_ID || 'default_project';
+}
+
+function getTokenStorageKey(): string {
+    return `fcm_token_${getProjectId().replace(/-/g, '_')}`;
+}
+
+function getLegacyTokenKeys(): string[] {
+    return ['fcm_token_web', 'fcm_token_mandibazaar_6c730'];
+}
+
+function isEmbeddedWebView(): boolean {
+    if (typeof navigator === 'undefined') {
+        return false;
+    }
+
+    const ua = navigator.userAgent || '';
+    return /; wv\)|\bwv\b|WebView|Flutter/i.test(ua);
+}
+
+function getPushPlatform(): 'web' | 'mobile' {
+    return isEmbeddedWebView() ? 'mobile' : 'web';
+}
+
+function isValidServiceWorkerRegistration(
+    registration: ServiceWorkerRegistration | null,
+): registration is ServiceWorkerRegistration {
+    return !!registration &&
+        typeof registration === 'object' &&
+        typeof registration.update === 'function' &&
+        typeof registration.unregister === 'function' &&
+        typeof registration.showNotification === 'function';
+}
+
+async function saveTokenToBackend(token: string, platform: 'web' | 'mobile'): Promise<boolean> {
+    const authToken = getAuthToken();
+    if (!authToken) {
+        console.warn('User not authenticated, skipping token registration');
+        return false;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/fcm-tokens/save`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+            token,
+            platform,
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        console.error('Failed to register token with backend:', error || response.statusText);
+        return false;
+    }
+
+    localStorage.setItem(getTokenStorageKey(), token);
+    return true;
+}
+
+async function requestNativeFcmTokenFromHost(): Promise<void> {
+    try {
+        if (window.FlutterFCM?.postMessage) {
+            window.FlutterFCM.postMessage(JSON.stringify({ type: 'REQUEST_FCM_TOKEN' }));
+            return;
+        }
+
+        if (window.webkit?.messageHandlers?.flutterFcm?.postMessage) {
+            window.webkit.messageHandlers.flutterFcm.postMessage({ type: 'REQUEST_FCM_TOKEN' });
+        }
+    } catch (error) {
+        console.warn('Failed to request native FCM token from host app:', error);
+    }
+}
+
+export function registerNativeFcmBridge(): void {
+    if (typeof window === 'undefined' || window.setNativeFcmToken) {
+        return;
+    }
+
+    window.setNativeFcmToken = async (token: string): Promise<boolean> => {
+        if (!token) {
+            console.warn('Native FCM bridge received empty token');
+            return false;
+        }
+
+        const saved = await saveTokenToBackend(token, 'mobile');
+        if (saved) {
+            console.log('Native mobile FCM token registered with backend');
+        }
+        return saved;
+    };
+}
+
 /**
  * Register service worker for Firebase messaging
  */
 async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+    if (isEmbeddedWebView()) {
+        console.log('Embedded WebView detected, skipping browser service worker registration for FCM');
+        return null;
+    }
+
     if ('serviceWorker' in navigator) {
         try {
-            // Force unregister any stale service workers first
-            const SW_VERSION = 'v2'; // Bump this to force SW update
-            const SW_VERSION_KEY = 'fcm_sw_version';
-            const currentVersion = localStorage.getItem(SW_VERSION_KEY);
+            const swVersion = 'v2';
+            const swVersionKey = 'fcm_sw_version';
+            const currentVersion = localStorage.getItem(swVersionKey);
 
-            if (currentVersion !== SW_VERSION) {
-                console.log(`🔄 Service Worker version changed (${currentVersion} -> ${SW_VERSION}), clearing stale registrations...`);
+            if (currentVersion !== swVersion) {
+                console.log(`Service Worker version changed (${currentVersion} -> ${swVersion}), clearing stale registrations...`);
                 const existingRegistrations = await navigator.serviceWorker.getRegistrations();
                 for (const reg of existingRegistrations) {
                     await reg.unregister();
-                    console.log('🗑️ Unregistered stale service worker:', reg.scope);
+                    console.log('Unregistered stale service worker:', reg.scope);
                 }
-                localStorage.setItem(SW_VERSION_KEY, SW_VERSION);
+                localStorage.setItem(swVersionKey, swVersion);
             }
 
             const firebaseConfigStr = new URLSearchParams({
@@ -31,26 +149,29 @@ async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null
                 storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
                 messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
                 appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
-                measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || ''
+                measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || '',
             }).toString();
 
             const registration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?${firebaseConfigStr}`, {
-                updateViaCache: 'none' // Never use cached SW
+                updateViaCache: 'none',
             });
-            console.log('✅ Service Worker registered:', registration);
+            console.log('Service Worker registered:', registration);
 
-            // Force update check
-            registration.update();
+            if (!isValidServiceWorkerRegistration(registration)) {
+                console.warn('Service worker registration is not Firebase-compatible in this environment');
+                return null;
+            }
 
+            await registration.update();
             return registration;
         } catch (error) {
-            console.error('❌ Service Worker registration failed:', error);
+            console.error('Service Worker registration failed:', error);
             return null;
         }
-    } else {
-        console.warn('⚠️ Service Workers are not supported in this browser');
-        return null;
     }
+
+    console.warn('Service Workers are not supported in this browser');
+    return null;
 }
 
 /**
@@ -69,18 +190,19 @@ async function requestNotificationPermission(): Promise<boolean> {
         try {
             const permission = await Notification.requestPermission();
             if (permission === 'granted') {
-                console.log('✅ Notification permission granted');
+                console.log('Notification permission granted');
                 return true;
-            } else {
-                console.log('❌ Notification permission denied');
-                return false;
             }
+
+            console.log('Notification permission denied');
+            return false;
         } catch (error) {
             console.error('Error requesting notification permission:', error);
             return false;
         }
     }
-    console.warn('⚠️ Notifications are not supported in this browser');
+
+    console.warn('Notifications are not supported in this browser');
     return false;
 }
 
@@ -89,33 +211,38 @@ async function requestNotificationPermission(): Promise<boolean> {
  */
 async function getFCMToken(): Promise<string | null> {
     if (!messaging) {
-        console.warn('⚠️ Firebase Messaging not initialized');
+        console.warn('Firebase Messaging not initialized');
         return null;
     }
 
     try {
         const registration = await registerServiceWorker();
         if (!registration) {
-            console.error('❌ Service Worker not registered');
+            console.warn('Browser FCM is unavailable in this environment');
             return null;
         }
 
-        await registration.update(); // Update service worker
+        if (!isValidServiceWorkerRegistration(registration)) {
+            console.warn('Invalid service worker registration for Firebase Messaging');
+            return null;
+        }
+
+        await registration.update();
 
         const token = await getToken(messaging, {
             vapidKey: VAPID_KEY,
-            serviceWorkerRegistration: registration
+            serviceWorkerRegistration: registration,
         });
 
         if (token) {
-            console.log('✅ FCM Token obtained:', token);
+            console.log('FCM Token obtained:', token);
             return token;
-        } else {
-            console.log('❌ No FCM token available');
-            return null;
         }
+
+        console.log('No FCM token available');
+        return null;
     } catch (error: any) {
-        console.error('❌ Error getting FCM token:', error);
+        console.error('Error getting FCM token:', error);
         return null;
     }
 }
@@ -125,19 +252,17 @@ async function getFCMToken(): Promise<string | null> {
  */
 export async function registerFCMToken(forceUpdate: boolean = false): Promise<string | null> {
     try {
-        // Check if already registered for the correct project
-        const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || 'default_project';
-        const TOKEN_KEY = `fcm_token_${projectId.replace(/-/g, '_')}`;
-        const savedToken = localStorage.getItem(TOKEN_KEY);
+        registerNativeFcmBridge();
 
-        // If old project token exists, remove it and force reset
-        if (localStorage.getItem('fcm_token_web') || localStorage.getItem('fcm_token_mandibazaar_6c730')) {
-            localStorage.removeItem('fcm_token_web');
-            localStorage.removeItem('fcm_token_mandibazaar_6c730');
+        const platform = getPushPlatform();
+        const tokenKey = getTokenStorageKey();
+        const savedToken = localStorage.getItem(tokenKey);
+
+        if (getLegacyTokenKeys().some((key) => localStorage.getItem(key))) {
+            getLegacyTokenKeys().forEach((key) => localStorage.removeItem(key));
             forceUpdate = true;
-            
-            // Unregister old service workers to clear cached sender IDs
-            if ('serviceWorker' in navigator) {
+
+            if (!isEmbeddedWebView() && 'serviceWorker' in navigator) {
                 const registrations = await navigator.serviceWorker.getRegistrations();
                 for (const reg of registrations) {
                     await reg.unregister();
@@ -146,72 +271,42 @@ export async function registerFCMToken(forceUpdate: boolean = false): Promise<st
         }
 
         if (savedToken && !forceUpdate) {
-            console.log('ℹ️ FCM token found in local storage. Syncing with backend for current user...');
-            const authToken = getAuthToken();
-            if (authToken) {
-                try {
-                    await fetch(`${API_BASE_URL}/fcm-tokens/save`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${authToken}`
-                        },
-                        body: JSON.stringify({
-                            token: savedToken,
-                            platform: 'web'
-                        })
-                    });
-                } catch (err) {
-                    console.error('Failed to sync token with backend', err);
-                }
+            console.log('FCM token found in local storage. Syncing with backend for current user...');
+            try {
+                await saveTokenToBackend(savedToken, platform);
+            } catch (err) {
+                console.error('Failed to sync token with backend', err);
             }
             return savedToken;
         }
 
-        // Request permission
+        if (platform === 'mobile') {
+            console.log('Embedded mobile app detected. Waiting for native FCM token from host app.');
+            await requestNativeFcmTokenFromHost();
+            return null;
+        }
+
         const hasPermission = await requestNotificationPermission();
         if (!hasPermission) {
-            console.warn('⚠️ Notification permission not granted');
+            console.warn('Notification permission not granted');
             return null;
         }
 
-        // Get token
         const token = await getFCMToken();
         if (!token) {
-            console.error('❌ Failed to get FCM token');
+            console.error('Failed to get FCM token');
             return null;
         }
 
-        // Save to backend
-        const authToken = getAuthToken();
-        if (!authToken) {
-            console.warn('⚠️ User not authenticated, skipping token registration');
-            return null;
-        }
-
-        const response = await fetch(`${API_BASE_URL}/fcm-tokens/save`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
-            },
-            body: JSON.stringify({
-                token: token,
-                platform: 'web'
-            })
-        });
-
-        if (response.ok) {
-            localStorage.setItem(TOKEN_KEY, token);
-            console.log(`✅ FCM token registered with backend for project ${projectId}`);
+        const saved = await saveTokenToBackend(token, 'web');
+        if (saved) {
+            console.log(`FCM token registered with backend for project ${getProjectId()}`);
             return token;
-        } else {
-            const error = await response.json();
-            console.error('❌ Failed to register token with backend:', error);
-            return null;
         }
+
+        return null;
     } catch (error: any) {
-        console.error('❌ Error registering FCM token:', error);
+        console.error('Error registering FCM token:', error);
         return null;
     }
 }
@@ -221,33 +316,32 @@ export async function registerFCMToken(forceUpdate: boolean = false): Promise<st
  */
 export function setupForegroundNotificationHandler(handler?: (payload: any) => void): (() => void) | void {
     if (!messaging) {
-        console.warn('⚠️ Firebase Messaging not initialized');
+        console.warn('Firebase Messaging not initialized');
         return;
     }
 
     return onMessage(messaging, (payload) => {
-        console.log('📬 Foreground message received:', payload);
+        console.log('Foreground message received:', payload);
 
-        // Show notification even when app is in focus
         if ('Notification' in window && Notification.permission === 'granted') {
             const title = payload.notification?.title || payload.data?.title || 'New Notification';
             const body = payload.notification?.body || payload.data?.body || '';
             const options = {
-                body: body,
+                body,
                 icon: payload.notification?.icon || payload.data?.icon || '/favicon.png',
                 badge: '/favicon.png',
                 tag: payload.data?.orderId || payload.data?.type || 'notification',
                 requireInteraction: true,
                 silent: false,
-                data: payload.data
+                data: payload.data,
             };
 
-            if ('serviceWorker' in navigator) {
+            if ('serviceWorker' in navigator && !isEmbeddedWebView()) {
                 navigator.serviceWorker.ready.then((registration) => {
                     registration.showNotification(title, options)
-                        .then(() => console.log('✅ Foreground notification displayed via Service Worker'))
+                        .then(() => console.log('Foreground notification displayed via Service Worker'))
                         .catch((err) => {
-                            console.warn('⚠️ Failed to show notification via SW, falling back to new Notification:', err);
+                            console.warn('Failed to show notification via SW, falling back to Notification:', err);
                             const notification = new Notification(title, options);
                             notification.onclick = (event) => {
                                 event.preventDefault();
@@ -276,11 +370,10 @@ export function setupForegroundNotificationHandler(handler?: (payload: any) => v
                     window.location.href = link;
                     notification.close();
                 };
-                console.log('✅ Foreground notification displayed via standard Notification');
+                console.log('Foreground notification displayed via standard Notification');
             }
         }
 
-        // Call custom handler
         if (handler) {
             handler(payload);
         }
@@ -292,10 +385,11 @@ export function setupForegroundNotificationHandler(handler?: (payload: any) => v
  */
 export async function initializePushNotifications(): Promise<void> {
     try {
+        registerNativeFcmBridge();
         await registerServiceWorker();
-        console.log('✅ Push notifications initialized');
+        console.log('Push notifications initialized');
     } catch (error) {
-        console.error('❌ Error initializing push notifications:', error);
+        console.error('Error initializing push notifications:', error);
     }
 }
 
@@ -304,7 +398,7 @@ export async function initializePushNotifications(): Promise<void> {
  */
 export async function removeFCMToken(): Promise<void> {
     try {
-        const savedToken = localStorage.getItem('fcm_token_web');
+        const savedToken = localStorage.getItem(getTokenStorageKey());
         if (!savedToken) {
             return;
         }
@@ -318,17 +412,18 @@ export async function removeFCMToken(): Promise<void> {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${authToken}`,
             },
             body: JSON.stringify({
                 token: savedToken,
-                platform: 'web'
-            })
+                platform: getPushPlatform(),
+            }),
         });
 
-        localStorage.removeItem('fcm_token_web');
-        console.log('✅ FCM token removed');
+        localStorage.removeItem(getTokenStorageKey());
+        getLegacyTokenKeys().forEach((key) => localStorage.removeItem(key));
+        console.log('FCM token removed');
     } catch (error) {
-        console.error('❌ Error removing FCM token:', error);
+        console.error('Error removing FCM token:', error);
     }
 }
