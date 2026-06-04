@@ -98,7 +98,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Register FCM token for push notifications after successful login
     import("../services/pushNotificationService").then(({ registerFCMToken }) => {
       registerFCMToken(true)
-        .then(() => {
+        .then((registeredToken) => {
+          if (!registeredToken) {
+            console.log("FCM token not available yet; skipping test notification");
+            return;
+          }
+
           // Send test notification after successful token registration
           fetch(`${API_BASE_URL}/fcm-tokens/test`, {
             method: 'POST',
