@@ -1088,60 +1088,58 @@ export default function Checkout() {
                   </div>
 
                   {/* Product Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xs font-semibold text-neutral-900 mb-0.5 line-clamp-2">
-                      {item.product?.name}
-                    </h3>
-                    <p className="text-[10px] text-neutral-600 mb-0.5">{item.quantity} × {variantTitle}</p>
-                    <p className="text-[10px] text-neutral-700 font-medium mb-0.5">Quantity: {item.quantity}</p>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMoveToWishlist(item.product);
-                      }}
-                      className="text-[10px] text-green-600 font-medium mb-1.5 hover:text-green-700 transition-colors"
-                    >
-                      Move to wishlist
-                    </button>
+                  <div className="flex-1 min-w-0 flex justify-between items-end gap-2">
+                    <div className="flex flex-col items-start min-w-0 flex-1">
+                      <h3 className="text-xs font-semibold text-neutral-900 mb-0.5 line-clamp-2 w-full">
+                        {item.product?.name}
+                      </h3>
+                      <p className="text-[10px] text-neutral-600 mb-0.5">{item.quantity} × {variantTitle}</p>
+                      <p className="text-[10px] text-neutral-700 font-medium mb-0.5">Quantity: {item.quantity}</p>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveToWishlist(item.product);
+                        }}
+                        className="text-[10px] text-green-600 font-medium hover:text-green-700 transition-colors"
+                      >
+                        Move to wishlist
+                      </button>
+                    </div>
 
-                    <div className="flex items-end justify-between mt-1.5 gap-2">
-                      <div className="flex-1" />
+                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                      {/* Quantity Selector */}
+                      <div className="flex items-center gap-1.5 bg-white border-2 border-green-600 rounded-full px-1.5 py-0.5 h-7">
+                        <button
+                          onClick={() => updateQuantity(item.product?.id, item.quantity - 1, variantId, variantTitle)}
+                          className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
+                        >
+                          −
+                        </button>
+                        <span className="text-xs font-bold text-green-600 min-w-[1.25rem] text-center">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() => updateQuantity(item.product?.id, item.quantity + 1, variantId, variantTitle)}
+                          className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
+                        >
+                          +
+                        </button>
+                      </div>
 
-                      <div className="flex items-center gap-3">
-                        {/* Quantity Selector */}
-                        <div className="flex items-center gap-1.5 bg-white border-2 border-green-600 rounded-full px-1.5 py-0.5 h-7">
-                          <button
-                            onClick={() => updateQuantity(item.product?.id, item.quantity - 1, variantId, variantTitle)}
-                            className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
-                          >
-                            −
-                          </button>
-                          <span className="text-xs font-bold text-green-600 min-w-[1.25rem] text-center">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQuantity(item.product?.id, item.quantity + 1, variantId, variantTitle)}
-                            className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        {/* Price */}
-                        <div className="flex flex-col items-end">
-                          <span className="text-sm font-bold text-neutral-900 leading-none mb-1">
-                            ₹{lineTotal}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            {hasDiscount && (
-                              <span className="text-[10px] text-neutral-500 line-through">
-                                ₹{mrp}
-                              </span>
-                            )}
-                            <span className="text-[10px] text-neutral-600">
-                              ₹{displayPrice} each
+                      {/* Price */}
+                      <div className="flex flex-col items-end">
+                        <span className="text-sm font-bold text-neutral-900 leading-none mb-1">
+                          ₹{lineTotal}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {hasDiscount && (
+                            <span className="text-[10px] text-neutral-500 line-through">
+                              ₹{mrp}
                             </span>
-                          </div>
+                          )}
+                          <span className="text-[10px] text-neutral-600">
+                            ₹{displayPrice} each
+                          </span>
                         </div>
                       </div>
                     </div>
