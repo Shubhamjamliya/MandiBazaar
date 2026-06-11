@@ -13,6 +13,37 @@ import AppSettings from "../../../models/AppSettings";
 import { getRoadDistances } from "../../../services/mapService";
 import { Server as SocketIOServer } from "socket.io";
 
+const DUPLICATE_ORDER_WINDOW_MS = 3 * 60 * 1000;
+
+const normalizeOrderItems = (items: any[]) => {
+    if (!Array.isArray(items)) return [];
+    return items
+        .map((item) => {
+            const productId = item?.product?.id || item?.product?._id || item?.product;
+            return {
+                productId: productId ? String(productId) : "",
+                quantity: Number(item?.quantity || 0),
+                variation: item?.variant || item?.variation || "",
+            };
+        })
+        .filter((item) => item.productId)
+        .sort((a, b) => {
+            if (a.productId !== b.productId) return a.productId.localeCompare(b.productId);
+            if (a.variation !== b.variation) return String(a.variation).localeCompare(String(b.variation));
+            return a.quantity - b.quantity;
+        });
+};
+
+const normalizeAddress = (address: any) => {
+    return {
+        address: String(address?.address || address?.street || address?.addressLine || "")
+            .trim()
+            .toLowerCase(),
+        city: String(address?.city || "").trim().toLowerCase(),
+        pincode: String(address?.pincode || "").trim(),
+    };
+};
+
 // Create a new order
 export const createOrder = async (req: Request, res: Response) => {
     let session: mongoose.ClientSession | null = null;
@@ -69,6 +100,58 @@ export const createOrder = async (req: Request, res: Response) => {
                 success: false,
                 message: "Delivery address is required",
             });
+        }
+
+        if (!clientOrderId) {
+            const cutoff = new Date(Date.now() - DUPLICATE_ORDER_WINDOW_MS);
+            const recentOrders = await Order.find({
+                customer: userId,
+                createdAt: { $gte: cutoff },
+                status: { $nin: ["Cancelled", "Rejected"] },
+            })
+                .populate("items")
+                .select("items deliveryAddress paymentMethod createdAt orderNumber total");
+
+            const requestItems = normalizeOrderItems(items);
+            const requestAddress = normalizeAddress(address);
+            const requestPaymentMethod = String(paymentMethod || "COD");
+
+            const duplicateOrder = recentOrders.find((order: any) => {
+                const orderItems = normalizeOrderItems(order.items || []);
+                if (orderItems.length !== requestItems.length) return false;
+
+                const sameItems = orderItems.every((item: any, idx: number) => {
+                    const reqItem = requestItems[idx];
+                    return (
+                        item.productId === reqItem.productId &&
+                        item.quantity === reqItem.quantity &&
+                        String(item.variation || "") === String(reqItem.variation || "")
+                    );
+                });
+
+                if (!sameItems) return false;
+
+                const orderAddress = normalizeAddress(order.deliveryAddress || {});
+                const sameAddress =
+                    orderAddress.address === requestAddress.address &&
+                    orderAddress.city === requestAddress.city &&
+                    orderAddress.pincode === requestAddress.pincode;
+
+                if (!sameAddress) return false;
+
+                return String(order.paymentMethod || "COD") === requestPaymentMethod;
+            });
+
+            if (duplicateOrder) {
+                if (session) {
+                    await session.abortTransaction();
+                }
+                return res.status(200).json({
+                    success: true,
+                    message: "Order already created",
+                    data: duplicateOrder,
+                });
+            }
         }
 
         // Validate required address fields
@@ -730,7 +813,14 @@ export const getMyOrders = async (req: Request, res: Response) => {
         const orders = await Order.find(query)
             .populate({
                 path: 'items',
-                populate: { path: 'product', select: 'productName mainImage price' }
+                populate: [
+                    { 
+                        path: 'product', 
+                        select: 'productName mainImage price seller',
+                        populate: { path: 'seller', select: 'isShopOpen workingHours' }
+                    },
+                    { path: 'seller', select: 'isShopOpen workingHours' }
+                ]
             })
             .sort({ createdAt: -1 })
             .skip(skip)

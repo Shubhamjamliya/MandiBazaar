@@ -12,6 +12,7 @@ import {
   removeAuthToken,
   setAuthToken,
 } from "../services/api/config";
+import { registerFCMToken, removeFCMToken } from "../services/pushNotificationService";
 
 interface User {
   id: string;
@@ -96,37 +97,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthToken(newToken, userData);
 
     // Register FCM token for push notifications after successful login
-    import("../services/pushNotificationService").then(({ registerFCMToken }) => {
-      registerFCMToken(true)
-        .then((registeredToken) => {
-          if (!registeredToken) {
-            console.log("FCM token not available yet; skipping test notification");
-            return;
-          }
+    registerFCMToken(true)
+      .then((registeredToken) => {
+        if (!registeredToken) {
+          console.log("FCM token not available yet; skipping test notification");
+          return;
+        }
 
-          // Send test notification after successful token registration
-          fetch(`${API_BASE_URL}/fcm-tokens/test`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${newToken}`,
-              'Content-Type': 'application/json'
+        // Send test notification after successful token registration
+        fetch(`${API_BASE_URL}/fcm-tokens/test`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${newToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+          .then(response => response.json())
+          .then(data => {
+            console.log('✅ Test notification sent:', data);
+            if (data.success) {
+              console.log(`📬 Notification sent to ${data.details?.totalTokens} device(s)`);
             }
           })
-            .then(response => response.json())
-            .then(data => {
-              console.log('✅ Test notification sent:', data);
-              if (data.success) {
-                console.log(`📬 Notification sent to ${data.details?.totalTokens} device(s)`);
-              }
-            })
-            .catch(error => {
-              console.error('❌ Failed to send test notification:', error);
-            });
-        })
-        .catch((error) => {
-          console.error("Failed to register FCM token:", error);
-        });
-    });
+          .catch(error => {
+            console.error('❌ Failed to send test notification:', error);
+          });
+      })
+      .catch((error) => {
+        console.error("Failed to register FCM token:", error);
+      });
   };
 
   const logout = () => {
@@ -137,10 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     removeAuthToken();
 
     // Remove FCM token on logout
-    import("../services/pushNotificationService").then(({ removeFCMToken }) => {
-      removeFCMToken().catch((error) => {
-        console.error("Failed to remove FCM token:", error);
-      });
+    removeFCMToken().catch((error) => {
+      console.error("Failed to remove FCM token:", error);
     });
   };
 

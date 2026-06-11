@@ -1100,6 +1100,10 @@ export default function ProductDetail() {
                         item.product.id === similarProduct._id)
                   );
                   const similarInCartQty = similarCartItem?.quantity || 0;
+                  
+                  const sSellerInfo = similarProduct.seller;
+                  const sShopStatus = getShopStatus(sSellerInfo);
+                  const isSShopClosed = sShopStatus?.isOpen === false;
 
                   return (
                     <div
@@ -1193,7 +1197,13 @@ export default function ProductDetail() {
 
                         {/* ADD button or Quantity stepper */}
                         <AnimatePresence mode="wait">
-                          {similarInCartQty === 0 ? (
+                          {isSShopClosed ? (
+                            <div className="flex justify-center w-full">
+                              <div className="w-full flex items-center justify-center bg-neutral-100 text-neutral-400 border border-neutral-200 text-xs font-bold rounded-full h-9 shadow-sm">
+                                CLOSED
+                              </div>
+                            </div>
+                          ) : similarInCartQty === 0 ? (
                             <motion.div
                               key="add-button"
                               initial={{ opacity: 0, scale: 0.8 }}

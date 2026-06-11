@@ -38,6 +38,15 @@ export interface Seller {
   addressProof?: string;
   requireProductApproval?: boolean;
   viewCustomerDetails?: boolean;
+  location?: {
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
+    searchLocation?: string;
+  };
   createdAt?: string;
   updatedAt?: string;
 }
