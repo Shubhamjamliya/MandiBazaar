@@ -54,12 +54,12 @@ const getIndiaTimeSnapshot = () => {
 };
 
 const getShopStatus = (seller: any) => {
-  const workingHours = seller?.workingHours;
-  if (!workingHours?.open || !workingHours?.close) return null;
-
   if (seller?.isShopOpen === false) {
     return { isOpen: false, label: 'Closed by seller' };
   }
+
+  const workingHours = seller?.workingHours;
+  if (!workingHours?.open || !workingHours?.close) return null;
 
   const offDays = Array.isArray(workingHours.offDays) ? workingHours.offDays : [];
   const { minutes, day } = getIndiaTimeSnapshot();
