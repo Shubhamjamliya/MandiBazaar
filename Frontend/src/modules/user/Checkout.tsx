@@ -1346,11 +1346,11 @@ export default function Checkout() {
                     <div className="mb-1">
                       <div className="flex items-baseline gap-1">
                         <span className="text-[13px] font-bold text-neutral-900">
-                          ₹{(displayPrice || 0).toLocaleString('en-IN')}
+                          ₹{Number(displayPrice || 0).toLocaleString('en-IN')}
                         </span>
                         {hasDiscount && (
                           <span className="text-[10px] text-neutral-400 line-through">
-                            ₹{(mrp || 0).toLocaleString('en-IN')}
+                            ₹{Number(mrp || 0).toLocaleString('en-IN')}
                           </span>
                         )}
                       </div>
@@ -1508,7 +1508,7 @@ export default function Checkout() {
                   {selectedCoupon.code}
                 </span>
               </div>
-              <span className="text-xs font-medium text-green-600">-₹{currentCouponDiscount.toLocaleString('en-IN')}</span>
+              <span className="text-xs font-medium text-green-600">-₹{Number(currentCouponDiscount).toLocaleString('en-IN')}</span>
             </div>
           )}
 
