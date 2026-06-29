@@ -60,10 +60,15 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
         return 0;
       }),
       Product.countDocuments({ status: "Active" }).catch(() => 0),
-      Order.countDocuments().catch(() => 0),
+      Order.countDocuments({
+        $or: [{ status: { $ne: 'Pending' } }, { paymentStatus: 'Paid' }]
+      }).catch(() => 0),
       Order.countDocuments({ status: "Delivered" }).catch(() => 0),
       Order.countDocuments({
-        status: { $in: ["Received", "Pending", "Processed"] },
+        $and: [
+          { status: { $in: ["Received", "Pending", "Processed"] } },
+          { $or: [{ status: { $ne: 'Pending' } }, { paymentStatus: 'Paid' }] }
+        ]
       }).catch(() => 0),
       Order.countDocuments({ status: "Cancelled" }).catch(() => 0),
       Product.countDocuments({ stock: 0, status: "Active" }).catch(() => 0),
@@ -240,12 +245,14 @@ export const getOrderAnalytics = async (
     const [thisPeriodOrders, lastPeriodOrders] = await Promise.all([
       Order.find({
         orderDate: { $gte: startDate },
+        $or: [{ status: { $ne: 'Pending' } }, { paymentStatus: 'Paid' }]
       })
         .select("orderDate")
         .lean()
         .catch(() => []),
       Order.find({
         orderDate: { $gte: lastPeriodStart, $lt: startDate },
+        $or: [{ status: { $ne: 'Pending' } }, { paymentStatus: 'Paid' }]
       })
         .select("orderDate")
         .lean()
@@ -366,7 +373,8 @@ export const getTodaySales = async (): Promise<{ salesToday: number; salesLastWe
     const todayOrders = await Order.aggregate([
       {
         $match: {
-          orderDate: { $gte: today, $lt: tomorrow }
+          orderDate: { $gte: today, $lt: tomorrow },
+          $or: [{ status: { $ne: 'Pending' } }, { paymentStatus: 'Paid' }]
         }
       },
       {
@@ -381,7 +389,8 @@ export const getTodaySales = async (): Promise<{ salesToday: number; salesLastWe
     const lastWeekOrders = await Order.aggregate([
       {
         $match: {
-          orderDate: { $gte: lastWeekSameDay, $lt: lastWeekNextDay }
+          orderDate: { $gte: lastWeekSameDay, $lt: lastWeekNextDay },
+          $or: [{ status: { $ne: 'Pending' } }, { paymentStatus: 'Paid' }]
         }
       },
       {
@@ -495,7 +504,9 @@ export const getTopSellers = async (
  */
 export const getRecentOrders = async (limit: number = 10) => {
   try {
-    const orders = await Order.find()
+    const orders = await Order.find({
+      $or: [{ status: { $ne: 'Pending' } }, { paymentStatus: 'Paid' }]
+    })
       .populate("customer", "name email phone")
       .populate("deliveryBoy", "name mobile")
       .sort({ orderDate: -1 })

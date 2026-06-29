@@ -28,7 +28,17 @@ export const getOrders = asyncHandler(
     const orderItems = await OrderItem.find({ seller: sellerId }).distinct("order");
 
     // Build query - filter by orders containing this seller's items
-    const query: any = { _id: { $in: orderItems } };
+    const query: any = { 
+      _id: { $in: orderItems },
+      $and: [
+        {
+          $or: [
+            { status: { $ne: 'Pending' } },
+            { paymentStatus: 'Paid' }
+          ]
+        }
+      ]
+    };
 
     // Date range filter
     if (dateFrom || dateTo) {
@@ -57,12 +67,15 @@ export const getOrders = asyncHandler(
 
     // Search filter
     if (search) {
-      query.$or = [
-        { orderId: { $regex: search, $options: "i" } },
-        { invoiceNumber: { $regex: search, $options: "i" } },
-        { 'deliveryAddress.name': { $regex: search, $options: "i" } },
-        { 'deliveryAddress.phone': { $regex: search, $options: "i" } },
-      ];
+      if (!query.$and) query.$and = [];
+      query.$and.push({
+        $or: [
+          { orderId: { $regex: search, $options: "i" } },
+          { invoiceNumber: { $regex: search, $options: "i" } },
+          { 'deliveryAddress.name': { $regex: search, $options: "i" } },
+          { 'deliveryAddress.phone': { $regex: search, $options: "i" } },
+        ]
+      });
     }
 
     // Pagination

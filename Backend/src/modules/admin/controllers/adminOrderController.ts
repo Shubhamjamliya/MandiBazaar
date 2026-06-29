@@ -24,7 +24,16 @@ export const getAllOrders = asyncHandler(
       search,
     } = req.query;
 
-    const query: any = {};
+    const query: any = {
+      $and: [
+        {
+          $or: [
+            { status: { $ne: 'Pending' } },
+            { paymentStatus: 'Paid' }
+          ]
+        }
+      ]
+    };
 
     if (status) query.status = status;
     if (paymentStatus) query.paymentStatus = paymentStatus;
@@ -34,12 +43,15 @@ export const getAllOrders = asyncHandler(
       if (dateTo) query.orderDate.$lte = new Date(dateTo as string);
     }
     if (search) {
-      query.$or = [
-        { orderNumber: { $regex: search as string, $options: "i" } },
-        { customerName: { $regex: search as string, $options: "i" } },
-        { customerEmail: { $regex: search as string, $options: "i" } },
-        { customerPhone: { $regex: search as string, $options: "i" } },
-      ];
+      if (!query.$and) query.$and = [];
+      query.$and.push({
+        $or: [
+          { orderNumber: { $regex: search as string, $options: "i" } },
+          { customerName: { $regex: search as string, $options: "i" } },
+          { customerEmail: { $regex: search as string, $options: "i" } },
+          { customerPhone: { $regex: search as string, $options: "i" } },
+        ]
+      });
     }
 
     // If seller filter, need to check order items
@@ -575,7 +587,16 @@ export const exportOrders = asyncHandler(
   async (req: Request, res: Response) => {
     const { status, dateFrom, dateTo } = req.query;
 
-    const query: any = {};
+    const query: any = {
+      $and: [
+        {
+          $or: [
+            { status: { $ne: 'Pending' } },
+            { paymentStatus: 'Paid' }
+          ]
+        }
+      ]
+    };
     if (status) query.status = status;
     if (dateFrom || dateTo) {
       query.orderDate = {};

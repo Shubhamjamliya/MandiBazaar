@@ -1094,16 +1094,50 @@ export default function Checkout() {
                         {item.product?.name}
                       </h3>
                       <p className="text-[10px] text-neutral-600 mb-0.5">{item.quantity} × {variantTitle}</p>
-                      <p className="text-[10px] text-neutral-700 font-medium mb-0.5">Quantity: {item.quantity}</p>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleMoveToWishlist(item.product);
                         }}
-                        className="text-[10px] text-green-600 font-medium hover:text-green-700 transition-colors"
+                        className="text-[10px] text-green-600 font-medium hover:text-green-700 transition-colors mb-1.5"
                       >
                         Move to wishlist
                       </button>
+                      
+                      {/* Bulk Actions (Neat UI) */}
+                      <div className="mt-auto bg-green-50/50 p-2 rounded-md border border-green-100/50 w-fit">
+                        <span className="text-[10px] text-neutral-500 font-medium block mb-1.5">Set exact quantity:</span>
+                        <div className="flex items-center flex-wrap gap-1.5">
+                          <button 
+                            onClick={() => updateQuantity(item.product?.id, Math.max(1, item.quantity - 5), variantId, variantTitle)}
+                            className="flex items-center justify-center text-[11px] font-bold text-red-600 bg-white border border-red-200 px-2.5 py-1 rounded hover:bg-red-50 transition-colors shadow-sm"
+                            title="Reduce by 5"
+                          >
+                            -5
+                          </button>
+                          <button 
+                            onClick={() => updateQuantity(item.product?.id, 20, variantId, variantTitle)}
+                            className="flex items-center justify-center text-[11px] font-bold text-green-700 bg-white border border-green-300 px-2.5 py-1 rounded hover:bg-green-50 transition-colors shadow-sm"
+                            title="Set quantity to 20"
+                          >
+                            Qty: 20
+                          </button>
+                          <button 
+                            onClick={() => updateQuantity(item.product?.id, 30, variantId, variantTitle)}
+                            className="flex items-center justify-center text-[11px] font-bold text-green-700 bg-white border border-green-300 px-2.5 py-1 rounded hover:bg-green-50 transition-colors shadow-sm"
+                            title="Set quantity to 30"
+                          >
+                            Qty: 30
+                          </button>
+                          <button 
+                            onClick={() => updateQuantity(item.product?.id, 50, variantId, variantTitle)}
+                            className="flex items-center justify-center text-[11px] font-bold text-green-700 bg-white border border-green-300 px-2.5 py-1 rounded hover:bg-green-50 transition-colors shadow-sm"
+                            title="Set quantity to 50"
+                          >
+                            Qty: 50
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">

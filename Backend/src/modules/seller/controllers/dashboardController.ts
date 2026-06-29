@@ -33,9 +33,9 @@ export const getDashboardStats = asyncHandler(
             totalSubcategoryCount,
             totalCustomerCount,
         ] = await Promise.all([
-            Order.countDocuments({ _id: { $in: sellerOrderIds } }),
+            Order.countDocuments({ _id: { $in: sellerOrderIds }, $or: [{ status: { $ne: 'Pending' } }, { paymentStatus: 'Paid' }] }),
             Order.countDocuments({ _id: { $in: sellerOrderIds }, status: "Delivered" }),
-            Order.countDocuments({ _id: { $in: sellerOrderIds }, status: "Pending" }),
+            Order.countDocuments({ _id: { $in: sellerOrderIds }, status: "Pending", paymentStatus: "Paid" }),
             Order.countDocuments({ _id: { $in: sellerOrderIds }, status: "Cancelled" }),
             Product.countDocuments({ seller: sellerId }), // Note: Product model uses 'seller' (ref) or 'sellerId'? Checking schema... Product.ts usually uses 'seller' as ref. Checking prev file... Product.countDocuments({ sellerId }) was used. Let's verify Product model.
             Product.distinct("category", { seller: sellerId }).then(ids => ids.length),
@@ -71,7 +71,7 @@ export const getDashboardStats = asyncHandler(
         });
 
         // 3. New Orders Table (Latest 10)
-        const newOrders = await Order.find({ _id: { $in: sellerOrderIds } })
+        const newOrders = await Order.find({ _id: { $in: sellerOrderIds }, $or: [{ status: { $ne: 'Pending' } }, { paymentStatus: 'Paid' }] })
             .sort({ createdAt: -1 })
             .limit(10);
 
@@ -89,6 +89,7 @@ export const getDashboardStats = asyncHandler(
             {
                 $match: {
                     _id: { $in: sellerOrderIds.map(id => new mongoose.Types.ObjectId(id)) },
+                    $or: [{ status: { $ne: 'Pending' } }, { paymentStatus: 'Paid' }],
                     orderDate: {
                         $gte: new Date(`${currentYear}-01-01`),
                         $lte: new Date(`${currentYear}-12-31`)
@@ -116,6 +117,7 @@ export const getDashboardStats = asyncHandler(
             {
                 $match: {
                     _id: { $in: sellerOrderIds.map(id => new mongoose.Types.ObjectId(id)) },
+                    $or: [{ status: { $ne: 'Pending' } }, { paymentStatus: 'Paid' }],
                     orderDate: {
                         $gte: new Date(currentYear, currentMonth, 1),
                         $lte: new Date(currentYear, currentMonth + 1, 0)
