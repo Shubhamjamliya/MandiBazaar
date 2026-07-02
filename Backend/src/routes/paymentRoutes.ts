@@ -8,6 +8,7 @@ import CartItem from '../models/CartItem';
 import AppSettings from '../models/AppSettings';
 import { fetchHdfcTransactionStatus } from '../services/hdfcStatusApi';
 import { createCashfreeOrder, verifyCashfreePayment } from '../services/cashfreeService';
+import { createRazorpayOrder, verifyRazorpaySignature } from '../services/razorpayService';
 import { restoreStockAndCancelOrder } from '../services/orderStockService';
 
 const router = Router();
@@ -90,6 +91,16 @@ router.post('/create-order', authenticate, requireUserType('Customer'), async (r
                 return res.status(400).json(result);
             }
             return res.status(200).json({ ...result, provider: 'CASHFREE' });
+        } else if (activeGateway === 'RAZORPAY') {
+            const receipt = `Rcpt_${orderId}`;
+            const result = await createRazorpayOrder(orderId, order.total, receipt);
+
+            if (!result.success) {
+                console.error('Razorpay Order Creation Failed:', result);
+                return res.status(400).json(result);
+            }
+            
+            return res.status(200).json({ ...result, provider: 'RAZORPAY' });
         } else {
             // HDFC Flow
             const redirectUrl = `${backendBase}/api/v1/payment/hdfc-return`;
@@ -348,6 +359,108 @@ router.get('/hdfc-cancel', async (req: Request, res: Response) => {
         console.error('Error handling HDFC cancel route (GET):', error);
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         return res.redirect(`${frontendUrl}/cart?error=cancel_error`);
+    }
+});
+
+/**
+ * Razorpay Verification Webhook / Endpoint
+ */
+router.post('/razorpay-verify', authenticate, requireUserType('Customer'), async (req: Request, res: Response) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body;
+
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !orderId) {
+            return res.status(400).json({ success: false, message: 'Missing required parameters' });
+        }
+
+        const verifyResult = await verifyRazorpaySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+
+        if (verifyResult.success) {
+            const order = await Order.findById(orderId);
+            if (order && order.paymentStatus !== 'Paid') {
+                const paymentRecord = new Payment({
+                    order: orderId,
+                    customer: order.customer,
+                    paymentMethod: 'Online',
+                    paymentGateway: 'RAZORPAY',
+                    amount: order.total,
+                    currency: 'INR',
+                    status: 'Completed',
+                    paidAt: new Date(),
+                    gatewayResponse: {
+                        success: true,
+                        message: 'Payment verified via Razorpay',
+                        rawResponse: { razorpay_order_id, razorpay_payment_id },
+                    },
+                });
+
+                await paymentRecord.save();
+                order.paymentStatus = 'Paid';
+                order.paymentId = paymentRecord._id.toString();
+                if (order.status === 'Pending') order.status = 'Received';
+                await order.save();
+
+                // Clear customer's cart after successful payment
+                try {
+                    const cart = await Cart.findOne({ customer: order.customer });
+                    if (cart) {
+                        await CartItem.deleteMany({ cart: cart._id });
+                        cart.items = [];
+                        cart.total = 0;
+                        await cart.save();
+                    }
+                } catch (cartError) {
+                    console.error('Failed to clear cart after Razorpay payment:', cartError);
+                }
+
+                // Create Pending Commissions 
+                try {
+                    const { createPendingCommissions } = await import('../services/commissionService');
+                    await createPendingCommissions(orderId);
+                } catch (commError) {
+                    console.error("Failed to create pending commissions after payment:", commError);
+                }
+
+                // TRIGGER NOTIFICATIONS FOR SELLERS
+                const io = req.app.get('io');
+                if (io) {
+                    try {
+                        const { notifySellersOfOrderUpdate } = await import('../services/sellerNotificationService');
+                        const { sendSellerNewOrderNotification, sendCustomerOrderNotification } = await import('../services/notificationService');
+                        const savedOrder: any = await Order.findById(order._id).populate('items').lean();
+                        if (savedOrder) {
+                            await notifySellersOfOrderUpdate(io, savedOrder, 'NEW_ORDER');
+                            
+                            const sellerIds = new Set<string>();
+                            (savedOrder.items as any[]).forEach(item => {
+                                if (item.seller) sellerIds.add(item.seller.toString());
+                            });
+    
+                            for (const sellerId of sellerIds) {
+                                try {
+                                    await sendSellerNewOrderNotification(sellerId, savedOrder._id.toString(), savedOrder.orderNumber, savedOrder.total);
+                                } catch (notifyError) {}
+                            }
+    
+                            try {
+                                await sendCustomerOrderNotification(savedOrder._id.toString(), savedOrder.orderNumber, savedOrder.customer.toString(), savedOrder.total, 'Processed');
+                            } catch (notifyError) {}
+                        }
+                    } catch (notifyError) {
+                        console.error("Error triggering notifications after payment:", notifyError);
+                    }
+                }
+            }
+
+            return res.status(200).json({ success: true, message: 'Payment verified successfully' });
+        } else {
+            // Failed
+            await restoreStockAndCancelOrder(orderId, 'Razorpay payment verification failed');
+            return res.status(400).json({ success: false, message: 'Invalid signature' });
+        }
+    } catch (error: any) {
+        console.error('Error handling Razorpay verification:', error);
+        return res.status(500).json({ success: false, message: error.message || 'Verification failed' });
     }
 });
 

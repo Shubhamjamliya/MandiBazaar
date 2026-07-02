@@ -55,7 +55,8 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
                     return;
                 }
 
-                const { razorpayOrderId, razorpayKey } = orderResponse.data;
+                const razorpayOrderId = orderResponse.data.id;
+                const razorpayKey = orderResponse.key;
 
                 // Razorpay options
                 const options = {
@@ -78,9 +79,9 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
                             // Verify payment with backend
                             const verificationResponse = await verifyPayment({
                                 orderId,
-                                razorpayOrderId: response.razorpay_order_id,
-                                razorpayPaymentId: response.razorpay_payment_id,
-                                razorpaySignature: response.razorpay_signature,
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature,
                             });
 
                             if (verificationResponse.success) {

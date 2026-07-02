@@ -28,22 +28,21 @@ export const getPaymentHistory = async () => {
 };
 
 /**
- * Razorpay Order Creation (Legacy/Placeholder for build)
+ * Create Razorpay Order
  */
-export const createRazorpayOrder = async (_orderId: string) => {
-    return {
-        success: false,
-        message: "Razorpay is disabled.",
-        data: { razorpayOrderId: '', razorpayKey: '' }
-    };
+export const createRazorpayOrder = async (orderId: string) => {
+    return createHdfcOrder(orderId, 'RAZORPAY');
 };
 
 /**
- * Razorpay Verification (Legacy/Placeholder for build)
+ * Razorpay Verification
  */
-export const verifyPayment = async (_data: any) => {
-    return {
-        success: false,
-        message: "Razorpay is disabled."
-    };
+export const verifyPayment = async (data: any) => {
+    try {
+        const response = await api.post('/payment/razorpay-verify', data);
+        return response.data;
+    } catch (error: any) {
+        console.error('Error verifying razorpay payment:', error);
+        throw error;
+    }
 };

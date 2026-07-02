@@ -1,25 +1,37 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createHdfcOrder } from '../services/api/paymentService'; // rename not strictly necessary
 import CashfreeCheckout from './CashfreeCheckout';
+import RazorpayCheckout from './RazorpayCheckout';
 
 interface HdfcCheckoutProps {
     orderId: string;
     gateway?: string;
     onFailure: (error: string) => void;
+    customerDetails?: {
+        name: string;
+        email: string;
+        phone: string;
+    };
 }
 
 const HdfcCheckout: React.FC<HdfcCheckoutProps> = ({
     orderId,
     gateway,
     onFailure,
+    customerDetails,
 }) => {
     const formRef = useRef<HTMLFormElement>(null);
-    const [provider, setProvider] = useState<'HDFC' | 'CASHFREE' | null>(null);
+    const [provider, setProvider] = useState<'HDFC' | 'CASHFREE' | 'RAZORPAY' | null>(null);
     const [cashfreeData, setCashfreeData] = useState<any>(null);
     const [hdfcData, setHdfcData] = useState<{
         encRequest: string;
         accessCode: string;
         gatewayUrl: string;
+    } | null>(null);
+    const [razorpayData, setRazorpayData] = useState<{
+        razorpayOrderId: string;
+        razorpayKey: string;
+        amount: number;
     } | null>(null);
 
     const hasFetched = useRef(false);
@@ -40,6 +52,14 @@ const HdfcCheckout: React.FC<HdfcCheckoutProps> = ({
                 if (orderResponse.provider === 'CASHFREE') {
                     setProvider('CASHFREE');
                     setCashfreeData(orderResponse.data);
+                } else if (orderResponse.provider === 'RAZORPAY') {
+                    setProvider('RAZORPAY');
+                    // backend response is { data: { id: "order_...", amount: 50000, ... }, key: "rzp_test_..." }
+                    setRazorpayData({
+                        razorpayOrderId: orderResponse.data.id,
+                        razorpayKey: orderResponse.key,
+                        amount: orderResponse.data.amount / 100, // keep it in INR if RazorpayCheckout uses it as INR, wait RazorpayCheckout takes amount * 100
+                    });
                 } else {
                     setProvider('HDFC');
                     const { encRequest, accessCode, gatewayUrl } = orderResponse.data || orderResponse;
@@ -70,6 +90,21 @@ const HdfcCheckout: React.FC<HdfcCheckoutProps> = ({
                 paymentSessionId={cashfreeData.payment_session_id} 
                 environment={cashfreeData.environment} 
                 onFailure={onFailure} 
+            />
+        );
+    }
+
+    if (provider === 'RAZORPAY' && razorpayData) {
+        return (
+            <RazorpayCheckout
+                orderId={orderId}
+                amount={razorpayData.amount}
+                onSuccess={(paymentId) => {
+                    // Success is handled by RazorpayCheckout redirecting, but just in case:
+                    window.location.href = `/orders/${orderId}?payment=success`;
+                }}
+                onFailure={onFailure}
+                customerDetails={customerDetails || { name: 'Customer', email: 'info@mandibazaar.com', phone: '9999999999' }}
             />
         );
     }

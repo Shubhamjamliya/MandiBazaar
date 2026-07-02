@@ -26,7 +26,9 @@ export default function AdminBillingSettings() {
     const [googleMapsKey, setGoogleMapsKey] = useState<string>('');
 
     // Payment Gateway State
-    const [activePaymentGateway, setActivePaymentGateway] = useState<'HDFC' | 'CASHFREE'>('HDFC');
+    const [activePaymentGateway, setActivePaymentGateway] = useState<'HDFC' | 'CASHFREE' | 'RAZORPAY'>('HDFC');
+    const [razorpayKeyId, setRazorpayKeyId] = useState('');
+    const [razorpayKeySecret, setRazorpayKeySecret] = useState('');
     const [hdfcMerchantId, setHdfcMerchantId] = useState('');
     const [hdfcAccessCode, setHdfcAccessCode] = useState('');
     const [hdfcWorkingKey, setHdfcWorkingKey] = useState('');
@@ -68,6 +70,8 @@ export default function AdminBillingSettings() {
                     setHdfcMerchantId(data.paymentGateways.hdfc?.merchantId || '');
                     setHdfcAccessCode(data.paymentGateways.hdfc?.accessCode || '');
                     setHdfcWorkingKey(data.paymentGateways.hdfc?.workingKey || '');
+                    setRazorpayKeyId(data.paymentGateways.razorpay?.keyId || '');
+                    setRazorpayKeySecret(data.paymentGateways.razorpay?.keySecret || '');
                 }
             }
         } catch (error: any) {
@@ -100,7 +104,8 @@ export default function AdminBillingSettings() {
                 activePaymentGateway,
                 paymentGateways: {
                     ...settings?.paymentGateways,
-                    hdfc: { merchantId: hdfcMerchantId, accessCode: hdfcAccessCode, workingKey: hdfcWorkingKey }
+                    hdfc: { merchantId: hdfcMerchantId, accessCode: hdfcAccessCode, workingKey: hdfcWorkingKey },
+                    razorpay: { enabled: activePaymentGateway === 'RAZORPAY', keyId: razorpayKeyId, keySecret: razorpayKeySecret }
                 }
             };
 
@@ -416,6 +421,10 @@ export default function AdminBillingSettings() {
                                 <input type="radio" name="activeGateway" value="CASHFREE" checked={activePaymentGateway === 'CASHFREE'} onChange={() => setActivePaymentGateway('CASHFREE')} className="accent-green-600" />
                                 <span className="font-medium text-gray-900">Cashfree Payments</span>
                             </label>
+                            <label className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer ${activePaymentGateway === 'RAZORPAY' ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+                                <input type="radio" name="activeGateway" value="RAZORPAY" checked={activePaymentGateway === 'RAZORPAY'} onChange={() => setActivePaymentGateway('RAZORPAY')} className="accent-green-600" />
+                                <span className="font-medium text-gray-900">Razorpay</span>
+                            </label>
                         </div>
                     </div>
 
@@ -439,6 +448,24 @@ export default function AdminBillingSettings() {
                     {activePaymentGateway === 'CASHFREE' && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
                             Cashfree credentials are managed via server environment variables. Update them in your backend deployment settings.
+                        </motion.div>
+                    )}
+
+                    {activePaymentGateway === 'RAZORPAY' && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="col-span-full mb-2">
+                                <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                                    You can provide Razorpay keys here. If left blank, the system will fall back to server environment variables (RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET).
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Key ID</label>
+                                <input type="text" value={razorpayKeyId} onChange={(e) => setRazorpayKeyId(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" placeholder="rzp_..." />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Key Secret</label>
+                                <input type="password" value={razorpayKeySecret} onChange={(e) => setRazorpayKeySecret(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" />
+                            </div>
                         </motion.div>
                     )}
                 </div>
