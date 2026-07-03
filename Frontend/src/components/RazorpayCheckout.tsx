@@ -59,9 +59,11 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
                 const razorpayKey = orderResponse.key;
 
                 // Format phone number to avoid fake numbers hiding UPI option
-                let formattedPhone = customerDetails.phone ? customerDetails.phone.replace(/\D/g, '').slice(-10) : '';
-                if (formattedPhone === '9999999999') {
-                    formattedPhone = ''; // Let Razorpay prompt user for real number
+                let formattedPhone = customerDetails.phone ? String(customerDetails.phone).replace(/\D/g, '').slice(-10) : '';
+                if (!formattedPhone || formattedPhone === '9999999999' || formattedPhone === '0000000000') {
+                    // Pass a valid-looking dummy number so Razorpay shows the UPI icon immediately
+                    // instead of waiting for the user to enter it.
+                    formattedPhone = '9876543210'; 
                 }
 
                 // Razorpay options
