@@ -69,7 +69,7 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
                 // Razorpay options
                 const options = {
                     key: razorpayKey, // Get key from backend response
-                    amount: amount * 100, // Amount in paise
+                    amount: Math.round(amount * 100), // Amount in paise, rounded to avoid float issues
                     currency: 'INR',
                     name: 'Mandi Bazaar',
                     description: `Order #${orderId}`,
