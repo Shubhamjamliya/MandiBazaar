@@ -4,6 +4,8 @@ import { createRazorpayOrder, verifyPayment } from '../services/api/paymentServi
 interface RazorpayCheckoutProps {
     orderId: string;
     amount: number;
+    razorpayOrderId: string;
+    razorpayKey: string;
     onSuccess: (paymentId: string) => void;
     onFailure: (error: string) => void;
     customerDetails: {
@@ -22,6 +24,8 @@ declare global {
 const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
     orderId,
     amount,
+    razorpayOrderId,
+    razorpayKey,
     onSuccess,
     onFailure,
     customerDetails,
@@ -49,16 +53,11 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
                     return;
                 }
 
-                // Create Razorpay order
-                const orderResponse = await createRazorpayOrder(orderId);
-
-                if (!orderResponse.success) {
-                    onFailure(orderResponse.message || 'Failed to create payment order');
+                // Removed secondary API call to preserve user gesture timing for mobile intents
+                if (!razorpayOrderId || !razorpayKey) {
+                    onFailure('Missing Razorpay credentials from server');
                     return;
                 }
-
-                const razorpayOrderId = orderResponse.data.id;
-                const razorpayKey = orderResponse.key;
 
                 // Format phone number to avoid fake numbers hiding UPI option
                 let formattedPhone = customerDetails.phone ? String(customerDetails.phone).replace(/\D/g, '').slice(-10) : '';
@@ -138,6 +137,90 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
             </div>
         </div>
     );
+};
+
+// Export utility function to trigger Razorpay immediately without React lifecycle delays
+// This preserves the User Gesture context which is REQUIRED for Android UPI Intents (GPay, PhonePe icons)
+export const openRazorpay = async ({
+    orderId,
+    amount,
+    razorpayOrderId,
+    razorpayKey,
+    customerDetails,
+    onSuccess,
+    onFailure,
+}: RazorpayCheckoutProps) => {
+    try {
+        const loadRazorpayScript = () => {
+            return new Promise((resolve) => {
+                if (window.Razorpay) return resolve(true);
+                const script = document.createElement('script');
+                script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                script.onload = () => resolve(true);
+                script.onerror = () => resolve(false);
+                document.body.appendChild(script);
+            });
+        };
+
+        const scriptLoaded = await loadRazorpayScript();
+        if (!scriptLoaded) {
+            onFailure('Failed to load Razorpay SDK');
+            return;
+        }
+
+        if (!razorpayOrderId || !razorpayKey) {
+            onFailure('Missing Razorpay credentials from server');
+            return;
+        }
+
+        let formattedPhone = customerDetails.phone ? String(customerDetails.phone).replace(/\D/g, '').slice(-10) : '';
+        if (!formattedPhone || formattedPhone === '9999999999' || formattedPhone === '0000000000') {
+            formattedPhone = '9876543210'; 
+        }
+
+        const options = {
+            key: razorpayKey,
+            amount: Math.round(amount * 100),
+            currency: 'INR',
+            name: 'Mandi Bazaar',
+            description: `Order #${orderId}`,
+            order_id: razorpayOrderId,
+            prefill: {
+                name: customerDetails.name,
+                email: customerDetails.email,
+                contact: formattedPhone,
+            },
+            theme: { color: '#3B82F6' },
+            handler: async function (response: any) {
+                try {
+                    const verificationResponse = await verifyPayment({
+                        orderId,
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                    });
+
+                    if (verificationResponse.success) {
+                        onSuccess(response.razorpay_payment_id);
+                    } else {
+                        onFailure(verificationResponse.message || 'Payment verification failed');
+                    }
+                } catch (error: any) {
+                    onFailure(error.response?.data?.message || 'Payment verification failed');
+                }
+            },
+            modal: {
+                ondismiss: function () {
+                    onFailure('Payment cancelled by user');
+                },
+            },
+        };
+
+        const razorpay = new window.Razorpay(options);
+        razorpay.open();
+    } catch (error: any) {
+        onFailure(error.response?.data?.message || 'Failed to initiate payment');
+    }
 };
 
 export default RazorpayCheckout;

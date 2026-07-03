@@ -99,6 +99,8 @@ const HdfcCheckout: React.FC<HdfcCheckoutProps> = ({
             <RazorpayCheckout
                 orderId={orderId}
                 amount={razorpayData.amount}
+                razorpayOrderId={razorpayData.razorpayOrderId}
+                razorpayKey={razorpayData.razorpayKey}
                 onSuccess={(paymentId) => {
                     // Success is handled by RazorpayCheckout redirecting, but just in case:
                     window.location.href = `/orders/${orderId}?payment=success`;

@@ -23,6 +23,8 @@ import { updateProfile } from '../../services/api/customerService';
 import { createOrder, cancelOrder } from '../../services/api/customerOrderService';
 import { calculateProductPrice } from '../../utils/priceUtils';
 import HdfcCheckout from '../../components/HdfcCheckout';
+import { openRazorpay } from '../../components/RazorpayCheckout';
+import { createHdfcOrder } from '../../services/api/paymentService';
 
 // const STORAGE_KEY = 'saved_address'; // Removed
 
@@ -511,6 +513,46 @@ export default function Checkout() {
       paymentMethod: selectedPaymentMethod === 'cod' ? 'COD' : 'Online',
     };
 
+  const handlePlaceOrder = async () => {
+    if (!validateOrder()) return;
+
+    if (placingOrderRef.current) return;
+    placingOrderRef.current = true;
+    setIsPlacingOrder(true);
+
+    const addressWithLocation = {
+      ...selectedAddress,
+      location: selectedAddress.location || undefined,
+    };
+
+    const order = {
+      customer: user.id,
+      items: cart.items.map((item) => ({
+        product: item.product.id || item.product._id,
+        quantity: item.quantity,
+        price: calculateProductPrice(item.product).displayPrice,
+        seller: item.product.seller,
+        weight: item.product.weight,
+        unit: item.product.unit,
+      })),
+      total: grandTotal,
+      pricingDetails: {
+        subtotal: subTotal,
+        discount: totalDiscount,
+        couponDiscount: couponDiscount,
+        platformFee: handlingCharge,
+        deliveryFee: deliveryCharge,
+      },
+      totalAmount: grandTotal,
+      address: addressWithLocation,
+      status: 'Pending',
+      createdAt: new Date().toISOString(),
+      gstin: gstin || undefined,
+      specialRequests: specialRequest.trim() || undefined,
+      couponCode: selectedCoupon?.code || undefined,
+      paymentMethod: selectedPaymentMethod === 'cod' ? 'COD' : 'Online',
+    };
+
     try {
       // Create the order first (with Pending status)
       const placedId = await addOrder(order);
@@ -521,18 +563,55 @@ export default function Checkout() {
           clearCart();
           setShowOrderSuccess(true);
           showGlobalToast('Order placed successfully! Pay on delivery.', 'success');
+          placingOrderRef.current = false;
+          setIsPlacingOrder(false);
         } else {
-          // Online: trigger HDFC payment
-          setPendingOrderId(placedId);
-          setShowHdfcCheckout(true);
+          // Online: trigger payment immediately in the same async chain to preserve User Gesture Context!
+          const orderResponse = await createHdfcOrder(placedId, activeGateway);
+          
+          if (!orderResponse.success) {
+            alert(orderResponse.message || 'Failed to initialize payment');
+            placingOrderRef.current = false;
+            setIsPlacingOrder(false);
+            return;
+          }
+
+          if (orderResponse.provider === 'RAZORPAY') {
+            await openRazorpay({
+              orderId: placedId,
+              amount: orderResponse.data.amount / 100,
+              razorpayOrderId: orderResponse.data.id,
+              razorpayKey: orderResponse.key,
+              customerDetails: {
+                name: user.name,
+                email: user.email,
+                phone: user.phone || '9999999999'
+              },
+              onSuccess: (paymentId) => {
+                window.location.href = `/orders/${placedId}?payment=success`;
+              },
+              onFailure: (error) => {
+                setPaymentProcessing(false);
+                setPendingOrderId(null);
+                setPaymentError(error);
+                placingOrderRef.current = false;
+                setIsPlacingOrder(false);
+              }
+            });
+            // Don't reset placingOrderRef here because the Razorpay UI is now open and controlling the flow
+          } else {
+            // For HDFC and Cashfree, fallback to component rendering approach
+            setPendingOrderId(placedId);
+            setShowHdfcCheckout(true);
+            placingOrderRef.current = false;
+            setIsPlacingOrder(false);
+          }
         }
       }
     } catch (error: any) {
       console.error("Order placement failed", error);
-      // Show user-friendly error message
       const errorMessage = error.message || error.response?.data?.message || "Failed to place order. Please try again.";
       alert(errorMessage);
-    } finally {
       placingOrderRef.current = false;
       setIsPlacingOrder(false);
     }

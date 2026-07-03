@@ -9,6 +9,8 @@ import { useDeliveryTracking } from "../../hooks/useDeliveryTracking";
 import DeliveryPartnerCard from "../../components/DeliveryPartnerCard";
 import { cancelOrder, updateOrderNotes, getSellerLocationsForOrder, refreshDeliveryOtp } from "../../services/api/customerOrderService";
 import HdfcCheckout from "../../components/HdfcCheckout";
+import { openRazorpay } from "../../components/RazorpayCheckout";
+import { createHdfcOrder } from "../../services/api/paymentService";
 
 // Icon Components
 const ArrowLeftIcon = ({ className }: { className?: string }) => (
@@ -692,8 +694,42 @@ export default function OrderDetail() {
     setShowShareOptions(false);
   };
 
-  const handlePayNow = () => {
-    setShowHdfcCheckout(true);
+  const handlePayNow = async () => {
+    if (!id || !order) return;
+    
+    try {
+      const orderResponse = await createHdfcOrder(id);
+      
+      if (!orderResponse.success) {
+        alert(orderResponse.message || 'Failed to initialize payment');
+        return;
+      }
+
+      if (orderResponse.provider === 'RAZORPAY') {
+        await openRazorpay({
+          orderId: id,
+          amount: orderResponse.data.amount / 100,
+          razorpayOrderId: orderResponse.data.id,
+          razorpayKey: orderResponse.key,
+          customerDetails: {
+            name: order.address?.name || 'Customer',
+            email: order.address?.email || 'customer@mandibazaar.com',
+            phone: order.address?.phone || '9999999999'
+          },
+          onSuccess: (paymentId) => {
+            window.location.href = `/orders/${id}?payment=success`;
+          },
+          onFailure: (error) => {
+            alert(error);
+          }
+        });
+      } else {
+        setShowHdfcCheckout(true);
+      }
+    } catch (error: any) {
+      console.error("Payment initiation failed", error);
+      alert(error.message || "Failed to initialize payment");
+    }
   };
 
   const handleCallStore = () => {
