@@ -58,6 +58,12 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
                 const razorpayOrderId = orderResponse.data.id;
                 const razorpayKey = orderResponse.key;
 
+                // Format phone number to avoid fake numbers hiding UPI option
+                let formattedPhone = customerDetails.phone ? customerDetails.phone.replace(/\D/g, '').slice(-10) : '';
+                if (formattedPhone === '9999999999') {
+                    formattedPhone = ''; // Let Razorpay prompt user for real number
+                }
+
                 // Razorpay options
                 const options = {
                     key: razorpayKey, // Get key from backend response
@@ -69,7 +75,7 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
                     prefill: {
                         name: customerDetails.name,
                         email: customerDetails.email,
-                        contact: customerDetails.phone,
+                        contact: formattedPhone,
                     },
                     theme: {
                         color: '#3B82F6',
