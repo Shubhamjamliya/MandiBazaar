@@ -26,6 +26,8 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
     onFailure,
     customerDetails,
 }) => {
+    const [isRazorpayOpen, setIsRazorpayOpen] = React.useState(false);
+
     useEffect(() => {
         // Load Razorpay script if not already loaded
         const loadRazorpayScript = () => {
@@ -110,6 +112,7 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
                 };
 
                 const razorpay = new window.Razorpay(options);
+                setIsRazorpayOpen(true);
                 razorpay.open();
             } catch (error: any) {
                 console.error('Payment initiation error:', error);
@@ -119,6 +122,10 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
 
         initiatePayment();
     }, [orderId, amount, customerDetails, onSuccess, onFailure]);
+
+    if (isRazorpayOpen) {
+        return null; // Remove loading overlay to ensure it doesn't block mobile UI interactions
+    }
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
