@@ -174,16 +174,16 @@ export const getHomeContent = async (req: Request, res: Response) => {
       .filter((item: any) => {
         const p = item.product;
         if (!p || !p.category) return false;
-        
-        // Strictly filter by location if provided
-        const isAvailable = (nearbySellerIds.length > 0 && p.seller)
+        return (nearbySellerIds.length > 0 && p.seller)
           ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
           : false;
-        
-        return isAvailable;
       })
       .map((item: any) => {
         const product = item.product;
+        const isAvailable = (nearbySellerIds.length > 0 && product.seller)
+          ? nearbySellerIds.some(id => id.toString() === (product.seller._id || product.seller).toString())
+          : false;
+
         return {
           id: product._id.toString(),
           _id: product._id.toString(),
@@ -198,7 +198,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
           subcategory: product.subcategory?.toString() || "",
           status: product.status,
           publish: product.publish,
-          isAvailable: true,
+          isAvailable: isAvailable,
           seller: product.seller,
           weightVariants: product.weightVariants || [],
           variations: product.variations || [],
@@ -358,18 +358,13 @@ export const getHomeContent = async (req: Request, res: Response) => {
               .populate("seller", "workingHours isShopOpen")
               .lean();
 
-            const availableProducts = products.filter((p: any) => {
-              const isAvailable = (nearbySellerIds.length > 0 && p.seller)
-                ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
-                : false;
-              return isAvailable;
-            });
-
-            return {
-              id: subcat._id.toString(),
-              name: subcat.name,
-              image: subcat.image || "",
-              products: availableProducts.map((p: any) => {
+            const availableProducts = products
+              .filter((p: any) => {
+                return (nearbySellerIds.length > 0 && p.seller)
+                  ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
+                  : false;
+              })
+              .map((p: any) => {
                 return {
                   id: p._id.toString(),
                   productId: p._id.toString(),
@@ -389,7 +384,13 @@ export const getHomeContent = async (req: Request, res: Response) => {
                   isAvailable: true,
                   seller: p.seller,
                 };
-              }),
+              });
+
+            return {
+              id: subcat._id.toString(),
+              name: subcat.name,
+              image: subcat.image || "",
+              products: availableProducts,
             };
           })
         );
@@ -420,34 +421,33 @@ export const getHomeContent = async (req: Request, res: Response) => {
           .populate("seller", "workingHours isShopOpen")
           .lean();
 
-        const availableDirectProducts = directProducts.filter((p: any) => {
-          const isAvailable = (nearbySellerIds.length > 0 && p.seller)
-            ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
-            : false;
-          return isAvailable;
-        });
-
-        const mappedDirectProducts = availableDirectProducts.map((p: any) => {
-          return {
-            id: p._id.toString(),
-            productId: p._id.toString(),
-            name: p.productName,
-            productName: p.productName,
-            image: p.mainImage,
-            mainImage: p.mainImage,
-            price: p.price,
-            mrp: p.mrp,
-            discount: p.discount || (p.mrp && p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0),
-            rating: p.rating || 0,
-            reviewsCount: p.reviewsCount || 0,
-            pack: p.pack || "",
-            variations: p.variations || [],
-            weightVariants: p.weightVariants || [],
-            sellingUnit: p.sellingUnit || "unit",
-            isAvailable: true,
-            seller: p.seller,
-          };
-        });
+        const mappedDirectProducts = directProducts
+          .filter((p: any) => {
+            return (nearbySellerIds.length > 0 && p.seller)
+              ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
+              : false;
+          })
+          .map((p: any) => {
+            return {
+              id: p._id.toString(),
+              productId: p._id.toString(),
+              name: p.productName,
+              productName: p.productName,
+              image: p.mainImage,
+              mainImage: p.mainImage,
+              price: p.price,
+              mrp: p.mrp,
+              discount: p.discount || (p.mrp && p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0),
+              rating: p.rating || 0,
+              reviewsCount: p.reviewsCount || 0,
+              pack: p.pack || "",
+              variations: p.variations || [],
+              weightVariants: p.weightVariants || [],
+              sellingUnit: p.sellingUnit || "unit",
+              isAvailable: true,
+              seller: p.seller,
+            };
+          });
 
         const allSubcats = subcatsWithProducts.filter(s => s.products.length > 0);
         if (mappedDirectProducts.length > 0) {

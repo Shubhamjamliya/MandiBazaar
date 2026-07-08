@@ -190,12 +190,10 @@ export default function Home() {
     };
 
     fetchData();
-    if (activeTab !== "all") {
-      setPage(1);
-      setHasMore(true);
-      setAllProducts([]);
-      fetchAllProducts(1, activeTab);
-    }
+    setPage(1);
+    setHasMore(true);
+    setAllProducts([]);
+    fetchAllProducts(1, activeTab);
   }, [location?.latitude, location?.longitude, activeTab, fetchAllProducts]);
 
 
@@ -494,11 +492,11 @@ export default function Home() {
         <div className="space-y-4 pt-1">
 
 
-          {/* Category-Specific Products Section (Integrated Infinite Scroll) */}
-          {activeTab !== "all" && allProducts.length > 0 && (
+          {allProducts.length > 0 && (
             <div data-products-section className="bg-white/95 backdrop-blur-sm py-6 mb-8 rounded-2xl mx-2 shadow-sm border border-neutral-100">
               <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-6 px-4 md:px-6 lg:px-8 capitalize">
-                {activeTab === "grocery" ? "Grocery Items" :
+                {activeTab === "all" ? "All Items" :
+                  activeTab === "grocery" ? "Grocery Items" :
                   activeTab === "fruits-and-vegetables" ? "Fresh Fruits & Vegetables" :
                     activeTab}
               </h2>
@@ -539,12 +537,6 @@ export default function Home() {
       {!activeInlineCategory && activeTab === "all" && homeData.categoryHierarchy && homeData.categoryHierarchy.length > 0 && (
         <div className="space-y-4">
           {homeData.categoryHierarchy
-            .filter((category: any) => {
-              const name = category.name.toLowerCase();
-              const slug = category.slug.toLowerCase();
-              return name.includes("fruit") || name.includes("vegetable") ||
-                slug.includes("fruit") || slug.includes("vegetable");
-            })
             .map((category: any, catIndex: number) => (
               <div key={category.id || category._id}>
                 <CategoryProductSlider category={category} />
