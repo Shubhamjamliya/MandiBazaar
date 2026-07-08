@@ -480,8 +480,6 @@ export default function Checkout() {
     placingOrderRef.current = true;
     setIsPlacingOrder(true);
 
-    // Final address setup
-
     // Create address object with location data (use fallback if needed)
     const addressWithLocation: OrderAddress = {
       ...selectedAddress,
@@ -509,47 +507,6 @@ export default function Checkout() {
       gstin: gstin || undefined,
       specialRequests: specialRequest.trim() || undefined,
       couponCode: selectedCoupon?.code || undefined,
-
-      paymentMethod: selectedPaymentMethod === 'cod' ? 'COD' : 'Online',
-    };
-
-  const handlePlaceOrder = async () => {
-    if (!validateOrder()) return;
-
-    if (placingOrderRef.current) return;
-    placingOrderRef.current = true;
-    setIsPlacingOrder(true);
-
-    const addressWithLocation = {
-      ...selectedAddress,
-      location: selectedAddress.location || undefined,
-    };
-
-    const order = {
-      customer: user.id,
-      items: cart.items.map((item) => ({
-        product: item.product.id || item.product._id,
-        quantity: item.quantity,
-        price: calculateProductPrice(item.product).displayPrice,
-        seller: item.product.seller,
-        weight: item.product.weight,
-        unit: item.product.unit,
-      })),
-      total: grandTotal,
-      pricingDetails: {
-        subtotal: subTotal,
-        discount: totalDiscount,
-        couponDiscount: couponDiscount,
-        platformFee: handlingCharge,
-        deliveryFee: deliveryCharge,
-      },
-      totalAmount: grandTotal,
-      address: addressWithLocation,
-      status: 'Pending',
-      createdAt: new Date().toISOString(),
-      gstin: gstin || undefined,
-      specialRequests: specialRequest.trim() || undefined,
-      couponCode: selectedCoupon?.code || undefined,
       paymentMethod: selectedPaymentMethod === 'cod' ? 'COD' : 'Online',
     };
 
@@ -567,7 +524,8 @@ export default function Checkout() {
           setIsPlacingOrder(false);
         } else {
           // Online: trigger payment immediately in the same async chain to preserve User Gesture Context!
-          const orderResponse = await createHdfcOrder(placedId, activeGateway);
+          // Replace undefined activeGateway with "RAZORPAY" as fallback/default
+          const orderResponse = await createHdfcOrder(placedId, "RAZORPAY");
           
           if (!orderResponse.success) {
             alert(orderResponse.message || 'Failed to initialize payment');
@@ -583,17 +541,16 @@ export default function Checkout() {
               razorpayOrderId: orderResponse.data.id,
               razorpayKey: orderResponse.key,
               customerDetails: {
-                name: user.name,
-                email: user.email,
-                phone: user.phone || '9999999999'
+                name: user?.name || 'Customer',
+                email: user?.email || 'customer@example.com',
+                phone: user?.phone || '9999999999'
               },
               onSuccess: (paymentId) => {
                 window.location.href = `/orders/${placedId}?payment=success`;
               },
               onFailure: (error) => {
-                setPaymentProcessing(false);
                 setPendingOrderId(null);
-                setPaymentError(error);
+                showGlobalToast(typeof error === 'string' ? error : 'Payment failed', 'error');
                 placingOrderRef.current = false;
                 setIsPlacingOrder(false);
               }

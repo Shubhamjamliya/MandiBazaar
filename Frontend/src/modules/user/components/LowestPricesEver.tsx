@@ -213,11 +213,11 @@ const ProductCard = memo(({
     >
       <div
         onClick={() => navigate(`/product/${product.id}`)}
-        className="bg-white rounded-lg overflow-hidden flex flex-col relative h-full max-h-full cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-neutral-100"
+        className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col relative h-full border border-neutral-200 cursor-pointer"
       >
         {/* Product Image Area */}
         <div className="relative block">
-          <div className="w-full h-28 bg-neutral-100 flex items-center justify-center overflow-hidden relative">
+          <div className="w-full h-28 bg-white flex items-center justify-center overflow-hidden relative p-2">
             {product.imageUrl ? (
               <img
                 src={product.imageUrl}
@@ -233,15 +233,15 @@ const ProductCard = memo(({
 
             {/* Red Discount Badge - Top Left */}
             {discount > 0 && (
-              <div className="absolute top-1.5 left-1.5 z-10 bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+              <div className="absolute top-2 left-2 z-10 bg-[#149b4c] text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
                 {discount}% OFF
               </div>
             )}
 
             {/* Options Badge */}
             {optionsCount >= 2 && (
-              <div className="absolute bottom-1.5 left-1.5 z-10">
-                <span className="text-[9px] font-bold text-neutral-700 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded shadow-sm border border-neutral-100 uppercase tracking-tighter">
+              <div className="absolute bottom-2 left-2 z-10">
+                <span className="text-[9px] font-bold text-neutral-700 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded shadow-sm border border-neutral-100 uppercase">
                   {optionsCount} OPTIONS
                 </span>
               </div>
@@ -278,37 +278,35 @@ const ProductCard = memo(({
         </div>
 
         {/* Product Details */}
-        <div className="p-2 flex-1 flex flex-col min-h-0 bg-white">
+        <div className="px-2.5 pt-1.5 pb-2.5 flex-1 flex flex-col bg-white min-h-0">
           {/* Variant Tag */}
           <div className="flex items-center gap-1.5 mb-1.5">
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase tracking-tight ${variantStyle.bg} ${variantStyle.text} ${variantStyle.border}`}>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#e8f5ed] text-[#0f7a5c]">
               {variantLabel}
             </span>
           </div>
 
           {/* Product Name */}
-          <div className="mb-1.5">
-            <h3 className="text-[11px] font-bold text-neutral-900 line-clamp-2 leading-tight min-h-[2.2rem] max-h-[2.2rem] overflow-hidden" title={productName}>
-              {displayName}
-            </h3>
-          </div>
+          <h3 className="text-[13px] font-bold text-neutral-900 mb-1 line-clamp-2 leading-tight" title={productName}>
+            {displayName}
+          </h3>
+
+          <div className="flex-1"></div>
 
           {/* Pricing Area */}
-          <div className="mb-2">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-[15px] font-black text-neutral-900 leading-none">
-                ₹{displayPrice.toLocaleString('en-IN')}
+          <div className="flex items-baseline gap-1.5 mb-2 mt-1">
+            <span className="text-[16px] font-black text-neutral-900 leading-none">
+              ₹{displayPrice.toLocaleString('en-IN')}
+            </span>
+            {hasDiscount && (
+              <span className="text-[12px] text-neutral-400 line-through font-medium leading-none">
+                ₹{mrp.toLocaleString('en-IN')}
               </span>
-              {hasDiscount && (
-                <span className="text-[11px] text-neutral-400 line-through font-medium leading-none">
-                  ₹{mrp.toLocaleString('en-IN')}
-                </span>
-              )}
-            </div>
+            )}
           </div>
 
-          {/* ADD Button or Quantity Stepper */}
-          <div className="mt-auto pt-1">
+          {/* ADD Button Row */}
+          <div className="w-full">
             <AnimatePresence mode="wait">
               {inCartQty === 0 ? (
                 <motion.button
@@ -320,9 +318,9 @@ const ProductCard = memo(({
                   transition={{ duration: 0.2 }}
                   disabled={isActionDisabled}
                   onClick={handleAddClick}
-                  className={`w-full h-8 text-[11px] font-bold rounded-full uppercase tracking-wider transition-all shadow-sm ${isActionDisabled
-                    ? 'bg-neutral-50 text-neutral-400 border border-neutral-200 cursor-not-allowed'
-                    : 'bg-white text-green-600 border border-green-600 hover:bg-green-50'
+                  className={`w-full border rounded-full font-bold text-[12px] h-8 px-3 flex items-center justify-center uppercase tracking-wide transition-all shadow-sm ${isActionDisabled
+                    ? 'border-neutral-200 text-neutral-400 bg-neutral-50 cursor-not-allowed'
+                    : 'border-[#149b4c] text-[#149b4c] bg-white hover:bg-green-50'
                     }`}
                 >
                   {product.isAvailable === false ? 'Out of Range' : isShopClosed ? 'Closed' : 'ADD'}
@@ -334,7 +332,7 @@ const ProductCard = memo(({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ duration: 0.2 }}
-                  className="flex items-center justify-between bg-green-600 rounded-full h-8 px-1 shadow-md shadow-green-100"
+                  className="flex items-center justify-between bg-white border border-[#149b4c] rounded-full h-8 px-1 shadow-sm w-full"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <motion.button
@@ -344,16 +342,16 @@ const ProductCard = memo(({
                       e.stopPropagation();
                       onUpdateQuantity(product.id, inCartQty - 1, actingVariantId, actingVariantTitle);
                     }}
-                    className="w-6 h-6 flex items-center justify-center text-white font-bold hover:bg-green-700 rounded-full transition-colors leading-none"
+                    className="w-6 h-6 flex items-center justify-center bg-[#149b4c] text-white font-bold hover:bg-green-700 rounded-full transition-colors leading-none p-0"
                   >
-                    <span className="text-sm font-bold">−</span>
+                    <span className="text-[13px] font-bold">−</span>
                   </motion.button>
                   <motion.span
                     key={inCartQty}
                     initial={{ scale: 1.2, y: -2 }}
                     animate={{ scale: 1, y: 0 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-                    className="text-white font-black text-[12px] min-w-[0.75rem] text-center"
+                    className="text-[13px] font-black text-[#149b4c] min-w-[1.5rem] text-center"
                   >
                     {inCartQty}
                   </motion.span>
@@ -365,12 +363,12 @@ const ProductCard = memo(({
                       e.stopPropagation();
                       onUpdateQuantity(product.id, inCartQty + 1, actingVariantId, actingVariantTitle);
                     }}
-                    className={`w-6 h-6 flex items-center justify-center font-bold rounded-full transition-colors leading-none ${isActionDisabled
-                      ? 'text-neutral-300 cursor-not-allowed'
-                      : 'text-white hover:bg-green-700'
+                    className={`w-6 h-6 flex items-center justify-center font-bold rounded-full transition-colors leading-none p-0 ${isActionDisabled
+                      ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                      : 'bg-[#149b4c] text-white hover:bg-green-700'
                       }`}
                   >
-                    <span className="text-sm font-bold">+</span>
+                    <span className="text-[13px] font-bold">+</span>
                   </motion.button>
                 </motion.div>
               )}
@@ -378,7 +376,7 @@ const ProductCard = memo(({
           </div>
 
           {isShopClosed && workingHoursText && (
-            <div className="mt-2 text-[9px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+            <div className="mt-2 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
               Opens {workingHoursText}. Try when shop is online.
             </div>
           )}
