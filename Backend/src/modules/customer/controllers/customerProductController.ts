@@ -46,11 +46,12 @@ export const getProducts = async (req: Request, res: Response) => {
       // Find sellers within user's location range
       nearbySellerIds = await findSellersWithinRange(userLat!, userLng!);
 
-      // Strictly filter by nearby sellers as requested
+      // Strictly filter by nearby sellers
       query.seller = { $in: nearbySellerIds };
     } else {
-      // Fallback for no location: only show Admin products
+      // Fallback for no location: get Admin sellers for availability check
       nearbySellerIds = await getAdminSellerIds();
+      // Strictly filter by Admin sellers
       query.seller = { $in: nearbySellerIds };
     }
 
