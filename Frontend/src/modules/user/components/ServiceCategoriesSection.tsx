@@ -83,7 +83,7 @@ const ServiceCategoriesSectionMemo = memo(function ServiceCategoriesSection({
             className="flex-shrink-0 flex flex-col items-center cursor-pointer"
             onClick={() => {
               if (onCategorySelect) {
-                onCategorySelect({ id: 'home-redirect', name: 'Home' });
+                onCategorySelect({ id: 'home-redirect', name: 'All Items' });
               } else {
                 navigate('/');
               }
@@ -94,9 +94,9 @@ const ServiceCategoriesSectionMemo = memo(function ServiceCategoriesSection({
             <div className={`w-16 h-16 rounded-full shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border-2 ${!activeCategoryId ? "border-green-600 ring-2 ring-green-100" : "border-green-100"
               }`}>
               <img
-                src="/assets/Home-icon.png"
-                alt="Home"
-                className="w-full h-full object-cover transform transition-transform duration-500 hover:scale-110"
+                src="/assets/all-items-icon.png"
+                alt="All Items"
+                className="w-full h-full object-cover transform transition-transform duration-500 hover:scale-110 bg-white"
               />
             </div>
 
@@ -104,7 +104,7 @@ const ServiceCategoriesSectionMemo = memo(function ServiceCategoriesSection({
             <div className="mt-1 text-center w-full">
               <span className={`text-[10px] font-medium line-clamp-2 leading-tight ${!activeCategoryId ? "text-green-700 font-bold" : "text-gray-700"
                 }`}>
-                Home
+                All Items
               </span>
             </div>
           </motion.div>

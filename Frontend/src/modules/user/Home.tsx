@@ -380,6 +380,32 @@ export default function Home() {
     };
   }, []);
 
+  const groupedProducts = useMemo(() => {
+    const groups: { [key: string]: { name: string, products: any[] } } = {};
+    allProducts.forEach(product => {
+      let rawName = product.subcategory?.name || product.category?.name || (activeTab === "all" ? 'Other Items' : activeTab);
+      const key = rawName.toUpperCase().trim();
+      
+      if (!groups[key]) {
+        groups[key] = {
+          name: rawName,
+          products: []
+        };
+      }
+      
+      // Avoid duplicate products in the same group
+      if (!groups[key].products.some(p => (p._id || p.id) === (product._id || product.id))) {
+         groups[key].products.push(product);
+      }
+    });
+    
+    // Sort keys and map to Title Case
+    return Object.keys(groups).sort().reduce((acc: { [key: string]: any[] }, key) => {
+      const titleCaseName = key.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+      acc[titleCaseName] = groups[key].products;
+      return acc;
+    }, {});
+  }, [allProducts, activeTab]);
 
   if (loading && !products.length && !homeData.categoryHierarchy?.length) {
     return <PageLoader />;
@@ -494,26 +520,27 @@ export default function Home() {
 
           {allProducts.length > 0 && (
             <div data-products-section className="bg-white/95 backdrop-blur-sm py-6 mb-8 rounded-2xl mx-2 shadow-sm border border-neutral-100">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-6 px-4 md:px-6 lg:px-8 capitalize">
-                {activeTab === "all" ? "All Items" :
-                  activeTab === "grocery" ? "Grocery Items" :
-                  activeTab === "fruits-and-vegetables" ? "Fresh Fruits & Vegetables" :
-                    activeTab}
-              </h2>
-              <div className="px-4 md:px-6 lg:px-8">
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
-                  {allProducts.map((product) => (
-                    <ProductCard
-                      key={product._id || product.id}
-                      product={product}
-                      categoryStyle={true}
-                      showBadge={true}
-                      showPackBadge={false}
-                      showStockInfo={true}
-                    />
-                  ))}
+              {Object.entries(groupedProducts).map(([categoryName, products]) => (
+                <div key={categoryName} className="mb-8 last:mb-0">
+                  <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-6 px-4 md:px-6 lg:px-8 capitalize">
+                    {categoryName}
+                  </h2>
+                  <div className="px-4 md:px-6 lg:px-8">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
+                      {products.map((product) => (
+                        <ProductCard
+                          key={product._id || product.id}
+                          product={product}
+                          categoryStyle={true}
+                          showBadge={true}
+                          showPackBadge={false}
+                          showStockInfo={true}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
 
               {/* Sentinel for Infinite Scroll in Tabs */}
               <div ref={observerTarget} className="h-10 w-full flex items-center justify-center mt-6">
@@ -539,7 +566,7 @@ export default function Home() {
           {homeData.categoryHierarchy
             .map((category: any, catIndex: number) => (
               <div key={category.id || category._id}>
-                <CategoryProductSlider category={category} />
+                {/* CategoryProductSlider removed to prevent duplicate product display since they are grouped above */}
 
                 {/* Banner after each category for the first few categories as requested */}
                 {catIndex < homeData.extraBanner1?.length && (

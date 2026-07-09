@@ -439,11 +439,11 @@ function ProductCard({
           {/* 3. Pricing Row */}
           <div className="flex items-baseline gap-1.5 mb-2 mt-1">
             <span className="text-[16px] md:text-[18px] font-black text-neutral-900 leading-none">
-              ₹{displayPrice.toLocaleString('en-IN')}
+              ₹{Number(displayPrice || 0).toLocaleString('en-IN')}
             </span>
             {mrp && mrp > displayPrice && (
               <span className="text-[12px] text-neutral-400 line-through font-medium leading-none">
-                ₹{mrp.toLocaleString('en-IN')}
+                ₹{Number(mrp || 0).toLocaleString('en-IN')}
               </span>
             )}
           </div>

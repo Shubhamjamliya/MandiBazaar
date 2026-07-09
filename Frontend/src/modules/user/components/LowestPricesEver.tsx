@@ -296,11 +296,11 @@ const ProductCard = memo(({
           {/* Pricing Area */}
           <div className="flex items-baseline gap-1.5 mb-2 mt-1">
             <span className="text-[16px] font-black text-neutral-900 leading-none">
-              ₹{displayPrice.toLocaleString('en-IN')}
+              ₹{Number(displayPrice || 0).toLocaleString('en-IN')}
             </span>
-            {hasDiscount && (
+            {hasDiscount && !!mrp && (
               <span className="text-[12px] text-neutral-400 line-through font-medium leading-none">
-                ₹{mrp.toLocaleString('en-IN')}
+                ₹{Number(mrp || 0).toLocaleString('en-IN')}
               </span>
             )}
           </div>
@@ -589,9 +589,6 @@ export default function LowestPricesEver({ activeTab = 'all', products: adminPro
         </div>
       </div>
 
-      <div className="px-4 pb-4 flex justify-center relative z-10">
-        <img src="/assets/TAG-line.png" alt="Mandi Bazaar Tagline" className="w-full max-w-[180px] md:max-w-xs object-contain" style={{ opacity: 0.9 }} />
-      </div>
 
       <div
         ref={scrollContainerRef}

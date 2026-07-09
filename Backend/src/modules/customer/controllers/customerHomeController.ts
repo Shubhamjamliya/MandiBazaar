@@ -171,15 +171,9 @@ export const getHomeContent = async (req: Request, res: Response) => {
       .lean();
 
     const validLowestPricesProducts = lowestPricesProducts
-      .filter((item: any) => {
-        const p = item.product;
-        if (!p || !p.category) return false;
-        return (nearbySellerIds.length > 0 && p.seller)
-          ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
-          : false;
-      })
       .map((item: any) => {
         const product = item.product;
+        if (!product || !product.category) return null;
         const isAvailable = (nearbySellerIds.length > 0 && product.seller)
           ? nearbySellerIds.some(id => id.toString() === (product.seller._id || product.seller).toString())
           : false;
@@ -205,9 +199,9 @@ export const getHomeContent = async (req: Request, res: Response) => {
           sellingUnit: product.sellingUnit || 'unit',
           pack: product.pack || '',
           rating: product.rating || 0,
-          reviewsCount: product.reviewsCount || 0,
         };
-      });
+      })
+      .filter(Boolean);
 
     // 3. Categories for Tiles
     const categories = await Category.find({
