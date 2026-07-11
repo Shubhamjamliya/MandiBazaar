@@ -113,13 +113,26 @@ export const getProducts = async (req: Request, res: Response) => {
       return null;
     };
 
+    // Get all active category IDs to filter out products from inactive categories
+    const activeCategories = await Category.find({ status: "Active" }).select("_id").lean();
+    const activeCategoryIds = activeCategories.map((c: any) => c._id);
+    query.category = { $in: activeCategoryIds };
+
     if (category) {
       const categoryId = await resolveId(
         Category,
         category as string,
         "Category"
       );
-      if (categoryId) query.category = categoryId;
+      if (categoryId) {
+         // Intersect with active categories
+         if (activeCategoryIds.some((id: any) => id.toString() === categoryId.toString())) {
+             query.category = categoryId;
+         } else {
+             // Category is inactive, return no products
+             query._id = null; // Forces empty result
+         }
+      }
     }
 
     if (subcategory) {

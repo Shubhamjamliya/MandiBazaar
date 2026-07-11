@@ -32,7 +32,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
     const bestsellerCards = await BestsellerCard.find({
       isActive: true,
     })
-      .populate("category", "name slug image")
+      .populate({ path: "category", select: "name slug image", match: { status: "Active" } })
       .sort({ order: 1 })
       .limit(6)
       .lean();
@@ -158,7 +158,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
         select:
           "productName mainImage price mrp compareAtPrice discount status publish category subcategory seller weightVariants variations sellingUnit pack smallDescription rating reviewsCount",
         populate: [
-          { path: "category", select: "name slug" },
+          { path: "category", select: "name slug", match: { status: "Active" } },
           { path: "seller", select: "workingHours isShopOpen" },
         ],
         match: {
@@ -213,7 +213,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
 
     // 4. Shop By Store
     const shopDocuments = await Shop.find({ isActive: true })
-      .populate("category", "name slug")
+      .populate({ path: "category", select: "name slug", match: { status: "Active" } })
       .sort({ order: 1, createdAt: -1 })
       .lean();
 
