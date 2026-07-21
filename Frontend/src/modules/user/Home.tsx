@@ -399,13 +399,30 @@ export default function Home() {
       }
     });
     
-    // Sort keys and map to Title Case
-    return Object.keys(groups).sort().reduce((acc: { [key: string]: any[] }, key) => {
+    // Create category order map from homeData.categories to maintain sequence
+    const categoryOrderMap = new Map<string, number>();
+    if (homeData.categories && homeData.categories.length > 0) {
+      homeData.categories.forEach((cat: any, index: number) => {
+        if (cat.name) {
+          categoryOrderMap.set(cat.name.toUpperCase().trim(), index);
+        }
+      });
+    }
+    
+    // Sort keys based on category sequence order
+    const sortedKeys = Object.keys(groups).sort((a, b) => {
+      const orderA = categoryOrderMap.get(a) ?? 999;
+      const orderB = categoryOrderMap.get(b) ?? 999;
+      return orderA - orderB;
+    });
+
+    // Map to Title Case and maintain sequence order
+    return sortedKeys.reduce((acc: { [key: string]: any[] }, key) => {
       const titleCaseName = key.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
       acc[titleCaseName] = groups[key].products;
       return acc;
     }, {});
-  }, [allProducts, activeTab]);
+  }, [allProducts, activeTab, homeData.categories]);
 
   if (loading && !products.length && !homeData.categoryHierarchy?.length) {
     return <PageLoader />;
