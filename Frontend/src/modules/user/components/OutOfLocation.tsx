@@ -15,7 +15,7 @@ export default function OutOfLocation({ onChangeLocation }: OutOfLocationProps) 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="absolute inset-0 w-full h-full"
+        className="absolute inset-0 w-full h-full pointer-events-none"
       >
         <img 
           src={outOfLocationImg} 
@@ -39,7 +39,7 @@ export default function OutOfLocation({ onChangeLocation }: OutOfLocationProps) 
         
         <button
           onClick={onChangeLocation}
-          className="px-8 py-3.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 hover:shadow-xl hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 w-full"
+          className="px-6 py-2.5 mt-6 bg-gradient-to-r from-emerald-600 to-green-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-600/30 hover:shadow-xl hover:shadow-emerald-600/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 inline-block"
         >
           Change Location
         </button>
