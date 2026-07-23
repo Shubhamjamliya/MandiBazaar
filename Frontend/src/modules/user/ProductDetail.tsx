@@ -183,10 +183,8 @@ export default function ProductDetail() {
   // Get selected variant (quantity mode)
   const selectedVariant = (!isWeightMode && product?.variations?.[selectedVariantIndex]) || null;
   const { displayPrice: variantPrice, mrp: variantMrp, discount, hasDiscount } = calculateProductPrice(
-    isWeightMode && selectedWeightVariant
-      ? { ...product, price: selectedWeightVariant.price, compareAtPrice: selectedWeightVariant.mrp || selectedWeightVariant.price }
-      : product,
-    isWeightMode ? 0 : selectedVariantIndex
+    product,
+    isWeightMode && selectedWeightVariant ? `wv_${selectedWeightVariant.label}` : selectedVariantIndex
   );
 
   const variantStock = isWeightMode
@@ -1085,7 +1083,7 @@ export default function ProductDetail() {
 
 
         {/* Top products in this category */}
-        {similarProducts.length > 0 && (
+        {false && similarProducts.length > 0 && (
           <div className="mt-6 mb-24">
             <div className="bg-neutral-100/50 border-t border-b border-neutral-200/50 py-4 px-3">
               <h3 className="text-lg font-semibold text-neutral-900 mb-4 px-1">
