@@ -232,6 +232,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
     };
   }, [showLocationRequest, showLocationChangeModal]);
 
+  // Listen for custom event to open location modal
+  useEffect(() => {
+    const handleOpenLocationModal = () => {
+      setShowLocationChangeModal(true);
+    };
+    window.addEventListener('openLocationModal', handleOpenLocationModal);
+    return () => window.removeEventListener('openLocationModal', handleOpenLocationModal);
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen w-full overflow-x-hidden">
       {/* Desktop Container Wrapper */}
