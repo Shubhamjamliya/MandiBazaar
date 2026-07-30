@@ -142,6 +142,7 @@ export interface Product {
   approvedBy?: string | { firstName: string; lastName: string };
   approvedAt?: string;
   commission?: number;
+  sequenceNumber?: number;
   createdAt?: string;
   updatedAt?: string;
 }

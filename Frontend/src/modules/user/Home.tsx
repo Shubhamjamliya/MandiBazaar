@@ -37,6 +37,7 @@ export default function Home() {
   const scrollHandledRef = useRef(false);
   const [bestsellerProducts, setBestsellerProducts] = useState<any[]>([]);
   const SCROLL_POSITION_KEY = 'home-scroll-position';
+  const fetchRequestId = useRef(0);
 
   // State for dynamic data
   const [loading, setLoading] = useState(true);
@@ -104,10 +105,11 @@ export default function Home() {
 
   const fetchAllProducts = useCallback(async (pageNum: number = 1, tabId: string = "all") => {
     setIsLoadingMore(true);
+    const currentRequestId = ++fetchRequestId.current;
 
     try {
       const params: any = {
-        limit: 20,
+        limit: 1000,
         page: pageNum,
         latitude: location?.latitude,
         longitude: location?.longitude
@@ -118,6 +120,11 @@ export default function Home() {
       }
 
       const response = await getCustomerProducts(params);
+      
+      // Ignore stale responses if a newer request was made
+      if (currentRequestId !== fetchRequestId.current) {
+        return;
+      }
 
       if (response.success) {
         if (pageNum === 1) {
@@ -131,7 +138,7 @@ export default function Home() {
           });
         }
 
-        setHasMore(response.data.length === 20 && response.pagination.page < response.pagination.pages);
+        setHasMore(response.pagination && response.pagination.page < response.pagination.pages);
         setPage(pageNum);
       }
     } catch (error: any) {
@@ -147,6 +154,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    let ignore = false;
     const fetchData = async () => {
       try {
         startRouteLoading();
@@ -159,6 +167,9 @@ export default function Home() {
           location?.longitude,
           false // Disable cache to ensure fresh data after tab switch
         );
+        
+        if (ignore) return;
+        
         if (response.success && response.data) {
           setHomeData(response.data);
 
@@ -182,11 +193,14 @@ export default function Home() {
           setError("Failed to load content. Please try again.");
         }
       } catch (error) {
+        if (ignore) return;
         console.error("Failed to fetch home content", error);
         setError("Network error. Please check your connection.");
       } finally {
-        setLoading(false);
-        stopRouteLoading();
+        if (!ignore) {
+          setLoading(false);
+          stopRouteLoading();
+        }
       }
     };
 
@@ -195,6 +209,10 @@ export default function Home() {
     setHasMore(true);
     setAllProducts([]);
     fetchAllProducts(1, activeTab);
+    
+    return () => {
+      ignore = true;
+    };
   }, [location?.latitude, location?.longitude, activeTab, fetchAllProducts]);
 
 
@@ -231,7 +249,7 @@ export default function Home() {
         getCustomerProducts({
           category: categoryId,
           page: 1,
-          limit: 20,
+          limit: 1000,
           latitude: location?.latitude,
           longitude: location?.longitude
         })
@@ -243,7 +261,7 @@ export default function Home() {
 
       if (productsRes.success) {
         setInlineProducts(productsRes.data);
-        setInlineHasMore(productsRes.data.length === 20 && productsRes.pagination.page < productsRes.pagination.pages);
+        setInlineHasMore(productsRes.pagination && productsRes.pagination.page < productsRes.pagination.pages);
       }
     } catch (err) {
       console.error("Failed to fetch category details for inline flow:", err);
@@ -263,7 +281,7 @@ export default function Home() {
       const response = await getCustomerProducts({
         category: categoryId,
         page: nextPage,
-        limit: 20,
+        limit: 1000,
         latitude: location?.latitude,
         longitude: location?.longitude
       });
@@ -274,7 +292,7 @@ export default function Home() {
           const newProducts = response.data.filter(p => !existingIds.has(p._id || p.id));
           return [...prev, ...newProducts];
         });
-        setInlineHasMore(response.data.length === 20 && response.pagination.page < response.pagination.pages);
+        setInlineHasMore(response.pagination && response.pagination.page < response.pagination.pages);
         setInlinePage(nextPage);
       }
     } catch (error: any) {

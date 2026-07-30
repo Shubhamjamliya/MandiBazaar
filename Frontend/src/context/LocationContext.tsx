@@ -90,29 +90,28 @@ export function LocationProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // 2. Check sessionStorage for session-level permission
+        // 2. Check for cached location in localStorage first
+        const cachedLocation = localStorage.getItem(LOCATION_STORAGE_KEY);
+        if (cachedLocation) {
+          try {
+            const parsedLocation = JSON.parse(cachedLocation);
+            console.log('[LocationContext] Using cached location:', parsedLocation.address);
+            setLocation(parsedLocation);
+            setIsLocationEnabled(true);
+            setLocationPermissionStatus('session_granted');
+            setIsLocationLoading(false);
+            return;
+          } catch (e) {
+            console.error('[LocationContext] Failed to parse cached location:', e);
+          }
+        }
+
+        // 3. Check sessionStorage for session-level permission
         const sessionGranted = sessionStorage.getItem(SESSION_PERMISSION_KEY);
 
         if (sessionGranted === 'true') {
-          console.log('[LocationContext] Permission already granted in this session.');
-
-          // 2. Check for cached location in localStorage
-          const cachedLocation = localStorage.getItem(LOCATION_STORAGE_KEY);
-          if (cachedLocation) {
-            try {
-              const parsedLocation = JSON.parse(cachedLocation);
-              console.log('[LocationContext] Using cached location from this session:', parsedLocation.address);
-              setLocation(parsedLocation);
-              setIsLocationEnabled(true);
-              setLocationPermissionStatus('session_granted');
-            } catch (e) {
-              console.error('[LocationContext] Failed to parse cached location:', e);
-            }
-          } else {
-            // Permission granted but no location? Prompt to refresh it
-            console.log('[LocationContext] Session permission exists but no cached location.');
-            setLocationPermissionStatus('session_granted');
-          }
+          console.log('[LocationContext] Permission already granted in this session, but no cached location found.');
+          setLocationPermissionStatus('session_granted');
         } else {
           console.log('[LocationContext] No session-level permission found. User will be prompted.');
           setLocation(null);

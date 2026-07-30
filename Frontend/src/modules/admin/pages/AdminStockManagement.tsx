@@ -1,10 +1,11 @@
-﻿import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getProducts,
   getCategories,
   deleteProduct,
   getSubCategories,
+  updateProduct,
   type Product,
   type Category,
   type SubCategory,
@@ -168,6 +169,19 @@ export default function AdminStockManagement() {
         console.error("Error deleting product:", error);
         alert("An error occurred");
       }
+    }
+  };
+
+  const handleSequenceUpdate = async (id: string, value: string) => {
+    const sequenceNumber = value === "" ? 999999 : parseInt(value, 10);
+    try {
+      const response = await updateProduct(id, { sequenceNumber } as any);
+      if (response.success) {
+        setProducts(prev => prev.map(p => p._id === id ? { ...p, sequenceNumber } : p));
+      }
+    } catch (err) {
+      console.error("Failed to update sequence number:", err);
+      alert("Failed to update sequence number");
     }
   };
 
@@ -507,6 +521,24 @@ export default function AdminStockManagement() {
                               Unlimited
                             </span>
                           )}
+                        </div>
+
+                        {/* Sequence No Input */}
+                        <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="bg-white/90 backdrop-blur rounded border border-neutral-200 shadow-sm flex items-center px-1 group/seq hover:border-teal-400 transition-colors">
+                            <span className="text-[10px] text-neutral-500 font-bold px-1 select-none">SEQ:</span>
+                            <input
+                              type="number"
+                              className="w-10 text-xs font-bold text-center py-1 outline-none bg-transparent"
+                              defaultValue={product.sequenceNumber === 999999 ? "" : product.sequenceNumber}
+                              onBlur={(e) => handleSequenceUpdate(product._id, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                            />
+                          </div>
                         </div>
 
                         {/* Hover Actions */}

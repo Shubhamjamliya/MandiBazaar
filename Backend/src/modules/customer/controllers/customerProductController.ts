@@ -176,11 +176,11 @@ export const getProducts = async (req: Request, res: Response) => {
     const skip = (Number(page) - 1) * Number(limit);
 
     // Build sort object
-    let sortOptions: any = { createdAt: -1 }; // Default new to old
-    if (sort === "price_asc") sortOptions = { price: 1 };
-    if (sort === "price_desc") sortOptions = { price: -1 };
-    if (sort === "discount") sortOptions = { discount: -1 };
-    if (sort === "popular") sortOptions = { popular: -1, dealOfDay: -1 };
+    let sortOptions: any = { sequenceNumber: 1, createdAt: -1 }; // Default sequence number (ascending), then new to old
+    if (sort === "price_asc") sortOptions = { sequenceNumber: 1, price: 1 };
+    if (sort === "price_desc") sortOptions = { sequenceNumber: 1, price: -1 };
+    if (sort === "discount") sortOptions = { sequenceNumber: 1, discount: -1 };
+    if (sort === "popular") sortOptions = { sequenceNumber: 1, popular: -1, dealOfDay: -1 };
 
     const products = await Product.find(query)
       .populate("category", "name icon image")
