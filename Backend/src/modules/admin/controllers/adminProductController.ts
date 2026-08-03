@@ -819,7 +819,7 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
       .populate("subcategory", "name")
       .populate("brand", "name")
       .populate("seller", "sellerName storeName")
-      .sort({ createdAt: -1 })
+      .sort({ sequenceNumber: 1, createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit as string)),
     Product.countDocuments(query),

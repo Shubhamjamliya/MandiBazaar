@@ -22,6 +22,7 @@ import { useCart } from "../../context/CartContext";
 import { calculateProductPrice } from "../../utils/priceUtils";
 import WishlistButton from "../../components/WishlistButton";
 import { motion, AnimatePresence } from "framer-motion";
+import OutOfLocation from "./components/OutOfLocation";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ export default function Home() {
   const scrollHandledRef = useRef(false);
   const [bestsellerProducts, setBestsellerProducts] = useState<any[]>([]);
   const SCROLL_POSITION_KEY = 'home-scroll-position';
+  const fetchRequestId = useRef(0);
 
   // State for dynamic data
   const [loading, setLoading] = useState(true);
@@ -103,10 +105,11 @@ export default function Home() {
 
   const fetchAllProducts = useCallback(async (pageNum: number = 1, tabId: string = "all") => {
     setIsLoadingMore(true);
+    const currentRequestId = ++fetchRequestId.current;
 
     try {
       const params: any = {
-        limit: 20,
+        limit: 1000,
         page: pageNum,
         latitude: location?.latitude,
         longitude: location?.longitude
@@ -117,6 +120,11 @@ export default function Home() {
       }
 
       const response = await getCustomerProducts(params);
+      
+      // Ignore stale responses if a newer request was made
+      if (currentRequestId !== fetchRequestId.current) {
+        return;
+      }
 
       if (response.success) {
         if (pageNum === 1) {
@@ -130,7 +138,7 @@ export default function Home() {
           });
         }
 
-        setHasMore(response.data.length === 20 && response.pagination.page < response.pagination.pages);
+        setHasMore(response.pagination && response.pagination.page < response.pagination.pages);
         setPage(pageNum);
       }
     } catch (error: any) {
@@ -146,6 +154,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    let ignore = false;
     const fetchData = async () => {
       try {
         startRouteLoading();
@@ -158,6 +167,9 @@ export default function Home() {
           location?.longitude,
           false // Disable cache to ensure fresh data after tab switch
         );
+        
+        if (ignore) return;
+        
         if (response.success && response.data) {
           setHomeData(response.data);
 
@@ -181,21 +193,26 @@ export default function Home() {
           setError("Failed to load content. Please try again.");
         }
       } catch (error) {
+        if (ignore) return;
         console.error("Failed to fetch home content", error);
         setError("Network error. Please check your connection.");
       } finally {
-        setLoading(false);
-        stopRouteLoading();
+        if (!ignore) {
+          setLoading(false);
+          stopRouteLoading();
+        }
       }
     };
 
     fetchData();
-    if (activeTab !== "all") {
-      setPage(1);
-      setHasMore(true);
-      setAllProducts([]);
-      fetchAllProducts(1, activeTab);
-    }
+    setPage(1);
+    setHasMore(true);
+    setAllProducts([]);
+    fetchAllProducts(1, activeTab);
+    
+    return () => {
+      ignore = true;
+    };
   }, [location?.latitude, location?.longitude, activeTab, fetchAllProducts]);
 
 
@@ -232,7 +249,7 @@ export default function Home() {
         getCustomerProducts({
           category: categoryId,
           page: 1,
-          limit: 20,
+          limit: 1000,
           latitude: location?.latitude,
           longitude: location?.longitude
         })
@@ -244,7 +261,7 @@ export default function Home() {
 
       if (productsRes.success) {
         setInlineProducts(productsRes.data);
-        setInlineHasMore(productsRes.data.length === 20 && productsRes.pagination.page < productsRes.pagination.pages);
+        setInlineHasMore(productsRes.pagination && productsRes.pagination.page < productsRes.pagination.pages);
       }
     } catch (err) {
       console.error("Failed to fetch category details for inline flow:", err);
@@ -264,7 +281,7 @@ export default function Home() {
       const response = await getCustomerProducts({
         category: categoryId,
         page: nextPage,
-        limit: 20,
+        limit: 1000,
         latitude: location?.latitude,
         longitude: location?.longitude
       });
@@ -275,7 +292,7 @@ export default function Home() {
           const newProducts = response.data.filter(p => !existingIds.has(p._id || p.id));
           return [...prev, ...newProducts];
         });
-        setInlineHasMore(response.data.length === 20 && response.pagination.page < response.pagination.pages);
+        setInlineHasMore(response.pagination && response.pagination.page < response.pagination.pages);
         setInlinePage(nextPage);
       }
     } catch (error: any) {
@@ -382,6 +399,49 @@ export default function Home() {
     };
   }, []);
 
+  const groupedProducts = useMemo(() => {
+    const groups: { [key: string]: { name: string, products: any[] } } = {};
+    allProducts.forEach(product => {
+      let rawName = product.subcategory?.name || product.category?.name || (activeTab === "all" ? 'Other Items' : activeTab);
+      const key = rawName.toUpperCase().trim();
+      
+      if (!groups[key]) {
+        groups[key] = {
+          name: rawName,
+          products: []
+        };
+      }
+      
+      // Avoid duplicate products in the same group
+      if (!groups[key].products.some(p => (p._id || p.id) === (product._id || product.id))) {
+         groups[key].products.push(product);
+      }
+    });
+    
+    // Create category order map from homeData.categories to maintain sequence
+    const categoryOrderMap = new Map<string, number>();
+    if (homeData.categories && homeData.categories.length > 0) {
+      homeData.categories.forEach((cat: any, index: number) => {
+        if (cat.name) {
+          categoryOrderMap.set(cat.name.toUpperCase().trim(), index);
+        }
+      });
+    }
+    
+    // Sort keys based on category sequence order
+    const sortedKeys = Object.keys(groups).sort((a, b) => {
+      const orderA = categoryOrderMap.get(a) ?? 999;
+      const orderB = categoryOrderMap.get(b) ?? 999;
+      return orderA - orderB;
+    });
+
+    // Map to Title Case and maintain sequence order
+    return sortedKeys.reduce((acc: { [key: string]: any[] }, key) => {
+      const titleCaseName = key.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+      acc[titleCaseName] = groups[key].products;
+      return acc;
+    }, {});
+  }, [allProducts, activeTab, homeData.categories]);
 
   if (loading && !products.length && !homeData.categoryHierarchy?.length) {
     return <PageLoader />;
@@ -405,6 +465,34 @@ export default function Home() {
         </button>
       </div>
     );
+  }
+
+  const checkIsOutOfLocation = () => {
+    if (loading) return false;
+    
+    // Only check products that are actually displayed on the home page
+    const displayedProducts = [
+      ...(allProducts || []),
+      ...(homeData.lowestPrices || [])
+    ].filter(Boolean);
+    
+    // If no categories and no displayed products, it's out of location
+    if ((!homeData.categories || homeData.categories.length === 0) && displayedProducts.length === 0) {
+      return true;
+    }
+    
+    if (displayedProducts.length > 0) {
+      // Return true only if EVERY displayed product is unavailable (Out of Range)
+      return displayedProducts.every(p => p.isAvailable === false);
+    }
+    
+    return false;
+  };
+
+  const isOutOfLocation = checkIsOutOfLocation();
+
+  if (isOutOfLocation) {
+    return <OutOfLocation onChangeLocation={() => window.dispatchEvent(new Event('openLocationModal'))} />;
   }
 
   return (
@@ -494,28 +582,29 @@ export default function Home() {
         <div className="space-y-4 pt-1">
 
 
-          {/* Category-Specific Products Section (Integrated Infinite Scroll) */}
-          {activeTab !== "all" && allProducts.length > 0 && (
+          {allProducts.length > 0 && (
             <div data-products-section className="bg-white/95 backdrop-blur-sm py-6 mb-8 rounded-2xl mx-2 shadow-sm border border-neutral-100">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-6 px-4 md:px-6 lg:px-8 capitalize">
-                {activeTab === "grocery" ? "Grocery Items" :
-                  activeTab === "fruits-and-vegetables" ? "Fresh Fruits & Vegetables" :
-                    activeTab}
-              </h2>
-              <div className="px-4 md:px-6 lg:px-8">
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
-                  {allProducts.map((product) => (
-                    <ProductCard
-                      key={product._id || product.id}
-                      product={product}
-                      categoryStyle={true}
-                      showBadge={true}
-                      showPackBadge={false}
-                      showStockInfo={true}
-                    />
-                  ))}
+              {Object.entries(groupedProducts).map(([categoryName, products]) => (
+                <div key={categoryName} className="mb-8 last:mb-0">
+                  <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-6 px-4 md:px-6 lg:px-8 capitalize">
+                    {categoryName}
+                  </h2>
+                  <div className="px-4 md:px-6 lg:px-8">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
+                      {products.map((product) => (
+                        <ProductCard
+                          key={product._id || product.id}
+                          product={product}
+                          categoryStyle={true}
+                          showBadge={true}
+                          showPackBadge={false}
+                          showStockInfo={true}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
 
               {/* Sentinel for Infinite Scroll in Tabs */}
               <div ref={observerTarget} className="h-10 w-full flex items-center justify-center mt-6">
@@ -539,15 +628,9 @@ export default function Home() {
       {!activeInlineCategory && activeTab === "all" && homeData.categoryHierarchy && homeData.categoryHierarchy.length > 0 && (
         <div className="space-y-4">
           {homeData.categoryHierarchy
-            .filter((category: any) => {
-              const name = category.name.toLowerCase();
-              const slug = category.slug.toLowerCase();
-              return name.includes("fruit") || name.includes("vegetable") ||
-                slug.includes("fruit") || slug.includes("vegetable");
-            })
             .map((category: any, catIndex: number) => (
               <div key={category.id || category._id}>
-                <CategoryProductSlider category={category} />
+                {/* CategoryProductSlider removed to prevent duplicate product display since they are grouped above */}
 
                 {/* Banner after each category for the first few categories as requested */}
                 {catIndex < homeData.extraBanner1?.length && (

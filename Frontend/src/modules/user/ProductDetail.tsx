@@ -54,12 +54,12 @@ const getIndiaTimeSnapshot = () => {
 };
 
 const getShopStatus = (seller: any) => {
-  const workingHours = seller?.workingHours;
-  if (!workingHours?.open || !workingHours?.close) return null;
-
   if (seller?.isShopOpen === false) {
     return { isOpen: false, label: 'Closed by seller' };
   }
+
+  const workingHours = seller?.workingHours;
+  if (!workingHours?.open || !workingHours?.close) return null;
 
   const offDays = Array.isArray(workingHours.offDays) ? workingHours.offDays : [];
   const { minutes, day } = getIndiaTimeSnapshot();
@@ -183,10 +183,8 @@ export default function ProductDetail() {
   // Get selected variant (quantity mode)
   const selectedVariant = (!isWeightMode && product?.variations?.[selectedVariantIndex]) || null;
   const { displayPrice: variantPrice, mrp: variantMrp, discount, hasDiscount } = calculateProductPrice(
-    isWeightMode && selectedWeightVariant
-      ? { ...product, price: selectedWeightVariant.price, compareAtPrice: selectedWeightVariant.mrp || selectedWeightVariant.price }
-      : product,
-    isWeightMode ? 0 : selectedVariantIndex
+    product,
+    isWeightMode && selectedWeightVariant ? `wv_${selectedWeightVariant.label}` : selectedVariantIndex
   );
 
   const variantStock = isWeightMode
@@ -1085,7 +1083,7 @@ export default function ProductDetail() {
 
 
         {/* Top products in this category */}
-        {similarProducts.length > 0 && (
+        {false && similarProducts.length > 0 && (
           <div className="mt-6 mb-24">
             <div className="bg-neutral-100/50 border-t border-b border-neutral-200/50 py-4 px-3">
               <h3 className="text-lg font-semibold text-neutral-900 mb-4 px-1">
@@ -1100,6 +1098,10 @@ export default function ProductDetail() {
                         item.product.id === similarProduct._id)
                   );
                   const similarInCartQty = similarCartItem?.quantity || 0;
+                  
+                  const sSellerInfo = similarProduct.seller;
+                  const sShopStatus = getShopStatus(sSellerInfo);
+                  const isSShopClosed = sShopStatus?.isOpen === false;
 
                   return (
                     <div
@@ -1193,7 +1195,13 @@ export default function ProductDetail() {
 
                         {/* ADD button or Quantity stepper */}
                         <AnimatePresence mode="wait">
-                          {similarInCartQty === 0 ? (
+                          {isSShopClosed ? (
+                            <div className="flex justify-center w-full">
+                              <div className="w-full flex items-center justify-center bg-neutral-100 text-neutral-400 border border-neutral-200 text-xs font-bold rounded-full h-9 shadow-sm">
+                                CLOSED
+                              </div>
+                            </div>
+                          ) : similarInCartQty === 0 ? (
                             <motion.div
                               key="add-button"
                               initial={{ opacity: 0, scale: 0.8 }}

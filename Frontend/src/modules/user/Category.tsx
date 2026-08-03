@@ -147,7 +147,7 @@ export default function CategoryPage() {
           });
         }
         
-        setHasMore(response.data.length === 20 && response.pagination.page < response.pagination.pages);
+        setHasMore(response.pagination && response.pagination.page < response.pagination.pages);
         setPage(pageNum);
       } else {
         setError("Failed to fetch products for this category.");

@@ -26,7 +26,7 @@ export interface IAppSettings extends Document {
     wallet: boolean;
     upi: boolean;
   };
-  activePaymentGateway?: 'HDFC' | 'CASHFREE';
+  activePaymentGateway?: 'HDFC' | 'CASHFREE' | 'RAZORPAY';
   paymentGateways?: {
     hdfc?: {
       merchantId?: string;
@@ -221,7 +221,7 @@ const AppSettingsSchema = new Schema<IAppSettings>(
     },
     activePaymentGateway: {
       type: String,
-      enum: ['HDFC', 'CASHFREE'],
+      enum: ['HDFC', 'CASHFREE', 'RAZORPAY'],
       default: 'HDFC',
     },
     paymentGateways: {

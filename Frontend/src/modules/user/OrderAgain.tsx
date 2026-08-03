@@ -34,6 +34,59 @@ const getStatusColor = (status: string) => {
   }
 };
 
+const parseTimeToMinutes = (timeValue: string) => {
+  if (!/^\d{2}:\d{2}$/.test(timeValue)) return null;
+  const [hourText, minuteText] = timeValue.split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+};
+
+const getIndiaTimeSnapshot = () => {
+  const now = new Date();
+  const timeFormatter = new Intl.DateTimeFormat('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Kolkata',
+  });
+  const timeParts = timeFormatter.formatToParts(now);
+  const hour = Number(timeParts.find((part) => part.type === 'hour')?.value || 0);
+  const minute = Number(timeParts.find((part) => part.type === 'minute')?.value || 0);
+  const day = new Intl.DateTimeFormat('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' }).format(now);
+  return { minutes: hour * 60 + minute, day };
+};
+
+const getShopStatus = (seller: any) => {
+  if (seller?.isShopOpen === false) {
+    return { isOpen: false, label: 'Closed by seller' };
+  }
+
+  const workingHours = seller?.workingHours;
+  if (!workingHours?.open || !workingHours?.close) return null;
+
+  const offDays = Array.isArray(workingHours.offDays) ? workingHours.offDays : [];
+  const { minutes, day } = getIndiaTimeSnapshot();
+  if (offDays.includes(day)) {
+    return { isOpen: false, label: 'Closed today' };
+  }
+
+  const openMinutes = parseTimeToMinutes(workingHours.open);
+  const closeMinutes = parseTimeToMinutes(workingHours.close);
+  if (openMinutes === null || closeMinutes === null) return null;
+
+  let isOpen = false;
+  if (openMinutes < closeMinutes) {
+    isOpen = minutes >= openMinutes && minutes < closeMinutes;
+  } else if (openMinutes > closeMinutes) {
+    isOpen = minutes >= openMinutes || minutes < closeMinutes;
+  }
+
+  return { isOpen, label: isOpen ? 'Open now' : 'Closed now' };
+};
+
 export default function OrderAgain() {
   const { orders, loading: ordersLoading } = useOrders();
   const { cart, addToCart, updateQuantity } = useCart();
@@ -159,6 +212,12 @@ export default function OrderAgain() {
               {orders.map((order) => {
                 const shortId = order.id.toString().split('-').slice(-1)[0];
                 const previewItems = (order.items || []).slice(0, 3);
+                const firstItem = order.items?.[0];
+                const firstProduct = firstItem?.product;
+                const sellerInfo = firstProduct?.seller || (firstItem as any)?.seller || (order as any).seller;
+                const shopStatus = getShopStatus(sellerInfo);
+                const isShopClosed = shopStatus?.isOpen === false;
+                const isButtonDisabled = addedOrders.has(order.id) || isShopClosed;
 
                 return (
                   <div
@@ -185,14 +244,24 @@ export default function OrderAgain() {
                         <div className="text-xs font-bold text-neutral-900">₹{order.totalAmount.toFixed(0)}</div>
                         <div className="text-[10px] text-neutral-500">{order.totalItems} {order.totalItems === 1 ? 'item' : 'items'}</div>
                         <button
-                          onClick={(e) => handleOrderAgain(order, e)}
-                          disabled={addedOrders.has(order.id)}
+                          onClick={(e) => {
+                            if (isShopClosed) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              alert("Seller is currently offline. Order cannot be placed.");
+                              return;
+                            }
+                            handleOrderAgain(order, e);
+                          }}
+                          disabled={isButtonDisabled}
                           className={`mt-1 text-[10px] font-semibold px-3 py-1 rounded-md transition-colors shadow-sm ${addedOrders.has(order.id)
                             ? 'bg-orange-100 text-orange-600 border border-orange-200'
-                            : 'bg-green-600 text-white hover:bg-green-700'
+                            : isShopClosed
+                              ? 'bg-neutral-100 text-neutral-400 border border-neutral-200 cursor-not-allowed'
+                              : 'bg-green-600 text-white hover:bg-green-700'
                             }`}
                         >
-                          {addedOrders.has(order.id) ? 'Added!' : 'Order Again'}
+                          {addedOrders.has(order.id) ? 'Added!' : isShopClosed ? 'Shop Closed' : 'Order Again'}
                         </button>
                       </div>
                     </div>
@@ -221,6 +290,10 @@ export default function OrderAgain() {
                   return !firstVarId || itemVarId === firstVarId;
                 });
                 const inCartQty = cartItem?.quantity || 0;
+                
+                const sellerInfo = product.seller;
+                const shopStatus = getShopStatus(sellerInfo);
+                const isShopClosed = shopStatus?.isOpen === false;
 
                 return (
                   <div key={product.id} className="flex-shrink-0 w-[140px]">
@@ -234,7 +307,11 @@ export default function OrderAgain() {
                           <WishlistButton productId={product.id} size="sm" className="top-1.5 right-1.5" />
                           <div className="absolute bottom-1.5 right-1.5 z-10">
                             <AnimatePresence mode="wait">
-                              {inCartQty === 0 ? (
+                              {isShopClosed ? (
+                                <div className="bg-white text-neutral-400 border border-neutral-200 text-[10px] font-bold px-2 py-1 rounded shadow-sm">
+                                  CLOSED
+                                </div>
+                              ) : inCartQty === 0 ? (
                                 <button
                                   onClick={(e) => {
                                     e.preventDefault(); e.stopPropagation();

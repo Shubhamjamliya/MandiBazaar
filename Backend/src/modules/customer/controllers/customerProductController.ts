@@ -46,11 +46,12 @@ export const getProducts = async (req: Request, res: Response) => {
       // Find sellers within user's location range
       nearbySellerIds = await findSellersWithinRange(userLat!, userLng!);
 
-      // Strictly filter by nearby sellers as requested
+      // Strictly filter by nearby sellers
       query.seller = { $in: nearbySellerIds };
     } else {
-      // Fallback for no location: only show Admin products
+      // Fallback for no location: get Admin sellers for availability check
       nearbySellerIds = await getAdminSellerIds();
+      // Strictly filter by Admin sellers
       query.seller = { $in: nearbySellerIds };
     }
 
@@ -112,13 +113,26 @@ export const getProducts = async (req: Request, res: Response) => {
       return null;
     };
 
+    // Get all active category IDs to filter out products from inactive categories
+    const activeCategories = await Category.find({ status: "Active" }).select("_id").lean();
+    const activeCategoryIds = activeCategories.map((c: any) => c._id);
+    query.category = { $in: activeCategoryIds };
+
     if (category) {
       const categoryId = await resolveId(
         Category,
         category as string,
         "Category"
       );
-      if (categoryId) query.category = categoryId;
+      if (categoryId) {
+         // Intersect with active categories
+         if (activeCategoryIds.some((id: any) => id.toString() === categoryId.toString())) {
+             query.category = categoryId;
+         } else {
+             // Category is inactive, return no products
+             query._id = null; // Forces empty result
+         }
+      }
     }
 
     if (subcategory) {
@@ -162,11 +176,11 @@ export const getProducts = async (req: Request, res: Response) => {
     const skip = (Number(page) - 1) * Number(limit);
 
     // Build sort object
-    let sortOptions: any = { createdAt: -1 }; // Default new to old
-    if (sort === "price_asc") sortOptions = { price: 1 };
-    if (sort === "price_desc") sortOptions = { price: -1 };
-    if (sort === "discount") sortOptions = { discount: -1 };
-    if (sort === "popular") sortOptions = { popular: -1, dealOfDay: -1 };
+    let sortOptions: any = { sequenceNumber: 1, createdAt: -1 }; // Default sequence number (ascending), then new to old
+    if (sort === "price_asc") sortOptions = { sequenceNumber: 1, price: 1 };
+    if (sort === "price_desc") sortOptions = { sequenceNumber: 1, price: -1 };
+    if (sort === "discount") sortOptions = { sequenceNumber: 1, discount: -1 };
+    if (sort === "popular") sortOptions = { sequenceNumber: 1, popular: -1, dealOfDay: -1 };
 
     const products = await Product.find(query)
       .populate("category", "name icon image")
@@ -338,8 +352,9 @@ export const getProductById = async (req: Request, res: Response) => {
     const similarProducts = await Product.find(similarProductsQuery)
       .limit(6)
       .select(
-        "productName price mrp variations mainImage pack discount _id rating reviewsCount"
-      );
+        "productName price mrp variations mainImage pack discount _id rating reviewsCount seller"
+      )
+      .populate("seller", "isShopOpen workingHours");
 
     return res.status(200).json({
       success: true,

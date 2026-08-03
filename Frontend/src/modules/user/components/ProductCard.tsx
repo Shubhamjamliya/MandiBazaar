@@ -50,12 +50,12 @@ const getIndiaTimeSnapshot = () => {
 };
 
 const getShopStatus = (seller: any) => {
-  const workingHours = seller?.workingHours;
-  if (!workingHours?.open || !workingHours?.close) return null;
-
   if (seller?.isShopOpen === false) {
     return { isOpen: false, label: 'Closed by seller' };
   }
+
+  const workingHours = seller?.workingHours;
+  if (!workingHours?.open || !workingHours?.close) return null;
 
   const offDays = Array.isArray(workingHours.offDays) ? workingHours.offDays : [];
   const { minutes, day } = getIndiaTimeSnapshot();
@@ -337,14 +337,14 @@ function ProductCard({
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.97 }}
       transition={{ duration: 0.2 }}
-      className="bg-green-50 rounded-lg shadow-sm overflow-hidden flex flex-col relative h-full border border-neutral-100/50"
+      className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col relative h-full border border-neutral-200"
     >
       <div
         onClick={handleCardClick}
-        className="cursor-pointer flex-1 flex flex-col"
+        className="cursor-pointer flex-1 flex flex-col h-full"
       >
         {/* Product Image Stack */}
-        <div className={`w-full ${compact ? 'h-32 md:h-40' : 'h-28 md:h-36'} bg-neutral-100 flex items-center justify-center overflow-hidden relative`}>
+        <div className={`w-full ${compact ? 'h-32 md:h-40' : 'h-32 md:h-40'} bg-white flex items-center justify-center overflow-hidden relative p-2`}>
           {product.imageUrl || product.mainImage ? (
             <img
               ref={imageRef}
@@ -372,27 +372,14 @@ function ProductCard({
 
           {/* Discount Badge */}
           {showBadge && discount > 0 && (
-            <div className="absolute top-2 left-2 z-10 bg-green-600 text-white text-[12px] font-bold px-2 py-0.5 rounded shadow-sm">
-              {discount}% off
+            <div className="absolute top-2 left-2 z-10 bg-[#149b4c] text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
+              {discount}% OFF
             </div>
           )}
 
           {/* Wishlist Heart */}
           {showHeartIcon && (
             <div className="absolute top-2 right-2 z-30 flex gap-1.5">
-              <button
-                onClick={handleShare}
-                className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all shadow-sm"
-                aria-label="Share product"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-neutral-500">
-                  <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="2" />
-                  <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-                  <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="2" />
-                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" strokeWidth="2" />
-                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" strokeWidth="2" />
-                </svg>
-              </button>
 
               <button
                 onClick={(e) => {
@@ -426,109 +413,98 @@ function ProductCard({
           {/* Options Badge */}
           {Math.max(product.variations?.length || 0, weightVariants.filter((v: any) => v.isEnabled).length) >= 2 && (
             <div className="absolute bottom-2 left-2 z-10">
-              <span className="text-[9px] font-bold text-neutral-700 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded shadow-sm border border-neutral-100">
-                {Math.max(product.variations?.length || 0, weightVariants.filter((v: any) => v.isEnabled).length)} Options
+              <span className="text-[9px] font-bold text-neutral-700 bg-white/95 backdrop-blur-sm px-1.5 py-0.5 rounded shadow-sm border border-neutral-100 uppercase">
+                {Math.max(product.variations?.length || 0, weightVariants.filter((v: any) => v.isEnabled).length)} OPTIONS
               </span>
             </div>
           )}
         </div>
 
-        {/* ADD Button Row (Style 1 Sequence) */}
-        <div className="px-2.5 pt-1.5 pb-0">
-          {inCartQty === 0 ? (
-            <Button
-              ref={addButtonRef}
-              variant="outline"
-              size="sm"
-              disabled={isActionDisabled}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAdd(e);
-              }}
-              className={`w-full border rounded-full font-bold text-[10px] h-7 px-3 flex items-center justify-center uppercase tracking-wide transition-all ${isActionDisabled
-                ? 'border-neutral-200 text-neutral-400 bg-neutral-50 cursor-not-allowed'
-                : 'border-green-600 text-green-600 bg-white hover:bg-green-50 shadow-sm'
-                }`}
-            >
-              {product.isAvailable === false ? 'Out of Range' : isShopClosed ? 'Closed' : 'ADD'}
-            </Button>
-          ) : (
-            <div className="flex items-center justify-center gap-2 bg-white border border-green-600 rounded-full px-1.5 py-0.5 h-7 w-full shadow-sm">
-              <Button
-                variant="default"
-                size="icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDecrease(e);
-                }}
-                className="w-5 h-5 p-0 bg-transparent text-green-600 hover:bg-green-50 shadow-none font-bold"
-              >
-                −
-              </Button>
-              <span className="text-[11px] font-black text-green-600 min-w-[1rem] text-center">
-                {inCartQty}
-              </span>
-              <Button
-                variant="default"
-                size="icon"
-                disabled={isActionDisabled}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleIncrease(e);
-                }}
-                className={`w-5 h-5 p-0 bg-transparent text-green-600 shadow-none font-bold ${isActionDisabled ? 'text-neutral-300' : 'hover:bg-green-50'
-                  }`}
-              >
-                +
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {isShopClosed && workingHoursText && (
-          <div className="px-2.5 pb-2">
-            <div className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
-              Opens {workingHoursText}. Try when shop is online.
-            </div>
-          </div>
-        )}
-
-        {/* Product Info (Style 1 Sequence) */}
-        <div className="px-2.5 pt-1.5 md:pt-2 pb-2 md:pb-3 flex-1 flex flex-col">
+        {/* Product Info */}
+        <div className="px-2.5 pt-1.5 pb-2.5 flex-1 flex flex-col bg-white">
           {/* 1. Weight/Pack */}
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase tracking-tight ${getVariantStyle(weightPackLabel || (product.pack && product.pack !== "Standard" ? product.pack : (product.variations?.[0]?.value || product.variations?.[0]?.title)) || '1 piece').bg} ${getVariantStyle(weightPackLabel || (product.pack && product.pack !== "Standard" ? product.pack : (product.variations?.[0]?.value || product.variations?.[0]?.title)) || '1 piece').text} ${getVariantStyle(weightPackLabel || (product.pack && product.pack !== "Standard" ? product.pack : (product.variations?.[0]?.value || product.variations?.[0]?.title)) || '1 piece').border}`}>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#e8f5ed] text-[#0f7a5c]">
               {weightPackLabel || (product.pack && product.pack !== "Standard" ? product.pack : (product.variations?.[0]?.value || product.variations?.[0]?.title)) || '1 piece'}
             </span>
           </div>
 
           {/* 2. Name */}
-          <h3 className="text-[12px] font-bold text-neutral-900 mb-1 line-clamp-2 leading-tight min-h-[2rem] max-h-[2rem] overflow-hidden">
+          <h3 className="text-[13px] font-bold text-neutral-900 mb-1 line-clamp-2 leading-tight">
             {product.name || product.productName || ''}
           </h3>
 
-          {/* 3. Delivery Row */}
-          <div className="flex items-center justify-start mb-1 gap-1">
-            <div className="flex items-center gap-0.5 whitespace-nowrap">
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-neutral-400">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-              </svg>
-              <span className="text-[8px] text-neutral-500 font-bold uppercase tracking-tighter">Quick Delivery</span>
-            </div>
-          </div>
+          <div className="flex-1"></div>
 
-          {/* 4. Pricing Row */}
-          <div className="mt-auto flex items-baseline gap-1.5">
+          {/* 3. Pricing Row */}
+          <div className="flex items-baseline gap-1.5 mb-2 mt-1">
             <span className="text-[16px] md:text-[18px] font-black text-neutral-900 leading-none">
-              ₹{displayPrice.toLocaleString('en-IN')}
+              ₹{Number(displayPrice || 0).toLocaleString('en-IN')}
             </span>
             {mrp && mrp > displayPrice && (
               <span className="text-[12px] text-neutral-400 line-through font-medium leading-none">
-                ₹{mrp.toLocaleString('en-IN')}
+                ₹{Number(mrp || 0).toLocaleString('en-IN')}
               </span>
             )}
           </div>
+
+          {/* 4. ADD Button Row */}
+          <div className="w-full">
+            {inCartQty === 0 ? (
+              <Button
+                ref={addButtonRef}
+                variant="outline"
+                size="sm"
+                disabled={isActionDisabled}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAdd(e);
+                }}
+                className={`w-full border rounded-full font-bold text-[12px] h-8 px-3 flex items-center justify-center uppercase tracking-wide transition-all ${isActionDisabled
+                  ? 'border-neutral-200 text-neutral-400 bg-neutral-50 cursor-not-allowed'
+                  : 'border-[#149b4c] text-[#149b4c] bg-white hover:bg-green-50 shadow-sm'
+                  }`}
+              >
+                {product.isAvailable === false ? 'Out of Range' : isShopClosed ? 'Closed' : 'ADD'}
+              </Button>
+            ) : (
+              <div className="flex items-center justify-between bg-white border border-[#149b4c] rounded-full px-1 h-8 w-full shadow-sm">
+                <Button
+                  variant="default"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDecrease(e);
+                  }}
+                  className="w-6 h-6 p-0 bg-[#149b4c] text-white rounded-full hover:bg-green-700 shadow-none font-bold flex items-center justify-center"
+                >
+                  −
+                </Button>
+                <span className="text-[13px] font-black text-[#149b4c] min-w-[1.5rem] text-center">
+                  {inCartQty}
+                </span>
+                <Button
+                  variant="default"
+                  size="icon"
+                  disabled={isActionDisabled}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleIncrease(e);
+                  }}
+                  className={`w-6 h-6 p-0 bg-[#149b4c] text-white rounded-full shadow-none font-bold flex items-center justify-center ${isActionDisabled ? 'bg-neutral-300 text-neutral-500' : 'hover:bg-green-700'
+                    }`}
+                >
+                  +
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {isShopClosed && workingHoursText && (
+            <div className="mt-2 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+              Opens {workingHoursText}. Try when shop is online.
+            </div>
+          )}
         </div>
       </div>
 

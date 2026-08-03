@@ -19,7 +19,7 @@ import LoadingSpinner from "./components/LoadingSpinner";
 import ErrorBoundary from "./components/ErrorBoundary";
 import RouteTransition from "./components/RouteTransition";
 import { useEffect } from "react";
-import { initializePushNotifications, setupForegroundNotificationHandler } from "./services/pushNotificationService";
+import { initializePushNotifications, setupForegroundNotificationHandler, registerFCMToken } from "./services/pushNotificationService";
 
 // Critical routes - load immediately (Home, Cart, Checkout)
 import Home from "./modules/user/Home";
@@ -159,7 +159,6 @@ function App() {
       await initializePushNotifications();
 
       // Auto-register token if user is already logged in
-      const { registerFCMToken } = await import("./services/pushNotificationService");
       registerFCMToken().catch(err => console.error("Auto-registration failed:", err));
     };
 

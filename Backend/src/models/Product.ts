@@ -104,6 +104,8 @@ export interface IProduct extends Document {
   hsnCode?: string;
   gstPercentage?: number;
 
+  sequenceNumber?: number;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -368,6 +370,10 @@ const ProductSchema = new Schema<IProduct>(
     gstPercentage: {
       type: Number,
       default: 0,
+    },
+    sequenceNumber: {
+      type: Number,
+      default: 999999,
     },
   },
   {

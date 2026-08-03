@@ -23,6 +23,8 @@ import { updateProfile } from '../../services/api/customerService';
 import { createOrder, cancelOrder } from '../../services/api/customerOrderService';
 import { calculateProductPrice } from '../../utils/priceUtils';
 import HdfcCheckout from '../../components/HdfcCheckout';
+import { openRazorpay } from '../../components/RazorpayCheckout';
+import { createHdfcOrder } from '../../services/api/paymentService';
 
 // const STORAGE_KEY = 'saved_address'; // Removed
 
@@ -63,7 +65,7 @@ export default function Checkout() {
   const [gstin, setGstin] = useState<string>('');
   const [specialRequest, setSpecialRequest] = useState<string>('');
   const [showCancellationPolicy, setShowCancellationPolicy] = useState(false);
-  const [giftPackaging, setGiftPackaging] = useState<boolean>(false);
+
 
   // Profile completion modal state
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -378,8 +380,7 @@ export default function Checkout() {
     ? Math.max(0, Math.min(subtotalBeforeCoupon, validatedDiscount || localCouponDiscount))
     : 0;
 
-  const giftPackagingFee = giftPackaging ? 30 : 0;
-  const grandTotal = Math.max(0, discountedTotal + handlingCharge + deliveryCharge + giftPackagingFee - currentCouponDiscount);
+  const grandTotal = Math.max(0, discountedTotal + handlingCharge + deliveryCharge - currentCouponDiscount);
 
   const handleApplyCoupon = async (coupon: ApiCoupon) => {
     setIsValidatingCoupon(true);
@@ -479,8 +480,6 @@ export default function Checkout() {
     placingOrderRef.current = true;
     setIsPlacingOrder(true);
 
-    // Final address setup
-
     // Create address object with location data (use fallback if needed)
     const addressWithLocation: OrderAddress = {
       ...selectedAddress,
@@ -508,7 +507,6 @@ export default function Checkout() {
       gstin: gstin || undefined,
       specialRequests: specialRequest.trim() || undefined,
       couponCode: selectedCoupon?.code || undefined,
-      giftPackaging: giftPackaging,
       paymentMethod: selectedPaymentMethod === 'cod' ? 'COD' : 'Online',
     };
 
@@ -522,18 +520,55 @@ export default function Checkout() {
           clearCart();
           setShowOrderSuccess(true);
           showGlobalToast('Order placed successfully! Pay on delivery.', 'success');
+          placingOrderRef.current = false;
+          setIsPlacingOrder(false);
         } else {
-          // Online: trigger HDFC payment
-          setPendingOrderId(placedId);
-          setShowHdfcCheckout(true);
+          // Online: trigger payment immediately in the same async chain to preserve User Gesture Context!
+          // Replace undefined activeGateway with "RAZORPAY" as fallback/default
+          const orderResponse = await createHdfcOrder(placedId, "RAZORPAY");
+          
+          if (!orderResponse.success) {
+            alert(orderResponse.message || 'Failed to initialize payment');
+            placingOrderRef.current = false;
+            setIsPlacingOrder(false);
+            return;
+          }
+
+          if (orderResponse.provider === 'RAZORPAY') {
+            await openRazorpay({
+              orderId: placedId,
+              amount: orderResponse.data.amount / 100,
+              razorpayOrderId: orderResponse.data.id,
+              razorpayKey: orderResponse.key,
+              customerDetails: {
+                name: user?.name || 'Customer',
+                email: user?.email || 'customer@example.com',
+                phone: user?.phone || '9999999999'
+              },
+              onSuccess: (paymentId) => {
+                window.location.href = `/orders/${placedId}?payment=success`;
+              },
+              onFailure: (error) => {
+                setPendingOrderId(null);
+                showGlobalToast(typeof error === 'string' ? error : 'Payment failed', 'error');
+                placingOrderRef.current = false;
+                setIsPlacingOrder(false);
+              }
+            });
+            // Don't reset placingOrderRef here because the Razorpay UI is now open and controlling the flow
+          } else {
+            // For HDFC and Cashfree, fallback to component rendering approach
+            setPendingOrderId(placedId);
+            setShowHdfcCheckout(true);
+            placingOrderRef.current = false;
+            setIsPlacingOrder(false);
+          }
         }
       }
     } catch (error: any) {
       console.error("Order placement failed", error);
-      // Show user-friendly error message
       const errorMessage = error.message || error.response?.data?.message || "Failed to place order. Please try again.";
       alert(errorMessage);
-    } finally {
       placingOrderRef.current = false;
       setIsPlacingOrder(false);
     }
@@ -1089,60 +1124,58 @@ export default function Checkout() {
                   </div>
 
                   {/* Product Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xs font-semibold text-neutral-900 mb-0.5 line-clamp-2">
-                      {item.product?.name}
-                    </h3>
-                    <p className="text-[10px] text-neutral-600 mb-0.5">{item.quantity} × {variantTitle}</p>
-                    <p className="text-[10px] text-neutral-700 font-medium mb-0.5">Quantity: {item.quantity}</p>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMoveToWishlist(item.product);
-                      }}
-                      className="text-[10px] text-green-600 font-medium mb-1.5 hover:text-green-700 transition-colors"
-                    >
-                      Move to wishlist
-                    </button>
+                  <div className="flex-1 min-w-0 flex justify-between items-end gap-2">
+                    <div className="flex flex-col items-start min-w-0 flex-1">
+                      <h3 className="text-xs font-semibold text-neutral-900 mb-0.5 line-clamp-2 w-full">
+                        {item.product?.name}
+                      </h3>
+                      <p className="text-[10px] text-neutral-600 mb-0.5">{item.quantity} × {variantTitle}</p>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveToWishlist(item.product);
+                        }}
+                        className="text-[10px] text-green-600 font-medium hover:text-green-700 transition-colors mb-1.5"
+                      >
+                        Move to wishlist
+                      </button>
+                      
+                    </div>
 
-                    <div className="flex items-end justify-between mt-1.5 gap-2">
-                      <div className="flex-1" />
+                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                      {/* Quantity Selector */}
+                      <div className="flex items-center gap-1.5 bg-white border-2 border-green-600 rounded-full px-1.5 py-0.5 h-7">
+                        <button
+                          onClick={() => updateQuantity(item.product?.id, item.quantity - 1, variantId, variantTitle)}
+                          className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
+                        >
+                          −
+                        </button>
+                        <span className="text-xs font-bold text-green-600 min-w-[1.25rem] text-center">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() => updateQuantity(item.product?.id, item.quantity + 1, variantId, variantTitle)}
+                          className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
+                        >
+                          +
+                        </button>
+                      </div>
 
-                      <div className="flex flex-col items-end gap-1">
-                        {/* Quantity Selector */}
-                        <div className="flex items-center gap-1.5 bg-white border-2 border-green-600 rounded-full px-1.5 py-0.5">
-                          <button
-                            onClick={() => updateQuantity(item.product?.id, item.quantity - 1, variantId, variantTitle)}
-                            className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
-                          >
-                            −
-                          </button>
-                          <span className="text-xs font-bold text-green-600 min-w-[1.25rem] text-center">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQuantity(item.product?.id, item.quantity + 1, variantId, variantTitle)}
-                            className="w-5 h-5 flex items-center justify-center text-green-600 font-bold hover:bg-green-50 rounded-full transition-colors text-xs"
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        {/* Price */}
-                        <div className="flex flex-col items-end">
-                          <span className="text-sm font-bold text-neutral-900">
-                            ₹{lineTotal}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            {hasDiscount && (
-                              <span className="text-[10px] text-neutral-500 line-through">
-                                ₹{mrp}
-                              </span>
-                            )}
-                            <span className="text-[11px] text-neutral-600">
-                              ₹{displayPrice} each
+                      {/* Price */}
+                      <div className="flex flex-col items-end">
+                        <span className="text-sm font-bold text-neutral-900 leading-none mb-1">
+                          ₹{lineTotal}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {hasDiscount && (
+                            <span className="text-[10px] text-neutral-500 line-through">
+                              ₹{mrp}
                             </span>
-                          </div>
+                          )}
+                          <span className="text-[10px] text-neutral-600">
+                            ₹{displayPrice} each
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1349,11 +1382,11 @@ export default function Checkout() {
                     <div className="mb-1">
                       <div className="flex items-baseline gap-1">
                         <span className="text-[13px] font-bold text-neutral-900">
-                          ₹{(displayPrice || 0).toLocaleString('en-IN')}
+                          ₹{Number(displayPrice || 0).toLocaleString('en-IN')}
                         </span>
                         {hasDiscount && (
                           <span className="text-[10px] text-neutral-400 line-through">
-                            ₹{(mrp || 0).toLocaleString('en-IN')}
+                            ₹{Number(mrp || 0).toLocaleString('en-IN')}
                           </span>
                         )}
                       </div>
@@ -1511,24 +1544,11 @@ export default function Checkout() {
                   {selectedCoupon.code}
                 </span>
               </div>
-              <span className="text-xs font-medium text-green-600">-₹{currentCouponDiscount.toLocaleString('en-IN')}</span>
+              <span className="text-xs font-medium text-green-600">-₹{Number(currentCouponDiscount).toLocaleString('en-IN')}</span>
             </div>
           )}
 
 
-
-          {/* Gift Packaging */}
-          {giftPackaging && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z" stroke="currentColor" strokeWidth="2" fill="none" />
-                </svg>
-                <span className="text-xs text-neutral-700">Gift Packaging</span>
-              </div>
-              <span className="text-xs font-medium text-neutral-900">₹{giftPackagingFee}</span>
-            </div>
-          )}
 
           {/* Grand total */}
           <div className="pt-2 border-t border-neutral-200 flex items-center justify-between">
@@ -1578,44 +1598,6 @@ export default function Checkout() {
         </div>
       </div>
 
-
-      {/* Gift Packaging Section */}
-      <div className="px-4 py-2 border-b border-neutral-200">
-        <button
-          onClick={() => setGiftPackaging(!giftPackaging)}
-          className={`w-full flex items-center justify-between rounded-lg p-2 transition-colors ${giftPackaging
-            ? 'bg-green-50 border-2 border-green-600'
-            : 'bg-neutral-50 border-2 border-transparent hover:bg-neutral-100'
-            }`}
-        >
-          <div className="flex items-center gap-2">
-            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${giftPackaging
-              ? 'border-green-600 bg-green-600'
-              : 'border-neutral-400 bg-white'
-              }`}>
-              {giftPackaging && (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 6L9 17l-5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
-            </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2z" stroke="currentColor" strokeWidth="2" fill="none" />
-            </svg>
-            <div className="text-left">
-              <p className={`text-xs font-semibold ${giftPackaging ? 'text-green-700' : 'text-neutral-900'}`}>
-                Gift Packaging
-              </p>
-              <p className="text-[10px] text-neutral-600">
-                {giftPackaging ? 'Add ₹30 for gift packaging' : 'Add ₹30 for elegant gift packaging'}
-              </p>
-            </div>
-          </div>
-          {giftPackaging && (
-            <span className="text-xs font-semibold text-green-600">₹30</span>
-          )}
-        </button>
-      </div>
 
       {/* Payment Method Selector */}
       <div className="px-4 py-3 border-b border-neutral-200">
@@ -2063,6 +2045,11 @@ export default function Checkout() {
       {showHdfcCheckout && pendingOrderId && user && (
         <HdfcCheckout
           orderId={pendingOrderId}
+          customerDetails={{
+            name: user.name || 'Customer',
+            email: user.email || 'info@mandibazaar.com',
+            phone: user.phone || '9999999999'
+          }}
           onFailure={async (error) => {
             // If payment failed or user cancelled, we mark the order as cancelled on backend to restore stock
             if (pendingOrderId) {

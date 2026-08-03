@@ -32,7 +32,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
     const bestsellerCards = await BestsellerCard.find({
       isActive: true,
     })
-      .populate("category", "name slug image")
+      .populate({ path: "category", select: "name slug image", match: { status: "Active" } })
       .sort({ order: 1 })
       .limit(6)
       .lean();
@@ -158,7 +158,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
         select:
           "productName mainImage price mrp compareAtPrice discount status publish category subcategory seller weightVariants variations sellingUnit pack smallDescription rating reviewsCount",
         populate: [
-          { path: "category", select: "name slug" },
+          { path: "category", select: "name slug", match: { status: "Active" } },
           { path: "seller", select: "workingHours isShopOpen" },
         ],
         match: {
@@ -171,19 +171,13 @@ export const getHomeContent = async (req: Request, res: Response) => {
       .lean();
 
     const validLowestPricesProducts = lowestPricesProducts
-      .filter((item: any) => {
-        const p = item.product;
-        if (!p || !p.category) return false;
-        
-        // Strictly filter by location if provided
-        const isAvailable = (nearbySellerIds.length > 0 && p.seller)
-          ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
-          : false;
-        
-        return isAvailable;
-      })
       .map((item: any) => {
         const product = item.product;
+        if (!product || !product.category) return null;
+        const isAvailable = (nearbySellerIds.length > 0 && product.seller)
+          ? nearbySellerIds.some(id => id.toString() === (product.seller._id || product.seller).toString())
+          : false;
+
         return {
           id: product._id.toString(),
           _id: product._id.toString(),
@@ -198,16 +192,16 @@ export const getHomeContent = async (req: Request, res: Response) => {
           subcategory: product.subcategory?.toString() || "",
           status: product.status,
           publish: product.publish,
-          isAvailable: true,
+          isAvailable: isAvailable,
           seller: product.seller,
           weightVariants: product.weightVariants || [],
           variations: product.variations || [],
           sellingUnit: product.sellingUnit || 'unit',
           pack: product.pack || '',
           rating: product.rating || 0,
-          reviewsCount: product.reviewsCount || 0,
         };
-      });
+      })
+      .filter(Boolean);
 
     // 3. Categories for Tiles
     const categories = await Category.find({
@@ -219,7 +213,7 @@ export const getHomeContent = async (req: Request, res: Response) => {
 
     // 4. Shop By Store
     const shopDocuments = await Shop.find({ isActive: true })
-      .populate("category", "name slug")
+      .populate({ path: "category", select: "name slug", match: { status: "Active" } })
       .sort({ order: 1, createdAt: -1 })
       .lean();
 
@@ -358,18 +352,13 @@ export const getHomeContent = async (req: Request, res: Response) => {
               .populate("seller", "workingHours isShopOpen")
               .lean();
 
-            const availableProducts = products.filter((p: any) => {
-              const isAvailable = (nearbySellerIds.length > 0 && p.seller)
-                ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
-                : false;
-              return isAvailable;
-            });
-
-            return {
-              id: subcat._id.toString(),
-              name: subcat.name,
-              image: subcat.image || "",
-              products: availableProducts.map((p: any) => {
+            const availableProducts = products
+              .filter((p: any) => {
+                return (nearbySellerIds.length > 0 && p.seller)
+                  ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
+                  : false;
+              })
+              .map((p: any) => {
                 return {
                   id: p._id.toString(),
                   productId: p._id.toString(),
@@ -389,7 +378,13 @@ export const getHomeContent = async (req: Request, res: Response) => {
                   isAvailable: true,
                   seller: p.seller,
                 };
-              }),
+              });
+
+            return {
+              id: subcat._id.toString(),
+              name: subcat.name,
+              image: subcat.image || "",
+              products: availableProducts,
             };
           })
         );
@@ -420,34 +415,33 @@ export const getHomeContent = async (req: Request, res: Response) => {
           .populate("seller", "workingHours isShopOpen")
           .lean();
 
-        const availableDirectProducts = directProducts.filter((p: any) => {
-          const isAvailable = (nearbySellerIds.length > 0 && p.seller)
-            ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
-            : false;
-          return isAvailable;
-        });
-
-        const mappedDirectProducts = availableDirectProducts.map((p: any) => {
-          return {
-            id: p._id.toString(),
-            productId: p._id.toString(),
-            name: p.productName,
-            productName: p.productName,
-            image: p.mainImage,
-            mainImage: p.mainImage,
-            price: p.price,
-            mrp: p.mrp,
-            discount: p.discount || (p.mrp && p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0),
-            rating: p.rating || 0,
-            reviewsCount: p.reviewsCount || 0,
-            pack: p.pack || "",
-            variations: p.variations || [],
-            weightVariants: p.weightVariants || [],
-            sellingUnit: p.sellingUnit || "unit",
-            isAvailable: true,
-            seller: p.seller,
-          };
-        });
+        const mappedDirectProducts = directProducts
+          .filter((p: any) => {
+            return (nearbySellerIds.length > 0 && p.seller)
+              ? nearbySellerIds.some(id => id.toString() === (p.seller._id || p.seller).toString())
+              : false;
+          })
+          .map((p: any) => {
+            return {
+              id: p._id.toString(),
+              productId: p._id.toString(),
+              name: p.productName,
+              productName: p.productName,
+              image: p.mainImage,
+              mainImage: p.mainImage,
+              price: p.price,
+              mrp: p.mrp,
+              discount: p.discount || (p.mrp && p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0),
+              rating: p.rating || 0,
+              reviewsCount: p.reviewsCount || 0,
+              pack: p.pack || "",
+              variations: p.variations || [],
+              weightVariants: p.weightVariants || [],
+              sellingUnit: p.sellingUnit || "unit",
+              isAvailable: true,
+              seller: p.seller,
+            };
+          });
 
         const allSubcats = subcatsWithProducts.filter(s => s.products.length > 0);
         if (mappedDirectProducts.length > 0) {
