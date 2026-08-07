@@ -734,7 +734,7 @@ export default function OrderDetail() {
 
   const handleCallStore = () => {
     // Default store number, should be from order/seller data
-    const storeNumber = order?.seller?.phone || "1234567890";
+    const storeNumber = order?.seller?.phone || "8279281172";
     window.location.href = `tel:${storeNumber}`;
   };
 
@@ -809,7 +809,7 @@ export default function OrderDetail() {
       color: "bg-green-700",
     },
     Accepted: {
-      title: "Preparing your order",
+      title: "We are packing your order",
       subtitle: "Accepted by seller",
       color: "bg-green-700",
     },
@@ -1043,7 +1043,7 @@ export default function OrderDetail() {
           isTracking={isConnected && !!deliveryLocation}
           deliveryOtp={order?.deliveryOtp}
           onCall={() => {
-            const phone = order?.deliveryPartner?.phone || "1234567890";
+            const phone = order?.deliveryPartner?.phone || "8279281172";
             window.location.href = `tel:${phone}`;
           }}
         />
@@ -1089,7 +1089,7 @@ export default function OrderDetail() {
               <p className="font-semibold text-gray-900">
                 {order?.status === 'Received' || order?.status === 'Accepted'
                   ? "Assigning delivery partner shortly"
-                  : "Preparing your order"}
+                  : "We are packing your order"}
               </p>
             </div>
           </motion.div>
