@@ -76,7 +76,7 @@ function normalizeMobileNumber(mobile: string): string {
  */
 function buildOtpMessage(otp: string): string {
   const appName = process.env.APP_NAME || 'Mandi Bazaar';
-  return `Welcome to the ${appName} powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
+  return `Welcome to the ${appName} powered by Appzeto.Your OTP for registration is ${otp}.BGADEC`;
 }
 
 /**
@@ -393,4 +393,5 @@ export async function verifyOTP(
 
   return verifyOtpFromDb(normalizedMobile, normalizedOtp, userType);
 }
+
 
