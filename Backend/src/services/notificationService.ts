@@ -63,7 +63,7 @@ export const sendNotification = async (
       console.warn(`⚠️  No push delivery confirmation for notification ${notification._id}`);
     }
   } catch (error) {
-    console.error(`❌ Error sending push notification for ${notificationId}:`, error);
+    console.error(`❌ Error sending push notification for ${notification._id}:`, error);
   }
 
   await notification.save();
@@ -333,6 +333,7 @@ export const sendWithdrawalStatusNotification = async (
 export const sendDeliveryTaskNotification = async (
   deliveryId: string,
   orderNo: string,
+  orderId: string,
 ) => {
   return sendNotification(
     "Delivery",
@@ -342,6 +343,14 @@ export const sendDeliveryTaskNotification = async (
     {
       type: "Order",
       priority: "High",
+      link: `/delivery/orders/${orderId}`,
+      actionLabel: "View Task",
+      data: {
+        eventType: "new-order",
+        orderId,
+        orderNumber: orderNo,
+        sound: "default",
+      },
     },
   );
 };

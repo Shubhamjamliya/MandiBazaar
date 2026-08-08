@@ -133,6 +133,22 @@ export async function sendPushNotification(
                 fcm_options: {
                     link: payload.data?.link || '/'
                 }
+            },
+            android: {
+                priority: 'high',
+                notification: {
+                    channelId: 'new-orders',
+                    sound: 'default',
+                    tag: payload.data?.orderId || payload.data?.type || 'default'
+                }
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        sound: 'default',
+                        contentAvailable: true
+                    }
+                }
             }
         };
 

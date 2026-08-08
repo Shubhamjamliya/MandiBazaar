@@ -4,7 +4,6 @@ import Order from '../models/Order';
 import Seller from '../models/Seller';
 import DeliveryTracking from '../models/DeliveryTracking';
 import OrderItem from '../models/OrderItem';
-import Notification from '../models/Notification';
 import mongoose from 'mongoose';
 import AppSettings from '../models/AppSettings';
 import { notifySellersOfOrderUpdate } from './sellerNotificationService';
@@ -410,26 +409,11 @@ export async function notifyDeliveryBoysOfNewOrder(
 
             // Send push notification
             try {
-                await sendDeliveryTaskNotification(idString, order.orderNumber);
+                await sendDeliveryTaskNotification(idString, order.orderNumber, orderId);
             } catch (notifyError) {
                 console.error(`❌ BROADCAST: Push notification failed for ${idString}:`, notifyError);
             }
 
-            // Persist in-app notification
-            try {
-                await Notification.create({
-                    recipientType: 'Delivery',
-                    recipientId: id,
-                    title: 'New Task Request',
-                    message: `New delivery task for order ${order.orderNumber}.`,
-                    type: 'Order',
-                    priority: 'High',
-                    link: `/delivery/orders/${orderId}`,
-                    actionLabel: 'View Task',
-                });
-            } catch (notificationError) {
-                console.error(`❌ BROADCAST: DB notification failed for ${idString}:`, notificationError);
-            }
         }
 
         if (notifiedIds.size > 0) {

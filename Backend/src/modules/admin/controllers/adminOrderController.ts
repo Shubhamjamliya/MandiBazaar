@@ -283,7 +283,7 @@ export const assignDeliveryBoy = asyncHandler(
     // Send push notification to delivery partner
     const { sendDeliveryTaskNotification } = await import("../../../services/notificationService");
     try {
-      await sendDeliveryTaskNotification(deliveryBoyId, order.orderNumber);
+      await sendDeliveryTaskNotification(deliveryBoyId, order.orderNumber, order._id.toString());
     } catch (notifyError) {
       console.error("Error sending delivery task notification:", notifyError);
     }
