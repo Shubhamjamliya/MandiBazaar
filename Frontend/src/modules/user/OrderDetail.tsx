@@ -1052,6 +1052,7 @@ export default function OrderDetail() {
       {/* Scrollable Content */}
       <div className="px-4 py-4 space-y-4 pb-24">
         {/* Payment Pending */}
+        {!['Delivered', 'Cancelled', 'Rejected', 'Returned'].includes(order.status) && (
         <motion.div
           className="bg-white rounded-xl p-4 shadow-sm"
           initial={{ opacity: 0, y: 20 }}
@@ -1074,6 +1075,7 @@ export default function OrderDetail() {
             </Button>
           </div>
         </motion.div>
+        )}
 
         {/* Delivery Partner Assignment - Only show if no partner assigned yet */}
         {!order?.deliveryPartner && (

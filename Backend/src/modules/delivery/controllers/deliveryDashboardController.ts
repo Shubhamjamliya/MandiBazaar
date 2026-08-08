@@ -313,7 +313,7 @@ export const getHelpSupport = asyncHandler(
       {
         question: "What if I have a complaint or issue?",
         answer:
-          "You can contact our support team through the Help & Support section or call our helpline at +91 7846940429.",
+          "You can contact our support team through the Help & Support section or call our helpline at +91 8279281172.",
       },
       {
         question: "What are the delivery timings?",
@@ -323,7 +323,7 @@ export const getHelpSupport = asyncHandler(
     ];
 
     const contactOptions = [
-      { label: "Call Support", value: "+91 7846940429", icon: "phone" },
+      { label: "Call Support", value: "+91 8279281172", icon: "phone" },
       {
         label: "Email Support",
         value: "support@mandibazaar.com",

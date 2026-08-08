@@ -15,7 +15,8 @@ export const getAppSettings = asyncHandler(
       settings = await AppSettings.create({
         appName: "Mandi Bazaar",
         contactEmail: "contact@mandibazaar.com",
-        contactPhone: "1234567890",
+        contactPhone: "8279281172",
+        supportPhone: "8279281172",
       });
     }
 
@@ -136,7 +137,8 @@ export const updateSMSGatewaySettings = asyncHandler(
       settings = await AppSettings.create({
         appName: "Mandi Bazaar",
         contactEmail: "contact@mandibazaar.com",
-        contactPhone: "1234567890",
+        contactPhone: "8279281172",
+        supportPhone: "8279281172",
         smsGateway,
       });
     } else {

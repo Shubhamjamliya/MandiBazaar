@@ -1788,7 +1788,7 @@ export default function Checkout() {
               <div>
                 <h3 className="font-bold text-neutral-900 mb-2">Contact Support</h3>
                 <p>
-                  For any cancellation requests or queries, please contact our customer support team at support@mandibazaar.com or call +91-XXXXX-XXXXX
+                  For any cancellation requests or queries, please contact our customer support team at support@mandibazaar.com or call +91 8279281172
                 </p>
               </div>
             </div>

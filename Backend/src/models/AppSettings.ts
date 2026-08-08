@@ -446,7 +446,8 @@ AppSettingsSchema.statics.getSettings = async function () {
     settings = await this.create({
       appName: "Mandi Bazaar",
       contactEmail: "contact@mandibazaar.com",
-      contactPhone: "1234567890",
+      contactPhone: "8279281172",
+      supportPhone: "8279281172",
     });
   }
   return settings;
