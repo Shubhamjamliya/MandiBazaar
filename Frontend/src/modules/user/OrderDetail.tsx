@@ -451,7 +451,13 @@ export default function OrderDetail() {
   const [order, setOrder] = useState<any>(id ? getOrderById(id) : undefined);
   const [loading, setLoading] = useState(!order);
 
-  const [showConfirmation, setShowConfirmation] = useState(confirmed);
+  const [showConfirmation, setShowConfirmation] = useState(() => {
+    const initialOrder = id ? getOrderById(id) : undefined;
+    if (initialOrder) {
+      return confirmed && ['Pending', 'Received'].includes(initialOrder.status);
+    }
+    return confirmed;
+  });
   const [orderStatus, setOrderStatus] = useState<OrderStatus>(
     order?.status || "Pending"
   );
@@ -602,11 +608,15 @@ export default function OrderDetail() {
   // Simulate order status progression
   useEffect(() => {
     if (confirmed && order) {
-      const timer1 = setTimeout(() => {
+      if (['Pending', 'Received'].includes(order.status)) {
+        const timer1 = setTimeout(() => {
+          setShowConfirmation(false);
+          setOrderStatus("Accepted");
+        }, 3000);
+        return () => clearTimeout(timer1);
+      } else {
         setShowConfirmation(false);
-        setOrderStatus("Accepted");
-      }, 3000);
-      return () => clearTimeout(timer1);
+      }
     }
   }, [confirmed, order]);
 
@@ -1030,7 +1040,7 @@ export default function OrderDetail() {
       )}
 
       {/* Delivery Partner Card */}
-      {(order?.deliveryPartner || order?.deliveryOtp) && (
+      {(order?.deliveryPartner || order?.deliveryOtp) && !['Delivered', 'Cancelled', 'Returned'].includes(order.status) && (
         <DeliveryPartnerCard
           partner={{
             name: order?.deliveryPartner?.name || "Delivery Partner",
@@ -1043,8 +1053,8 @@ export default function OrderDetail() {
           isTracking={isConnected && !!deliveryLocation}
           deliveryOtp={order?.deliveryOtp}
           onCall={() => {
-            const phone = order?.deliveryPartner?.phone || "8279281172";
-            window.location.href = `tel:${phone}`;
+            const phone = order?.deliveryPartner?.phone;
+            if (phone) window.location.href = `tel:${phone}`;
           }}
         />
       )}
@@ -1078,7 +1088,7 @@ export default function OrderDetail() {
         )}
 
         {/* Delivery Partner Assignment - Only show if no partner assigned yet */}
-        {!order?.deliveryPartner && (
+        {!order?.deliveryPartner && !['Delivered', 'Cancelled', 'Returned'].includes(order.status) && (
           <motion.div
             className="bg-white rounded-xl p-4 shadow-sm"
             initial={{ opacity: 0, y: 20 }}
@@ -1098,7 +1108,7 @@ export default function OrderDetail() {
         )}
 
         {/* Tip Section */}
-        <TipSection />
+        {!['Delivered', 'Cancelled', 'Returned'].includes(order.status) && <TipSection />}
 
         {/* Delivery Partner Safety */}
         <motion.button
@@ -1132,13 +1142,15 @@ export default function OrderDetail() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}>
-          <SectionItem
-            icon={PhoneIcon}
-            title={`${order.address?.name || "Customer"}, ${order.address?.phone || "9XXXXXXXX"
-              }`}
-            subtitle="Delivery partner may call this number"
-            onClick={handleCallCustomer}
-          />
+          {!['Delivered', 'Cancelled', 'Returned'].includes(order.status) && (
+            <SectionItem
+              icon={PhoneIcon}
+              title={`${order.address?.name || "Customer"}, ${order.address?.phone || "9XXXXXXXX"
+                }`}
+              subtitle="Delivery partner may call this number"
+              onClick={handleCallCustomer}
+            />
+          )}
           <SectionItem
             icon={HomeIcon}
             title="Delivery at Home"
@@ -1149,12 +1161,14 @@ export default function OrderDetail() {
             }
             onClick={handleOpenDeliveryAddress}
           />
-          <SectionItem
-            icon={MessageSquareIcon}
-            title="Add delivery instructions"
-            subtitle=""
-            onClick={() => setShowInstructionsModal(true)}
-          />
+          {!['Delivered', 'Cancelled', 'Returned'].includes(order.status) && (
+            <SectionItem
+              icon={MessageSquareIcon}
+              title="Add delivery instructions"
+              subtitle=""
+              onClick={() => setShowInstructionsModal(true)}
+            />
+          )}
         </motion.div>
 
         {/* Store Section */}

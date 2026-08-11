@@ -93,8 +93,6 @@ export default function OrderAgain() {
   const { location } = useLocation();
   const navigate = useNavigate();
   const [addedOrders, setAddedOrders] = useState<Set<string>>(new Set());
-  const [bestsellersLoading, setBestsellersLoading] = useState(true);
-  const [bestsellerProducts, setBestsellerProducts] = useState<any[]>([]);
 
   // Handle "Order Again" - Add all items from an order to cart
   const handleOrderAgain = async (order: any, e: React.MouseEvent) => {
@@ -154,38 +152,8 @@ export default function OrderAgain() {
     }
   };
 
-  useEffect(() => {
-    const fetchBestsellers = async () => {
-      setBestsellersLoading(true);
-      try {
-        const response = await getProducts({
-          sort: 'popular',
-          limit: 12,
-          latitude: location?.latitude,
-          longitude: location?.longitude
-        });
-        if (response.success && response.data) {
-          const mapped = (response.data as any[]).map(p => ({
-            ...p,
-            id: p._id || p.id,
-            name: (p.productName || p.name || '').replace(/\s*-\s*(Fresh|Quality|Assured|Premium|Best|Top|Hygienic|Carefully|Selected).*$/i, '').trim(),
-            imageUrl: p.mainImage || p.imageUrl,
-            mrp: p.mrp || p.price,
-            pack: p.pack || p.variations?.[0]?.title || p.smallDescription || 'Standard'
-          }));
-          setBestsellerProducts(mapped);
-        }
-      } catch (error) {
-        console.error('Failed to fetch bestsellers:', error);
-      } finally {
-        setBestsellersLoading(false);
-      }
-    };
-    fetchBestsellers();
-  }, [location?.latitude, location?.longitude]);
-
   const hasOrders = orders && orders.length > 0;
-  const pageLoading = ordersLoading && bestsellerProducts.length === 0;
+  const pageLoading = ordersLoading;
 
   // Memoize the entire internal content to prevent "jank" during multiple state updates
   const content = useMemo(() => {
@@ -272,82 +240,9 @@ export default function OrderAgain() {
           </div>
         )}
 
-        {/* Bestsellers Section */}
-        {bestsellerProducts.length > 0 && (
-          <div className="bg-white/95 backdrop-blur-sm py-5 mb-4 rounded-2xl mx-2 shadow-sm border-b border-neutral-100">
-            <h2 className="text-sm font-semibold text-neutral-900 mb-3 px-4">Don't forget these</h2>
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 px-4">
-              {bestsellerProducts.map((product) => {
-                const { displayPrice, mrp, discount, hasDiscount } = calculateProductPrice(product);
-                // Variant-aware cart item check
-                const cartItem = cart.items.find(item => {
-                  const itemId = item.product.id || item.product._id;
-                  const productId = product.id || product._id;
-                  if (itemId !== productId) return false;
-                  // For bestsellers carousel, we often target the first available variation
-                  const firstVarId = product.variations?.[0]?._id;
-                  const itemVarId = (item.product as any).variantId || (item.product as any).selectedVariant?._id;
-                  return !firstVarId || itemVarId === firstVarId;
-                });
-                const inCartQty = cartItem?.quantity || 0;
-                
-                const sellerInfo = product.seller;
-                const shopStatus = getShopStatus(sellerInfo);
-                const isShopClosed = shopStatus?.isOpen === false;
-
-                return (
-                  <div key={product.id} className="flex-shrink-0 w-[140px]">
-                    <div className="bg-white rounded-xl overflow-hidden flex flex-col relative h-full border border-neutral-100/50 shadow-sm">
-                      <div onClick={() => navigate(`/product/${product.id}`)} className="relative block cursor-pointer">
-                        <div className="w-full h-28 bg-neutral-50 flex items-center justify-center overflow-hidden">
-                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
-                          {discount > 0 && (
-                            <div className="absolute top-1.5 left-1.5 z-10 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">{discount}% OFF</div>
-                          )}
-                          <WishlistButton productId={product.id} size="sm" className="top-1.5 right-1.5" />
-                          <div className="absolute bottom-1.5 right-1.5 z-10">
-                            <AnimatePresence mode="wait">
-                              {isShopClosed ? (
-                                <div className="bg-white text-neutral-400 border border-neutral-200 text-[10px] font-bold px-2 py-1 rounded shadow-sm">
-                                  CLOSED
-                                </div>
-                              ) : inCartQty === 0 ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault(); e.stopPropagation();
-                                    addToCart(product, e.currentTarget);
-                                  }}
-                                  className="bg-white text-green-600 border border-green-600 text-[10px] font-bold px-2.5 py-1 rounded shadow-md"
-                                >ADD</button>
-                              ) : (
-                                <div className="flex items-center gap-1.5 bg-green-600 rounded px-1.5 py-1 shadow-md" onClick={e => e.stopPropagation()}>
-                                  <button onClick={e => { e.stopPropagation(); updateQuantity(product.id, inCartQty - 1); }} className="text-white font-black text-sm">−</button>
-                                  <span className="text-white font-bold text-xs">{inCartQty}</span>
-                                  <button onClick={e => { e.stopPropagation(); updateQuantity(product.id, inCartQty + 1); }} className="text-white font-black text-sm">+</button>
-                                </div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-2 bg-white flex-1 flex flex-col">
-                        <h3 className="text-[10px] font-bold text-neutral-900 line-clamp-2 leading-tight mb-1">{product.name}</h3>
-                        <div className="text-[8px] text-neutral-500 font-medium mb-1 uppercase">Quick Delivery • {product.pack}</div>
-                        <div className="flex items-baseline gap-1 mt-auto">
-                          <span className="text-xs font-bold text-neutral-900">₹{displayPrice}</span>
-                          {hasDiscount && <span className="text-[9px] text-neutral-400 line-through">₹{mrp}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Empty State */}
-        {!hasOrders && !bestsellersLoading && (
+        {!hasOrders && (
           <div className="py-10 px-4 flex flex-col items-center">
             <div className="w-40 h-40 bg-yellow-50 rounded-full flex items-center justify-center mb-6 border border-yellow-100">
               <span className="text-4xl text-yellow-600">🛍️</span>
@@ -359,7 +254,7 @@ export default function OrderAgain() {
         )}
       </motion.div>
     );
-  }, [pageLoading, bestsellerProducts, orders, addedOrders, cart.items, bestsellersLoading]);
+  }, [pageLoading, orders, addedOrders, cart.items]);
 
   return (
     <div className="bg-stone-50 min-h-screen pb-20">
