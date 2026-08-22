@@ -7,6 +7,7 @@ import DeliveryAssignment from "../../../models/DeliveryAssignment";
 import Return from "../../../models/Return";
 import { notifySellersOfOrderUpdate } from "../../../services/sellerNotificationService";
 import { Server as SocketIOServer } from "socket.io";
+import { emitCustomerOrderEvent, emitCustomerOrderStatusUpdate } from "../../../socket/socketService";
 
 /**
  * Get all orders with filters
@@ -195,10 +196,26 @@ export const updateOrderStatus = asyncHandler(
       console.error("Error sending order status notification:", notifyError);
     }
 
+    const io: SocketIOServer | undefined = req.app.get("io") as SocketIOServer | undefined;
+    const customerId = (order.customer as any)?._id?.toString?.() || order.customer?.toString?.();
+    if (io && customerId) {
+      emitCustomerOrderStatusUpdate(io, {
+        customerId,
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber,
+        status,
+        message:
+          status === "Processed"
+            ? "Your order has been accepted and is being prepared."
+            : status === "Out for Delivery"
+              ? "Your order is out for delivery."
+              : `Your order status changed to ${status}.`,
+      });
+    }
+
 
     // Trigger notification if status is "Processed" (Confirmed) or if paymentStatus changed to "Paid"
     if (status === "Processed" || order.paymentStatus === "Paid") {
-      const io: SocketIOServer = req.app.get("io");
       if (io) {
         notifySellersOfOrderUpdate(io, order, "STATUS_UPDATE");
       }
@@ -305,6 +322,32 @@ export const assignDeliveryBoy = asyncHandler(
       .populate("customer", "name email phone")
       .populate("deliveryBoy", "name mobile email")
       .populate("items");
+
+    const io: SocketIOServer | undefined = req.app.get("io") as SocketIOServer | undefined;
+    const customerId = order.customer?.toString();
+    if (io && customerId) {
+      emitCustomerOrderEvent(
+        io,
+        customerId,
+        "delivery-partner-assigned",
+        {
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+          deliveryPartner: updatedOrder?.deliveryBoy || null,
+          updatedAt: new Date().toISOString(),
+        },
+        order._id.toString()
+      );
+
+      emitCustomerOrderStatusUpdate(io, {
+        customerId,
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber,
+        status: order.status,
+        message: "A delivery partner has been assigned to your order.",
+        deliveryPartner: (updatedOrder?.deliveryBoy as any) || null,
+      });
+    }
 
     return res.status(200).json({
       success: true,

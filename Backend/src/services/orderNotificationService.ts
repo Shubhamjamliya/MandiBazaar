@@ -7,7 +7,7 @@ import OrderItem from '../models/OrderItem';
 import mongoose from 'mongoose';
 import AppSettings from '../models/AppSettings';
 import { notifySellersOfOrderUpdate } from './sellerNotificationService';
-import { sendDeliveryTaskNotification } from './notificationService';
+import { sendCustomerOrderNotification, sendDeliveryTaskNotification } from './notificationService';
 
 // Track order notification state
 export interface OrderNotificationState {
@@ -532,6 +532,37 @@ export async function handleOrderAcceptance(
         });
 
         console.log(`✅ Order ${orderId} accepted by delivery boy ${normalizedDeliveryBoyId} ${state ? '(Memory)' : '(DB Fallback)'}`);
+        const customerId = order.customer?.toString();
+        if (customerId) {
+            io.to(`customer-${customerId}`).emit('order-status-updated', {
+                orderId,
+                orderNumber: order.orderNumber,
+                status: order.status,
+                message: 'A delivery partner has accepted your order.',
+                updatedAt: new Date().toISOString(),
+            });
+
+            io.to(`order-${orderId}`).emit('order-status-updated', {
+                orderId,
+                orderNumber: order.orderNumber,
+                status: order.status,
+                message: 'A delivery partner has accepted your order.',
+                updatedAt: new Date().toISOString(),
+            });
+
+            try {
+                await sendCustomerOrderNotification(
+                    orderId,
+                    order.orderNumber,
+                    customerId,
+                    order.total,
+                    'Processed'
+                );
+            } catch (notifyError) {
+                console.error('Error sending customer acceptance notification:', notifyError);
+            }
+        }
+
         return { success: true, message: 'Order accepted successfully' };
     } catch (error) {
         console.error('Error handling order acceptance:', error);

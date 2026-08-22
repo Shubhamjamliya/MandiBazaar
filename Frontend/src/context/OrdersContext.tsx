@@ -2,11 +2,16 @@ import {
   useState,
   ReactNode,
   useEffect,
+  useCallback,
+  useRef,
 } from "react";
+// @ts-ignore - socket.io-client types may not be available
+import { io, Socket } from "socket.io-client";
 import { useAuth } from "./AuthContext";
 import { Order } from "../types/order";
 import { createOrder, getMyOrders, getOrderById as apiGetOrderById } from "../services/api/customerOrderService";
 import { OrdersContext } from "./ordersContext.types";
+import { getAuthToken, getSocketBaseURL } from "../services/api/config";
 
 // Type for API response order (with _id from MongoDB)
 interface ApiOrder {
@@ -49,10 +54,11 @@ interface ApiError {
 export function OrdersProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const socketRef = useRef<Socket | null>(null);
 
   const { isAuthenticated, user, updateUser } = useAuth();
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     // Ensure userType is set - if user is authenticated but userType is missing, assume Customer
     // This handles cases where user was logged in before userType was added to the login flow
     const userType =
@@ -77,7 +83,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     // Ensure userType is set in user object if missing (for backward compatibility)
@@ -155,11 +161,11 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getOrderById = (id: string): Order | undefined => {
+  const getOrderById = useCallback((id: string): Order | undefined => {
     return orders.find((order) => order.id === id);
-  };
+  }, [orders]);
 
-  const fetchOrderById = async (id: string): Promise<Order | undefined> => {
+  const fetchOrderById = useCallback(async (id: string): Promise<Order | undefined> => {
     try {
       const response = await apiGetOrderById(id);
       if (response && response.data) {
@@ -180,9 +186,9 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       console.error("Failed to fetch order by id", error);
     }
     return undefined;
-  };
+  }, []);
 
-  const updateOrderStatus = async (id: string, status: Order["status"]) => {
+  const updateOrderStatus = useCallback(async (id: string, status: Order["status"]) => {
     // This is likely for cancellation if allowed
     setOrders((prevOrders) =>
       prevOrders.map((order) =>
@@ -190,7 +196,76 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       )
     );
     // Call API if exists
-  };
+  }, []);
+
+  const syncOrderFromRealtime = useCallback(async (payload: { orderId?: string; status?: string | null }) => {
+    if (!payload.orderId) return;
+
+    if (payload.status) {
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === payload.orderId
+            ? { ...order, status: payload.status as Order["status"] }
+            : order
+        )
+      );
+    }
+
+    await fetchOrderById(payload.orderId);
+  }, [fetchOrderById]);
+
+  useEffect(() => {
+    const userType =
+      user?.userType || (isAuthenticated && user ? "Customer" : undefined);
+    const token = getAuthToken();
+
+    if (!isAuthenticated || userType !== "Customer" || !user?.id || !token) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
+
+    const socket = io(getSocketBaseURL(), {
+      auth: { token },
+      transports: ["websocket", "polling"],
+      reconnection: true,
+    });
+
+    socketRef.current = socket;
+
+    socket.on("order-status-updated", (payload: { orderId?: string; status?: string | null }) => {
+      syncOrderFromRealtime(payload);
+    });
+
+    socket.on("delivery-partner-assigned", (payload: { orderId?: string; status?: string | null }) => {
+      syncOrderFromRealtime(payload);
+    });
+
+    socket.on("delivery-otp-available", (payload: { orderId?: string; status?: string | null }) => {
+      syncOrderFromRealtime(payload);
+    });
+
+    socket.on("delivery-boy-accepted", (payload: { orderId?: string; status?: string | null }) => {
+      syncOrderFromRealtime({ orderId: payload.orderId, status: "Processed" });
+    });
+
+    socket.on("order-delivered", (payload: { orderId?: string }) => {
+      syncOrderFromRealtime({ orderId: payload.orderId, status: "Delivered" });
+    });
+
+    socket.on("order-rejected", (payload: { orderId?: string }) => {
+      syncOrderFromRealtime({ orderId: payload.orderId, status: "Rejected" });
+    });
+
+    return () => {
+      socket.disconnect();
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+      }
+    };
+  }, [isAuthenticated, user, syncOrderFromRealtime]);
 
   return (
     <OrdersContext.Provider

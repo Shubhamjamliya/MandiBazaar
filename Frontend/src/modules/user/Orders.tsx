@@ -5,10 +5,18 @@ const getStatusColor = (status: string) => {
   switch (status) {
     case 'Delivered':
       return 'bg-green-100 text-green-700';
+    case 'Out for Delivery':
     case 'On the way':
       return 'bg-blue-100 text-blue-700';
+    case 'Processed':
+      return 'bg-emerald-100 text-emerald-700';
     case 'Accepted':
       return 'bg-yellow-100 text-yellow-700';
+    case 'Cancelled':
+    case 'Rejected':
+      return 'bg-red-100 text-red-700';
+    case 'Returned':
+      return 'bg-neutral-200 text-neutral-700';
     case 'Received':
       return 'bg-neutral-100 text-neutral-700';
     default:

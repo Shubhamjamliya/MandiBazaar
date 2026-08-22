@@ -5,8 +5,10 @@ import { notifySellersOfOrderUpdate } from "../../../services/sellerNotification
 import Delivery from "../../../models/Delivery";
 import OrderItem from "../../../models/OrderItem";
 import Seller from "../../../models/Seller";
+import Customer from "../../../models/Customer";
 import { generateDeliveryOtp, verifyDeliveryOtp } from "../../../services/deliveryOtpService";
 import { processOrderStatusTransition } from "../../../services/orderService";
+import { emitCustomerOrderEvent, emitCustomerOrderStatusUpdate } from "../../../socket/socketService";
 
 /**
  * Helper to map order items for response
@@ -278,6 +280,14 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
 
     // Emit socket events for status changes
     const io = (req.app as any).get("io");
+    const customerId = order.customer?.toString();
+    let deliveryOtp: string | undefined;
+
+    if (customerId && (status === 'Out for Delivery' || status === 'Picked up')) {
+        const customer = await Customer.findById(customerId).select('deliveryOtp');
+        deliveryOtp = customer?.deliveryOtp;
+    }
+
     if (io) {
         if (status === 'Picked up' && previousStatus !== 'Picked up') {
             // Emit order-taken event
@@ -301,6 +311,41 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
                 orderNumber: order.orderNumber,
                 message: 'Order delivered successfully',
             });
+        }
+
+        if (customerId) {
+            emitCustomerOrderStatusUpdate(io, {
+                customerId,
+                orderId: id,
+                orderNumber: order.orderNumber,
+                status: order.status,
+                message:
+                    status === 'Picked up'
+                        ? 'Your order has been picked up from the seller.'
+                        : status === 'Out for Delivery'
+                            ? 'Your order is out for delivery.'
+                            : status === 'Delivered'
+                                ? 'Your order has been delivered successfully.'
+                                : `Your order status changed to ${status}.`,
+                deliveryOtp,
+            });
+
+            if (status === 'Out for Delivery' && deliveryOtp) {
+                emitCustomerOrderEvent(
+                    io,
+                    customerId,
+                    'delivery-otp-available',
+                    {
+                        orderId: id,
+                        orderNumber: order.orderNumber,
+                        status: order.status,
+                        deliveryOtp,
+                        message: 'Delivery OTP is now available for your order.',
+                        updatedAt: new Date().toISOString(),
+                    },
+                    id
+                );
+            }
         }
 
         // Trigger push notification to customer
@@ -438,6 +483,11 @@ export const sendDeliveryOtp = asyncHandler(async (req: Request, res: Response) 
 
     try {
         const result = await generateDeliveryOtp(id);
+        const customerId = order.customer?.toString();
+        const customer = customerId
+            ? await Customer.findById(customerId).select('deliveryOtp')
+            : null;
+        const deliveryOtp = customer?.deliveryOtp;
 
         // Emit otp-sent event to delivery boy
         const io = (req.app as any).get("io");
@@ -447,6 +497,23 @@ export const sendDeliveryOtp = asyncHandler(async (req: Request, res: Response) 
                 orderNumber: order.orderNumber,
                 message: 'Delivery OTP sent to customer',
             });
+
+            if (customerId && deliveryOtp) {
+                emitCustomerOrderEvent(
+                    io,
+                    customerId,
+                    'delivery-otp-available',
+                    {
+                        orderId: id,
+                        orderNumber: order.orderNumber,
+                        status: order.status,
+                        deliveryOtp,
+                        message: 'Delivery OTP is now available for your order.',
+                        updatedAt: new Date().toISOString(),
+                    },
+                    id
+                );
+            }
         }
 
         return res.status(200).json({
@@ -555,6 +622,17 @@ export const verifyDeliveryOtpController = asyncHandler(async (req: Request, res
 
             // Notify sellers of status update
             notifySellersOfOrderUpdate(io, updatedOrder, 'STATUS_UPDATE');
+
+            const customerId = updatedOrder.customer?.toString();
+            if (customerId) {
+                emitCustomerOrderStatusUpdate(io, {
+                    customerId,
+                    orderId: id,
+                    orderNumber: updatedOrder.orderNumber,
+                    status: updatedOrder.status,
+                    message: 'Your order has been delivered successfully.',
+                });
+            }
         }
 
         // Trigger push notification to customer

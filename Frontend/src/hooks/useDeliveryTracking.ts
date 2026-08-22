@@ -104,6 +104,8 @@ export const useDeliveryTracking = (orderId: string | undefined) => {
             setTrackingData(prev => ({
                 ...prev,
                 isConnected: true,
+                orderStatus: 'Processed',
+                lastUpdate: new Date(),
             }))
         })
 
@@ -150,6 +152,18 @@ export const useDeliveryTracking = (orderId: string | undefined) => {
             }))
         })
 
+        socket.on('order-status-updated', (data: any) => {
+            console.log('ðŸ”„ Order status updated:', data)
+            if (!data?.status) return
+
+            setTrackingData(prev => ({
+                ...prev,
+                orderStatus: data.status,
+                lastUpdate: data.updatedAt ? new Date(data.updatedAt) : new Date(),
+                error: null,
+            }))
+        })
+
         socket.on('seller-pickup-confirmed', (data: any) => {
             console.log('🏪 Seller pickup confirmed:', data)
             if (data.allPickedUp && data.newStatus) {
@@ -166,6 +180,15 @@ export const useDeliveryTracking = (orderId: string | undefined) => {
             setTrackingData(prev => ({
                 ...prev,
                 orderStatus: 'Delivered',
+                lastUpdate: new Date(),
+            }))
+        })
+
+        socket.on('order-rejected', (data: any) => {
+            console.log('âŒ Order rejected:', data)
+            setTrackingData(prev => ({
+                ...prev,
+                orderStatus: 'Rejected',
                 lastUpdate: new Date(),
             }))
         })

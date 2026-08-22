@@ -36,6 +36,8 @@ const calculateETA = (distanceInMeters: number): number => {
     return Math.ceil(distanceInMeters / averageSpeedMs);
 };
 
+const getCustomerRoom = (customerId: string) => `customer-${String(customerId).trim()}`;
+
 export const initializeSocket = (httpServer: HttpServer) => {
     const io = new SocketIOServer(httpServer, {
         cors: {
@@ -136,6 +138,18 @@ export const initializeSocket = (httpServer: HttpServer) => {
 
     io.on('connection', (socket) => {
         console.log('✅ Socket connected:', socket.id, 'User:', (socket as any).user?.userId || 'Unauthenticated');
+
+        const authenticatedUser = (socket as any).user;
+
+        if (authenticatedUser?.userType === 'Customer' && authenticatedUser?.userId) {
+            const customerRoom = getCustomerRoom(authenticatedUser.userId);
+            socket.join(customerRoom);
+            socket.emit('joined-customer-room', {
+                success: true,
+                room: customerRoom,
+                customerId: authenticatedUser.userId,
+            });
+        }
 
         // Customer subscribes to order tracking
         socket.on('track-order', async (orderId: string) => {
@@ -361,6 +375,49 @@ export const initializeSocket = (httpServer: HttpServer) => {
 export const clearOrderCache = (orderId: string) => {
     orderDestinationsCache.delete(orderId);
     locationUpdateThrottler.delete(orderId);
+};
+
+export const emitCustomerOrderEvent = (
+    io: SocketIOServer,
+    customerId: string,
+    eventName: string,
+    payload: Record<string, unknown>,
+    orderId?: string
+) => {
+    io.to(getCustomerRoom(customerId)).emit(eventName, payload);
+
+    if (orderId) {
+        io.to(`order-${orderId}`).emit(eventName, payload);
+    }
+};
+
+export const emitCustomerOrderStatusUpdate = (
+    io: SocketIOServer,
+    data: {
+        customerId: string;
+        orderId: string;
+        status: string;
+        orderNumber?: string;
+        message?: string;
+        deliveryOtp?: string;
+        deliveryPartner?: Record<string, unknown> | null;
+    }
+) => {
+    emitCustomerOrderEvent(
+        io,
+        data.customerId,
+        'order-status-updated',
+        {
+            orderId: data.orderId,
+            orderNumber: data.orderNumber,
+            status: data.status,
+            message: data.message,
+            deliveryOtp: data.deliveryOtp,
+            deliveryPartner: data.deliveryPartner || undefined,
+            updatedAt: new Date().toISOString(),
+        },
+        data.orderId
+    );
 };
 
 // Helper function to emit location updates

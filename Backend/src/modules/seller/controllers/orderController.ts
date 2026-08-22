@@ -6,6 +6,8 @@ import Seller from "../../../models/Seller";
 import WalletTransaction from "../../../models/WalletTransaction";
 import { notifyDeliveryBoysOfNewOrder } from "../../../services/orderNotificationService";
 import { Server as SocketIOServer } from "socket.io";
+import { sendCustomerOrderNotification } from "../../../services/notificationService";
+import { emitCustomerOrderStatusUpdate } from "../../../socket/socketService";
 
 /**
  * Get seller's orders with filters, sorting, and pagination
@@ -316,10 +318,42 @@ export const updateOrderStatus = asyncHandler(
     order.status = normalizedStatus;
     await order.save();
 
+    const io: SocketIOServer | undefined = req.app.get("io") as SocketIOServer | undefined;
+    const customerId = order.customer?.toString();
+
+    if (customerId) {
+      try {
+        const notificationStatus = normalizedStatus === 'Accepted' ? 'Processed' : normalizedStatus;
+        await sendCustomerOrderNotification(
+          order._id.toString(),
+          order.orderNumber,
+          customerId,
+          order.total,
+          notificationStatus
+        );
+      } catch (notifyError) {
+        console.error('Error sending customer order notification from seller panel:', notifyError);
+      }
+
+      if (io) {
+        emitCustomerOrderStatusUpdate(io, {
+          customerId,
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+          status: normalizedStatus,
+          message:
+            normalizedStatus === 'Accepted'
+              ? 'Your order has been accepted and is being prepared.'
+              : normalizedStatus === 'Out for Delivery'
+                ? 'Your order is out for delivery.'
+                : `Your order status changed to ${normalizedStatus}.`,
+        });
+      }
+    }
+
     // Trigger delivery notification if seller accepts the order
     if (normalizedStatus === 'Accepted' && previousStatus !== 'Accepted') {
       try {
-        const io: SocketIOServer = (req.app.get("io") as SocketIOServer);
         if (io) {
           // Need to fetch full order with details for the notification service
           // Using lean() to get a plain JS object which is what the service expects mostly,

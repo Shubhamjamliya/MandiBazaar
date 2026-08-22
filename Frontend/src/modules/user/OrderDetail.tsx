@@ -448,7 +448,8 @@ export default function OrderDetail() {
   const confirmed = searchParams.get("confirmed") === "true";
   const paymentSuccess = searchParams.get("payment") === "success";
   const { getOrderById, fetchOrderById, loading: contextLoading } = useOrders();
-  const [order, setOrder] = useState<any>(id ? getOrderById(id) : undefined);
+  const liveOrder = id ? getOrderById(id) : undefined;
+  const [order, setOrder] = useState<any>(liveOrder);
   const [loading, setLoading] = useState(!order);
 
   const [showConfirmation, setShowConfirmation] = useState(() => {
@@ -588,11 +589,22 @@ export default function OrderDetail() {
     }
   }, [order]);
 
+  useEffect(() => {
+    if (!liveOrder) return;
+
+    setOrder((prev: any) => ({
+      ...prev,
+      ...liveOrder,
+    }));
+    setOrderStatus(liveOrder.status);
+  }, [liveOrder]);
+
   // Real-time order status updates from socket
   useEffect(() => {
     if (socketOrderStatus && socketOrderStatus !== orderStatus) {
       console.log('🔄 Real-time status update:', socketOrderStatus);
       setOrderStatus(socketOrderStatus as OrderStatus);
+      setOrder((prev: any) => prev ? { ...prev, status: socketOrderStatus } : prev);
 
       // Re-fetch order to get complete updated data
       if (id) {

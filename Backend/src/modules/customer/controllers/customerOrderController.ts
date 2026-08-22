@@ -947,14 +947,25 @@ export const refreshDeliveryOtp = async (req: Request, res: Response) => {
 
         // Generate and send new OTP
         const result = await generateDeliveryOtp(id);
+        const customer = await Customer.findById(userId).select('deliveryOtp');
+        const deliveryOtp = customer?.deliveryOtp;
 
         // Emit socket event if needed (customer room)
         const io = (req.app as any).get("io");
-        if (io) {
+        if (io && deliveryOtp) {
+            io.to(`customer-${userId}`).emit('delivery-otp-available', {
+                orderId: id,
+                deliveryOtp,
+                status: order.status,
+                message: 'Delivery OTP is ready for your order.',
+                updatedAt: new Date().toISOString(),
+            });
+
             io.to(`order-${id}`).emit('delivery-otp-refreshed', {
                 orderId: id,
-                deliveryOtp: order.deliveryOtp, // The service saves it to the order
-                expiresAt: order.deliveryOtpExpiresAt
+                deliveryOtp,
+                status: order.status,
+                updatedAt: new Date().toISOString(),
             });
         }
 
