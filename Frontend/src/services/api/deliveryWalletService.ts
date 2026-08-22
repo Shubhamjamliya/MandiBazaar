@@ -85,6 +85,22 @@ export const createSettleCashOrder = async (amount: number) => {
     }
 };
 
+export const settleDeliveryCashByAdminHandover = async (
+    amount: number,
+    remark?: string
+) => {
+    try {
+        const response = await api.post('/delivery/wallet/settle-cash/cash-handover', {
+            amount,
+            remark,
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error('Error recording cash handover:', error);
+        throw error;
+    }
+};
+
 /**
  * Verify Settle Cash Payment
  */

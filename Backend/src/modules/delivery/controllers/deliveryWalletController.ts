@@ -240,6 +240,78 @@ export const createSettleCashOrder = async (req: Request, res: Response) => {
 };
 
 /**
+ * Mark cash as handed over to admin offline
+ */
+export const settleCashByAdminHandover = async (req: Request, res: Response) => {
+    try {
+        const deliveryBoyId = req.user!.userId;
+        const { amount, remark } = req.body;
+
+        if (!amount || Number(amount) <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid amount.',
+            });
+        }
+
+        const settlementAmount = Number(amount);
+        const deliveryBoy = await Delivery.findById(deliveryBoyId);
+
+        if (!deliveryBoy) {
+            return res.status(404).json({
+                success: false,
+                message: 'Delivery boy not found.',
+            });
+        }
+
+        if ((deliveryBoy.cashCollected || 0) + 0.01 < settlementAmount) {
+            return res.status(400).json({
+                success: false,
+                message: 'Amount cannot exceed cash in hand.',
+            });
+        }
+
+        deliveryBoy.cashCollected = Math.max(
+            0,
+            (deliveryBoy.cashCollected || 0) - settlementAmount
+        );
+        await deliveryBoy.save();
+
+        const handoverRemark = remark?.trim() || 'Cash deposit by cash';
+
+        const { logCashSettlement } = await import('../../../services/walletManagementService');
+        await logCashSettlement(
+            deliveryBoyId,
+            settlementAmount,
+            `Cash handed over to admin. Remark: ${handoverRemark}`
+        );
+
+        const collection = await CashCollection.create({
+            deliveryBoy: deliveryBoyId,
+            amount: settlementAmount,
+            remark: handoverRemark,
+            paymentMethod: 'cash',
+            collectedAt: new Date(),
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Cash handover recorded successfully.',
+            data: {
+                cashCollected: deliveryBoy.cashCollected,
+                collectionId: collection._id,
+            },
+        });
+    } catch (error: any) {
+        console.error('Error settling cash by admin handover:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to record cash handover',
+        });
+    }
+};
+
+/**
  * Handle HDFC settlement payment return
  */
 export const hdfcSettleCashReturn = async (req: Request, res: Response) => {

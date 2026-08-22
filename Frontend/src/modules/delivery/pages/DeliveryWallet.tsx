@@ -9,6 +9,7 @@ import {
   getDeliveryWithdrawals,
   getDeliveryCommissions,
   createSettleCashOrder,
+  settleDeliveryCashByAdminHandover,
 } from "../../../services/api/deliveryWalletService";
 
 type Tab = "transactions" | "withdrawals" | "commissions";
@@ -38,6 +39,7 @@ export default function DeliveryWallet() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [settleAmount, setSettleAmount] = useState("");
+  const [settleMode, setSettleMode] = useState<"online" | "cash">("online");
   const [hdfcPaymentData, setHdfcPaymentData] = useState<any>(null);
 
   useEffect(() => {
@@ -181,6 +183,41 @@ export default function DeliveryWallet() {
     }
   };
 
+  const handleCashHandover = async () => {
+    try {
+      const amount = parseFloat(settleAmount);
+      if (isNaN(amount) || amount <= 0) {
+        showToast("Please enter a valid amount", "error");
+        return;
+      }
+
+      if (amount > cashCollected + 0.01) {
+        showToast("Amount cannot exceed cash owed", "error");
+        return;
+      }
+
+      setIsSubmitting(true);
+      const response = await settleDeliveryCashByAdminHandover(
+        amount,
+        "Cash deposit by cash",
+      );
+
+      if (response.success) {
+        showToast("Cash handover recorded successfully", "success");
+        setShowSettleModal(false);
+        setSettleAmount("");
+        await fetchWalletData();
+      }
+    } catch (error: any) {
+      showToast(
+        error.response?.data?.message || "Failed to record cash handover",
+        "error",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -281,15 +318,26 @@ export default function DeliveryWallet() {
               <p className="text-xs font-bold text-yellow-300 mt-1">⚠️ Cash limit reached! You cannot receive new orders.</p>
             )}
           </div>
-          <div className="flex-shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+          <div className="flex-shrink-0 w-full sm:w-auto mt-2 sm:mt-0 flex flex-col gap-2">
             <button
               onClick={() => {
+                setSettleMode("online");
                 setSettleAmount(cashCollected.toFixed(2));
                 setShowSettleModal(true);
               }}
               disabled={cashCollected <= 0}
               className="w-full sm:w-auto bg-white text-red-700 px-6 py-3 rounded-xl font-bold hover:bg-red-50 transition-all shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
-              Pay Platform
+              Pay Online
+            </button>
+            <button
+              onClick={() => {
+                setSettleMode("cash");
+                setSettleAmount(cashCollected.toFixed(2));
+                setShowSettleModal(true);
+              }}
+              disabled={cashCollected <= 0}
+              className="w-full sm:w-auto bg-red-900/30 border border-white/30 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-900/40 transition-all shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+              Given Cash to Admin
             </button>
           </div>
         </div>
@@ -550,9 +598,13 @@ export default function DeliveryWallet() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-2xl p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4">Settle Cash</h2>
+            <h2 className="text-2xl font-bold mb-4">
+              {settleMode === "cash" ? "Confirm Cash Handover" : "Settle Cash"}
+            </h2>
             <p className="text-sm text-gray-600 mb-4">
-              Pay the collected COD cash to the platform to continue receiving orders.
+              {settleMode === "cash"
+                ? "Use this only after you have already handed cash to the admin offline."
+                : "Pay the collected COD cash to the platform to continue receiving orders."}
             </p>
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -589,13 +641,13 @@ export default function DeliveryWallet() {
                 Cancel
               </button>
               <button
-                onClick={handleSettleCash}
+                onClick={settleMode === "cash" ? handleCashHandover : handleSettleCash}
                 className="flex-1 bg-red-600 text-white rounded-lg py-2.5 font-semibold hover:bg-red-700 transition disabled:opacity-50 flex justify-center items-center"
                 disabled={isSubmitting}>
                 {isSubmitting ? (
                   <div className="w-5 h-5 border-2 border-white rounded-full border-t-transparent animate-spin"></div>
                 ) : (
-                  "Proceed to Pay"
+                  settleMode === "cash" ? "Confirm Handover" : "Proceed to Pay"
                 )}
               </button>
             </div>

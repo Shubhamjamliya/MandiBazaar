@@ -168,6 +168,7 @@ export default function AdminCashCollection() {
       "Delivery Boy",
       "Total",
       "Amount Collected",
+      "Method",
       "Remark",
       "Date",
     ];
@@ -179,6 +180,7 @@ export default function AdminCashCollection() {
           `"${collection.deliveryBoyName}"`,
           (collection.total ?? 0).toFixed(2),
           collection.amount.toFixed(2),
+          `"${collection.paymentMethod}"`,
           `"${collection.remark || ""}"`,
           new Date(collection.collectedAt).toLocaleDateString(),
         ].join(",")
@@ -204,6 +206,13 @@ export default function AdminCashCollection() {
   };
 
   const methods = ["All", "Cash", "Card", "Online"];
+  const getMethodLabel = (method: string) => {
+    if (method === "cash") return "Cash Deposit by Cash";
+    if (method === "HDFC" || method === "razorpay") {
+      return "Cash Deposit by Online";
+    }
+    return method;
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -496,6 +505,8 @@ export default function AdminCashCollection() {
                   <div className="text-xs font-semibold text-neutral-900">₹{(collection.total ?? 0).toFixed(2)}</div>
                   <div className="text-xs text-neutral-500">Collected</div>
                   <div className="text-xs font-semibold text-neutral-900">₹{collection.amount.toFixed(2)}</div>
+                  <div className="text-xs text-neutral-500">Method</div>
+                  <div className="text-xs font-semibold text-neutral-900">{getMethodLabel(collection.paymentMethod)}</div>
                 </div>
                 {collection.remark && (
                   <div className="text-xs text-neutral-600 mt-2">Remark: {collection.remark}</div>
@@ -595,6 +606,11 @@ export default function AdminCashCollection() {
                   </div>
                 </th>
                 <th
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider"
+                >
+                  Method
+                </th>
+                <th
                   className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
                   onClick={() => handleSort("remark")}>
                   <div className="flex items-center gap-2">
@@ -661,6 +677,9 @@ export default function AdminCashCollection() {
                     </td>
                     <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900 font-medium">
                       ₹{collection.amount.toFixed(2)}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
+                      {getMethodLabel(collection.paymentMethod)}
                     </td>
                     <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
                       {collection.remark || '-'}

@@ -7,6 +7,7 @@ import {
     getWithdrawals,
     getCommissions,
     createSettleCashOrder,
+    settleCashByAdminHandover,
     hdfcSettleCashReturn,
     hdfcSettleCashCancel,
 } from '../modules/delivery/controllers/deliveryWalletController';
@@ -35,4 +36,5 @@ router.get('/commissions', getCommissions);
 
 // Settle Cash
 router.post('/settle-cash/create', createSettleCashOrder);
+router.post('/settle-cash/cash-handover', settleCashByAdminHandover);
 export default router;

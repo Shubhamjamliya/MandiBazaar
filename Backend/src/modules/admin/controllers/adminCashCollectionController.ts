@@ -76,7 +76,11 @@ export const getCashCollections = asyncHandler(
             remark: collection.remark,
             paymentMethod: collection.paymentMethod || 'cash',
             collectedAt: collection.collectedAt,
-            collectedBy: collection.collectedBy?.name || (['razorpay', 'HDFC'].includes(collection.paymentMethod) ? "App Payment" : "Unknown"),
+            collectedBy:
+                collection.collectedBy?.name ||
+                (['razorpay', 'HDFC'].includes(collection.paymentMethod)
+                    ? "App Payment"
+                    : "Delivery Boy Cash Handover"),
         }));
 
         return res.status(200).json({
