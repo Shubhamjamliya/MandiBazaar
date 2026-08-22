@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { sendOTP, verifyOTP } from '../../services/api/auth/customerAuthService';
 import { useAuth } from '../../context/AuthContext';
@@ -15,6 +15,9 @@ export default function Login() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const otpSectionRef = useRef<HTMLDivElement | null>(null);
+  const baseViewportHeightRef = useRef(0);
 
   useEffect(() => {
     if (!showOTP || resendCooldown <= 0) return;
@@ -25,6 +28,56 @@ export default function Login() {
 
     return () => clearInterval(timer);
   }, [showOTP, resendCooldown]);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+
+    const updateKeyboardState = () => {
+      const currentHeight = viewport?.height ?? window.innerHeight;
+      const fullHeight = Math.max(baseViewportHeightRef.current || 0, window.innerHeight, currentHeight);
+      const keyboardVisible = fullHeight - currentHeight > 160;
+
+      if (!keyboardVisible) {
+        baseViewportHeightRef.current = fullHeight;
+      }
+
+      setIsKeyboardOpen(keyboardVisible);
+    };
+
+    baseViewportHeightRef.current = viewport?.height ?? window.innerHeight;
+    updateKeyboardState();
+
+    if (!viewport) {
+      window.addEventListener('resize', updateKeyboardState);
+      return () => window.removeEventListener('resize', updateKeyboardState);
+    }
+
+    viewport.addEventListener('resize', updateKeyboardState);
+    viewport.addEventListener('scroll', updateKeyboardState);
+
+    return () => {
+      viewport.removeEventListener('resize', updateKeyboardState);
+      viewport.removeEventListener('scroll', updateKeyboardState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showOTP) {
+      return;
+    }
+
+    const scrollOtpSectionIntoView = () => {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      otpSectionRef.current?.scrollIntoView({
+        block: 'start',
+        inline: 'nearest',
+        behavior: isKeyboardOpen ? 'smooth' : 'auto'
+      });
+    };
+
+    const frameId = window.requestAnimationFrame(scrollOtpSectionIntoView);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [showOTP, isKeyboardOpen]);
 
   const handleContinue = async () => {
     if (mobileNumber.length !== 10) return;
@@ -77,6 +130,8 @@ export default function Login() {
   };
 
 
+
+  const compactAuthLayout = showOTP || isKeyboardOpen;
 
   return (
     <>
@@ -156,7 +211,20 @@ export default function Login() {
           opacity: 0;
         }
       `}</style>
-      <div className="h-screen bg-white flex flex-col" style={{ overflow: 'hidden', backgroundColor: '#ffffff', width: '100%', margin: 0, padding: 0, boxSizing: 'border-box' }}>
+      <div
+        className="min-h-screen bg-white flex flex-col"
+        style={{
+          minHeight: '100dvh',
+          overflowX: 'hidden',
+          overflowY: compactAuthLayout ? 'auto' : 'hidden',
+          backgroundColor: '#ffffff',
+          width: '100%',
+          margin: 0,
+          padding: 0,
+          boxSizing: 'border-box',
+          WebkitOverflowScrolling: 'touch'
+        }}
+      >
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
@@ -182,7 +250,7 @@ export default function Login() {
 
         {/* Background Section */}
         <div
-          className="overflow-hidden relative flex-1 bg-gradient-to-br from-green-50 via-emerald-50 to-green-100"
+          className={`overflow-hidden relative bg-gradient-to-br from-green-50 via-emerald-50 to-green-100 ${compactAuthLayout ? 'flex-none' : 'flex-1'}`}
           style={{ minHeight: 0, padding: 0, margin: 0, zIndex: 0, width: '100%', position: 'relative' }}
         >
           {/* Animated Gradient Orbs */}
@@ -193,7 +261,7 @@ export default function Login() {
           </div>
 
           {/* Content Container */}
-          <div className="relative z-10 flex flex-col items-center justify-start h-full py-4 gap-4">
+          <div className={`relative z-10 flex flex-col items-center justify-start ${compactAuthLayout ? 'pt-12 pb-4 gap-3' : 'h-full py-4 gap-4'}`}>
             {/* Top Section - Logo and Welcome */}
             <div className="text-center px-6 animate-fade-in">
               {/* Logo */}
@@ -225,103 +293,111 @@ export default function Login() {
               </p>
             </div>
 
-            {/* Professional Animated Section */}
-            <div className="w-full px-6 pb-4">
-              <div className="relative">
-                {/* Main Feature Card with Gradient */}
-                <div className="relative bg-gradient-to-br from-green-500 via-emerald-500 to-green-600 rounded-3xl p-4 shadow-2xl overflow-hidden animate-scale-in" style={{ animationDelay: '0.3s' }}>
-                  {/* Animated Background Pattern */}
-                  <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-white rounded-full blur-3xl animate-float"></div>
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-white rounded-full blur-3xl animate-float-delayed"></div>
-                  </div>
+            {!compactAuthLayout ? (
+              <div className="w-full px-6 pb-4">
+                <div className="relative">
+                  {/* Main Feature Card with Gradient */}
+                  <div className="relative bg-gradient-to-br from-green-500 via-emerald-500 to-green-600 rounded-3xl p-4 shadow-2xl overflow-hidden animate-scale-in" style={{ animationDelay: '0.3s' }}>
+                    {/* Animated Background Pattern */}
+                    <div className="absolute inset-0 opacity-10">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-white rounded-full blur-3xl animate-float"></div>
+                      <div className="absolute bottom-0 left-0 w-32 h-32 bg-white rounded-full blur-3xl animate-float-delayed"></div>
+                    </div>
 
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <div className="text-white/80 text-[10px] font-semibold mb-0.5 tracking-wide uppercase">Delivery Time</div>
-                        <div className="text-white text-2xl font-black mb-0.5">Quick Delivery</div>
-                        <div className="text-white/90 text-xs font-medium">To your doorstep</div>
-                      </div>
-                      <div className="relative">
-                        <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 animate-pulse-slow">
-                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-white">
-                            <path d="M13 16V6L19 12L13 16Z" fill="currentColor" />
-                            <path d="M5 16V6L11 12L5 16Z" fill="currentColor" />
-                          </svg>
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <div className="text-white/80 text-[10px] font-semibold mb-0.5 tracking-wide uppercase">Delivery Time</div>
+                          <div className="text-white text-2xl font-black mb-0.5">Quick Delivery</div>
+                          <div className="text-white/90 text-xs font-medium">To your doorstep</div>
                         </div>
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
+                        <div className="relative">
+                          <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 animate-pulse-slow">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-white">
+                              <path d="M13 16V6L19 12L13 16Z" fill="currentColor" />
+                              <path d="M5 16V6L11 12L5 16Z" fill="currentColor" />
+                            </svg>
+                          </div>
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
+                        </div>
+                      </div>
+
+                      {/* Animated Progress Indicator */}
+                      <div className="flex items-center gap-2 mt-3">
+                        <div className="flex-1 h-1.5 bg-white/30 rounded-full overflow-hidden">
+                          <div className="h-full bg-white rounded-full animate-progress" style={{ width: '70%' }}></div>
+                        </div>
+                        <span className="text-white/90 text-xs font-bold">Fast</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Feature Highlights with Icons */}
+                  <div className="flex items-center justify-between mt-4 px-2">
+                    <div className="flex items-center gap-2 animate-fade-slide-up" style={{ animationDelay: '0.5s' }}>
+                      <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-green-600">
+                          <path d="M9 12L11 14L15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-gray-800">Fresh Quality</div>
+                        <div className="text-[9px] text-gray-500">100% Guaranteed</div>
                       </div>
                     </div>
 
-                    {/* Animated Progress Indicator */}
-                    <div className="flex items-center gap-2 mt-3">
-                      <div className="flex-1 h-1.5 bg-white/30 rounded-full overflow-hidden">
-                        <div className="h-full bg-white rounded-full animate-progress" style={{ width: '70%' }}></div>
+                    <div className="flex items-center gap-2 animate-fade-slide-up" style={{ animationDelay: '0.6s' }}>
+                      <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-green-600">
+                          <path d="M12 8V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                        </svg>
                       </div>
-                      <span className="text-white/90 text-xs font-bold">Fast</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Feature Highlights with Icons */}
-                <div className="flex items-center justify-between mt-4 px-2">
-                  <div className="flex items-center gap-2 animate-fade-slide-up" style={{ animationDelay: '0.5s' }}>
-                    <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-green-600">
-                        <path d="M9 12L11 14L15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-gray-800">Fresh Quality</div>
-                      <div className="text-[9px] text-gray-500">100% Guaranteed</div>
+                      <div>
+                        <div className="text-xs font-bold text-gray-800">24/7 Service</div>
+                        <div className="text-[9px] text-gray-500">Always Available</div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 animate-fade-slide-up" style={{ animationDelay: '0.6s' }}>
-                    <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-green-600">
-                        <path d="M12 8V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                      </svg>
+                  {/* Additional Features */}
+                  <div className="flex items-center justify-between mt-6 px-2">
+                    <div className="flex items-center gap-2 animate-fade-slide-up" style={{ animationDelay: '0.7s' }}>
+                      <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-green-600">
+                          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-gray-800">Best Prices</div>
+                        <div className="text-[9px] text-gray-500">Lowest in Market</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-xs font-bold text-gray-800">24/7 Service</div>
-                      <div className="text-[9px] text-gray-500">Always Available</div>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Additional Features */}
-                <div className="flex items-center justify-between mt-6 px-2">
-                  <div className="flex items-center gap-2 animate-fade-slide-up" style={{ animationDelay: '0.7s' }}>
-                    <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-green-600">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-gray-800">Best Prices</div>
-                      <div className="text-[9px] text-gray-500">Lowest in Market</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 animate-fade-slide-up" style={{ animationDelay: '0.8s' }}>
-                    <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-green-600">
-                        <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" />
-                        <path d="M9 12L11 14L15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-gray-800">Safe Payment</div>
-                      <div className="text-[9px] text-gray-500">100% Secure</div>
+                    <div className="flex items-center gap-2 animate-fade-slide-up" style={{ animationDelay: '0.8s' }}>
+                      <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-green-600">
+                          <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" />
+                          <path d="M9 12L11 14L15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-gray-800">Safe Payment</div>
+                        <div className="text-[9px] text-gray-500">100% Secure</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="w-full px-6 pb-2">
+                <div className="mx-auto max-w-sm rounded-2xl bg-white/80 backdrop-blur-sm border border-green-200 shadow-sm px-4 py-3 text-center">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700">OTP Verification</p>
+                  <p className="mt-1 text-xs text-neutral-600">Keyboard open hone par form stable rahega aur OTP area upar anchored rahega.</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -329,8 +405,18 @@ export default function Login() {
 
         {/* Login Section */}
         <div
-          className="bg-white flex flex-col items-center flex-shrink-0 relative"
-          style={{ marginTop: '-40px', backgroundColor: '#ffffff', zIndex: 1, padding: '4px 0px 12px', paddingTop: '6px', width: '100%', borderTopLeftRadius: '20px', borderTopRightRadius: '20px' }}
+          ref={otpSectionRef}
+          className={`bg-white flex flex-col items-center relative w-full ${compactAuthLayout ? 'flex-1' : 'flex-shrink-0'}`}
+          style={{
+            marginTop: compactAuthLayout ? 0 : '-40px',
+            backgroundColor: '#ffffff',
+            zIndex: 1,
+            padding: compactAuthLayout ? '16px 0px 20px' : '4px 0px 12px',
+            paddingTop: compactAuthLayout ? '18px' : '6px',
+            width: '100%',
+            borderTopLeftRadius: compactAuthLayout ? '28px' : '20px',
+            borderTopRightRadius: compactAuthLayout ? '28px' : '20px'
+          }}
         >
           {!showOTP ? (
             <>
@@ -430,30 +516,34 @@ export default function Login() {
 
 
 
-          {/* Privacy & Terms Agreement */}
-          <div className="w-full px-6 py-2 text-center animate-fade-in" style={{ animationDelay: '0.9s' }}>
-            <p className="text-[10px] text-neutral-500 leading-relaxed font-medium">
-              By continuing, you agree to our{' '}
-              <button
-                onClick={() => navigate('/privacy-policy', { state: { from: '/login' } })}
-                className="text-emerald-600 font-bold hover:underline"
-              >
-                Privacy Policy
-              </button>
-              {' '}and{' '}
-              <button
-                onClick={() => navigate('/terms-of-service', { state: { from: '/login' } })}
-                className="text-emerald-600 font-bold hover:underline"
-              >
-                Terms of Service
-              </button>
-            </p>
-          </div>
+          {!compactAuthLayout && (
+            <>
+              {/* Privacy & Terms Agreement */}
+              <div className="w-full px-6 py-2 text-center animate-fade-in" style={{ animationDelay: '0.9s' }}>
+                <p className="text-[10px] text-neutral-500 leading-relaxed font-medium">
+                  By continuing, you agree to our{' '}
+                  <button
+                    onClick={() => navigate('/privacy-policy', { state: { from: '/login' } })}
+                    className="text-emerald-600 font-bold hover:underline"
+                  >
+                    Privacy Policy
+                  </button>
+                  {' '}and{' '}
+                  <button
+                    onClick={() => navigate('/terms-of-service', { state: { from: '/login' } })}
+                    className="text-emerald-600 font-bold hover:underline"
+                  >
+                    Terms of Service
+                  </button>
+                </p>
+              </div>
 
-          {/* Privacy Text */}
-          <p className="text-[9px] sm:text-[10px] text-neutral-500 text-center max-w-sm leading-tight px-4 relative z-10 pb-1">
-            Access your saved addresses from Mandi Bazaar automatically!
-          </p>
+              {/* Privacy Text */}
+              <p className="text-[9px] sm:text-[10px] text-neutral-500 text-center max-w-sm leading-tight px-4 relative z-10 pb-1">
+                Access your saved addresses from Mandi Bazaar automatically!
+              </p>
+            </>
+          )}
         </div>
       </div>
     </>

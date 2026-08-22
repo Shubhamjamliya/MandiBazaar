@@ -14,6 +14,14 @@ interface GeocodeResult {
 // Cache for geocoding results to avoid redundant API calls
 const geocodeCache = new Map<string, { data: GeocodeResult; timestamp: number }>();
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const DEFAULT_LOCATION: Location = {
+  latitude: 24.5937,
+  longitude: 73.7431,
+  address: 'Badwai House, Udaipur Rd, Pacific University Rd, Near Pacific Hill, Vaishali Nagar, Pratap Nagar, Udaipur, Rajasthan 313001, India',
+  city: 'Udaipur',
+  state: 'Rajasthan',
+  pincode: '313001'
+};
 
 // Generate cache key from coordinates
 const getCacheKey = (lat: number, lng: number, precision: number = 4): string => {
@@ -58,14 +66,7 @@ const cleanAddress = (address: string): string => {
 
 export function LocationProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, user } = useAuth();
-  const [location, setLocation] = useState<Location | null>({
-    latitude: 24.5937,
-    longitude: 73.7431,
-    address: 'Badwai House, Udaipur Rd, Pacific University Rd, Near Pacific Hill, Vaishali Nagar, Pratap Nagar, Udaipur, Rajasthan 313001, India',
-    city: 'Udaipur',
-    state: 'Rajasthan',
-    pincode: '313001'
-  });
+  const [location, setLocation] = useState<Location | null>(DEFAULT_LOCATION);
   const [isLocationEnabled, setIsLocationEnabled] = useState(true);
   const [isLocationLoading, setIsLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -82,63 +83,20 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   // Initialize location state and check session permission
   useEffect(() => {
-    const checkInitialPermission = async () => {
-      // Bypassed for development - always use default
-      return;
-      
-      console.log('[LocationContext] Checking initial permission status...');
+    setLocation(DEFAULT_LOCATION);
+    setIsLocationEnabled(true);
+    setIsLocationLoading(false);
+    setLocationError(null);
+    setLocationPermissionStatus('session_granted');
 
-      try {
-        // 1. Check if user explicitly denied permission in this session
-        const sessionDenied = sessionStorage.getItem(LOCATION_DENIED_KEY);
-        if (sessionDenied === 'true') {
-          console.log('[LocationContext] User denied location permission in this session.');
-          setLocation(null);
-          setIsLocationEnabled(false);
-          setLocationPermissionStatus('denied');
-          setIsLocationLoading(false);
-          return;
-        }
-
-        // 2. Check for cached location in localStorage first
-        const cachedLocation = localStorage.getItem(LOCATION_STORAGE_KEY);
-        if (cachedLocation) {
-          try {
-            const parsedLocation = JSON.parse(cachedLocation);
-            console.log('[LocationContext] Using cached location:', parsedLocation.address);
-            setLocation(parsedLocation);
-            setIsLocationEnabled(true);
-            setLocationPermissionStatus('session_granted');
-            setIsLocationLoading(false);
-            return;
-          } catch (e) {
-            console.error('[LocationContext] Failed to parse cached location:', e);
-          }
-        }
-
-        // 3. Check sessionStorage for session-level permission
-        const sessionGranted = sessionStorage.getItem(SESSION_PERMISSION_KEY);
-
-        if (sessionGranted === 'true') {
-          console.log('[LocationContext] Permission already granted in this session, but no cached location found.');
-          setLocationPermissionStatus('session_granted');
-        } else {
-          console.log('[LocationContext] No session-level permission found. User will be prompted.');
-          setLocation(null);
-          setIsLocationEnabled(false);
-          setLocationPermissionStatus('prompt');
-        }
-      } catch (error) {
-        console.error('[LocationContext] Error checking session storage:', error);
-        // Fallback to prompt if storage is unavailable
-        setLocationPermissionStatus('prompt');
-      } finally {
-        setIsLocationLoading(false);
-      }
-    };
-
-    checkInitialPermission();
-  }, []);
+    try {
+      localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(DEFAULT_LOCATION));
+      sessionStorage.setItem(SESSION_PERMISSION_KEY, 'true');
+      sessionStorage.removeItem(LOCATION_DENIED_KEY);
+    } catch (error) {
+      console.warn('[LocationContext] Failed to persist default location:', error);
+    }
+  }, [LOCATION_STORAGE_KEY, SESSION_PERMISSION_KEY, LOCATION_DENIED_KEY]);
 
   // Request user's current location - OPTIMIZED for speed and accuracy
   const requestLocation = useCallback(async (): Promise<void> => {
@@ -670,18 +628,19 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   // Clear location
   const clearLocation = useCallback(() => {
-    console.log('[LocationContext] Clearing location and session permission.');
+    console.log('[LocationContext] Resetting to default location.');
     // Cancel any ongoing requests
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     isRequestingRef.current = false;
 
-    setLocation(null);
-    setIsLocationEnabled(false);
-    setLocationPermissionStatus('prompt');
-    localStorage.removeItem(LOCATION_STORAGE_KEY);
-    sessionStorage.removeItem(SESSION_PERMISSION_KEY);
+    setLocation(DEFAULT_LOCATION);
+    setIsLocationEnabled(true);
+    setLocationError(null);
+    setLocationPermissionStatus('session_granted');
+    localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(DEFAULT_LOCATION));
+    sessionStorage.setItem(SESSION_PERMISSION_KEY, 'true');
     sessionStorage.removeItem(LOCATION_DENIED_KEY);
   }, [SESSION_PERMISSION_KEY, LOCATION_STORAGE_KEY, LOCATION_DENIED_KEY]);
 

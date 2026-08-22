@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 
 interface OTPInputProps {
   length?: number;
@@ -9,11 +9,6 @@ interface OTPInputProps {
 export default function OTPInput({ length = 4, onComplete, disabled = false }: OTPInputProps) {
   const [otp, setOtp] = useState<string[]>(Array(length).fill(''));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  useEffect(() => {
-    // Focus first input on mount
-    inputRefs.current[0]?.focus();
-  }, []);
 
   const handleChange = (index: number, value: string) => {
     if (disabled) return;
@@ -73,11 +68,15 @@ export default function OTPInput({ length = 4, onComplete, disabled = false }: O
           ref={(el) => (inputRefs.current[index] = el)}
           type="text"
           inputMode="numeric"
+          autoComplete={index === 0 ? 'one-time-code' : 'off'}
+          pattern="[0-9]*"
+          enterKeyHint="done"
           maxLength={1}
           value={digit}
           onChange={(e) => handleChange(index, e.target.value)}
           onKeyDown={(e) => handleKeyDown(index, e)}
           onPaste={handlePaste}
+          onFocus={(e) => e.currentTarget.select()}
           disabled={disabled}
           className="w-12 h-12 text-center text-lg font-semibold border-2 border-neutral-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none transition-colors disabled:bg-neutral-100 disabled:cursor-not-allowed"
         />
