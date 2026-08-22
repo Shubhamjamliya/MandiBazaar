@@ -200,8 +200,24 @@ async function verifyOtpFromDb(mobile: string, otp: string, userType: UserType):
 /**
  * Check if special bypass should be used
  */
-function isSpecialBypass(_mobile: string): boolean {
-  // Disabled as per user request: "no special numbers"
+function isSpecialBypass(mobile: string): boolean {
+  // Bypass for dummy test number
+  const cleanMobile = mobile.replace(/\D/g, '');
+  if (cleanMobile.endsWith('6261387233')) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Check if special verify bypass should be used for dummy number
+ */
+function isSpecialVerifyBypass(mobileOrSession: string | undefined, otp: string): boolean {
+  if (!mobileOrSession) return false;
+  const cleanMobile = mobileOrSession.replace(/\D/g, '');
+  if (cleanMobile.endsWith('6261387233') && String(otp).trim() === '1234') {
+    return true;
+  }
   return false;
 }
 
@@ -268,7 +284,7 @@ export async function verifySmsOtp(
   mobile?: string,
   userType: 'Customer' | 'Delivery' = 'Delivery'
 ): Promise<boolean> {
-  if (isDeveloperBypass(otpInput)) {
+  if (isDeveloperBypass(otpInput) || isSpecialVerifyBypass(mobile || sessionId, otpInput)) {
     return true;
   }
 
@@ -363,7 +379,7 @@ export async function verifyOTP(
   otpInput: string,
   userType: 'Seller' | 'Admin' | 'Customer' | 'Delivery'
 ): Promise<boolean> {
-  if (isDeveloperBypass(otpInput)) {
+  if (isDeveloperBypass(otpInput) || isSpecialVerifyBypass(mobile, otpInput)) {
     return true;
   }
 

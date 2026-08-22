@@ -491,9 +491,10 @@ export default function Home() {
 
   const isOutOfLocation = checkIsOutOfLocation();
 
-  if (isOutOfLocation) {
-    return <OutOfLocation onChangeLocation={() => window.dispatchEvent(new Event('openLocationModal'))} />;
-  }
+  // Bypassed OutOfLocation screen
+  // if (isOutOfLocation) {
+  //   return <OutOfLocation onChangeLocation={() => window.dispatchEvent(new Event('openLocationModal'))} />;
+  // }
 
   return (
     <div className="bg-white min-h-screen pb-20 md:pb-0" ref={contentRef}>

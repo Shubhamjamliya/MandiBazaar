@@ -537,17 +537,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <FloatingCartPill />
 
           {/* Location Permission Request Modal - Mandatory for all users */}
-          {showLocationRequest && (
+          {/* showLocationRequest && (
             <LocationPermissionRequest
               onLocationGranted={() => setShowLocationRequest(false)}
               skipable={false}
               title="Location Access Required"
               description="We need your location to show you products available near you and enable delivery services. Location access is required to continue."
             />
-          )}
+          ) */}
 
           {/* Location Change Modal */}
-          {showLocationChangeModal && (
+          {/* showLocationChangeModal && (
             <LocationPermissionRequest
               onLocationGranted={() => setShowLocationChangeModal(false)}
               skipable={true}
@@ -555,7 +555,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               title="Change Location"
               description="Update your location to see products available near you."
             />
-          )}
+          ) */}
 
           {/* Fixed Bottom Navigation - Mobile Only, Hidden on checkout pages */}
           {showFooter && (
