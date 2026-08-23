@@ -22,6 +22,7 @@ export const getCashCollections = asyncHandler(
         } = req.query;
 
         const query: any = {};
+        const trimmedSearch = typeof req.query.search === "string" ? req.query.search.trim() : "";
 
         // Filter by delivery boy
         if (deliveryBoyId) {
@@ -46,6 +47,20 @@ export const getCashCollections = asyncHandler(
             } else {
                 query.paymentMethod = (paymentMethod as string).toLowerCase();
             }
+        }
+
+        if (trimmedSearch) {
+            const matchingDeliveryBoys = await Delivery.find({
+                $or: [
+                    { name: { $regex: trimmedSearch, $options: "i" } },
+                    { mobile: { $regex: trimmedSearch, $options: "i" } },
+                ],
+            }).select("_id");
+
+            query.$or = [
+                { remark: { $regex: trimmedSearch, $options: "i" } },
+                { deliveryBoy: { $in: matchingDeliveryBoys.map((boy) => boy._id) } },
+            ];
         }
 
         const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -147,6 +162,13 @@ export const createCashCollection = asyncHandler(
             });
         }
 
+        if ((deliveryBoy.cashCollected || 0) + 0.01 < Number(amount)) {
+            return res.status(400).json({
+                success: false,
+                message: "Amount cannot exceed current cash in hand",
+            });
+        }
+
         // Verify order exists when provided
         if (orderId) {
             const order = await Order.findById(orderId);
@@ -169,7 +191,10 @@ export const createCashCollection = asyncHandler(
         });
 
         // Update delivery boy's cash collected
-        deliveryBoy.cashCollected = (deliveryBoy.cashCollected || 0) - amount;
+        deliveryBoy.cashCollected = Math.max(
+            0,
+            (deliveryBoy.cashCollected || 0) - Number(amount)
+        );
         await deliveryBoy.save();
 
         const { logCashSettlement } = await import("../../../services/walletManagementService");

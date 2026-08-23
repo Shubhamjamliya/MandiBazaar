@@ -87,12 +87,14 @@ export const createSettleCashOrder = async (amount: number) => {
 
 export const settleDeliveryCashByAdminHandover = async (
     amount: number,
-    remark?: string
+    remark?: string,
+    requestKey?: string
 ) => {
     try {
         const response = await api.post('/delivery/wallet/settle-cash/cash-handover', {
             amount,
             remark,
+            requestKey,
         });
         return response.data;
     } catch (error: any) {

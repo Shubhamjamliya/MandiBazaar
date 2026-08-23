@@ -28,6 +28,8 @@ export default function AdminCashCollection() {
   const [formDeliveryBoyId, setFormDeliveryBoyId] = useState('');
   const [formAmount, setFormAmount] = useState('');
   const [formRemark, setFormRemark] = useState('');
+  const [totalEntries, setTotalEntries] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Fetch delivery boys and cash collections on component mount
   useEffect(() => {
@@ -80,6 +82,7 @@ export default function AdminCashCollection() {
 
         if (cashResponse.success) {
           setCashCollections(cashResponse.data);
+          setTotalEntries((cashResponse as any).pagination?.total || cashResponse.data.length);
         } else {
           setError("Failed to load cash collections");
         }
@@ -105,6 +108,7 @@ export default function AdminCashCollection() {
     toDate,
     searchTerm,
     selectedMethod,
+    reloadKey,
   ]);
 
   const handleSort = (column: string) => {
@@ -120,7 +124,7 @@ export default function AdminCashCollection() {
   const displayedCollections = cashCollections;
 
   // For pagination display (simplified - in real app, this would come from API)
-  const totalPages = Math.ceil(displayedCollections.length / entriesPerPage);
+  const totalPages = Math.ceil(totalEntries / entriesPerPage);
   const startIndex = (currentPage - 1) * entriesPerPage;
   const endIndex = startIndex + entriesPerPage;
 
@@ -155,6 +159,7 @@ export default function AdminCashCollection() {
 
       setShowAddModal(false);
       setCurrentPage(1);
+      setReloadKey((prev) => prev + 1);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to add cash collection');
     } finally {
@@ -166,9 +171,9 @@ export default function AdminCashCollection() {
     const headers = [
       "ID",
       "Delivery Boy",
-      "Total",
       "Amount Collected",
       "Method",
+      "Collected By",
       "Remark",
       "Date",
     ];
@@ -178,9 +183,9 @@ export default function AdminCashCollection() {
         [
           collection._id.slice(-6),
           `"${collection.deliveryBoyName}"`,
-          (collection.total ?? 0).toFixed(2),
           collection.amount.toFixed(2),
-          `"${collection.paymentMethod}"`,
+          `"${getMethodLabel(collection.paymentMethod)}"`,
+          `"${collection.collectedBy || ""}"`,
           `"${collection.remark || ""}"`,
           new Date(collection.collectedAt).toLocaleDateString(),
         ].join(",")
@@ -205,7 +210,7 @@ export default function AdminCashCollection() {
     setToDate("");
   };
 
-  const methods = ["All", "Cash", "Card", "Online"];
+  const methods = ["All", "Cash", "Online"];
   const getMethodLabel = (method: string) => {
     if (method === "cash") return "Cash Deposit by Cash";
     if (method === "HDFC" || method === "razorpay") {
@@ -501,12 +506,12 @@ export default function AdminCashCollection() {
                 </div>
                 <div className="mt-2 text-sm font-medium text-neutral-900">{collection.deliveryBoyName}</div>
                 <div className="grid grid-cols-2 gap-2 mt-3">
-                  <div className="text-xs text-neutral-500">Total</div>
-                  <div className="text-xs font-semibold text-neutral-900">₹{(collection.total ?? 0).toFixed(2)}</div>
                   <div className="text-xs text-neutral-500">Collected</div>
                   <div className="text-xs font-semibold text-neutral-900">₹{collection.amount.toFixed(2)}</div>
                   <div className="text-xs text-neutral-500">Method</div>
                   <div className="text-xs font-semibold text-neutral-900">{getMethodLabel(collection.paymentMethod)}</div>
+                  <div className="text-xs text-neutral-500">Collected By</div>
+                  <div className="text-xs font-semibold text-neutral-900">{collection.collectedBy || "-"}</div>
                 </div>
                 {collection.remark && (
                   <div className="text-xs text-neutral-600 mt-2">Remark: {collection.remark}</div>
@@ -564,25 +569,9 @@ export default function AdminCashCollection() {
                   </div>
                 </th>
                 <th
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
-                  onClick={() => handleSort("total")}>
-                  <div className="flex items-center gap-2">
-                    Total
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-neutral-400">
-                      <path
-                        d="M7 10L12 5L17 10M7 14L12 19L17 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider"
+                >
+                  Collected By
                 </th>
                 <th
                   className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
@@ -672,8 +661,8 @@ export default function AdminCashCollection() {
                     <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900 font-medium">
                       {collection.deliveryBoyName}
                     </td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900">
-                      ₹{(collection.total ?? 0).toFixed(2)}
+                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
+                      {collection.collectedBy || '-'}
                     </td>
                     <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900 font-medium">
                       ₹{collection.amount.toFixed(2)}
@@ -697,9 +686,9 @@ export default function AdminCashCollection() {
         {/* Pagination Footer */}
         <div className="px-4 sm:px-6 py-3 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
           <div className="text-xs sm:text-sm text-neutral-700">
-            Showing {startIndex + 1} to{" "}
-            {Math.min(endIndex, cashCollections.length)} of{" "}
-            {cashCollections.length} entries
+            Showing {totalEntries === 0 ? 0 : startIndex + 1} to{" "}
+            {Math.min(endIndex, totalEntries)} of{" "}
+            {totalEntries} entries
           </div>
           <div className="flex items-center gap-2">
             <button

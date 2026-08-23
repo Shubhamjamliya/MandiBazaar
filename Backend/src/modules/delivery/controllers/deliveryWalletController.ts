@@ -245,7 +245,7 @@ export const createSettleCashOrder = async (req: Request, res: Response) => {
 export const settleCashByAdminHandover = async (req: Request, res: Response) => {
     try {
         const deliveryBoyId = req.user!.userId;
-        const { amount, remark } = req.body;
+        const { amount, remark, requestKey } = req.body;
 
         if (!amount || Number(amount) <= 0) {
             return res.status(400).json({
@@ -254,45 +254,113 @@ export const settleCashByAdminHandover = async (req: Request, res: Response) => 
             });
         }
 
-        const settlementAmount = Number(amount);
-        const deliveryBoy = await Delivery.findById(deliveryBoyId);
-
-        if (!deliveryBoy) {
-            return res.status(404).json({
+        const normalizedRequestKey =
+            typeof requestKey === 'string' ? requestKey.trim() : '';
+        if (!normalizedRequestKey) {
+            return res.status(400).json({
                 success: false,
-                message: 'Delivery boy not found.',
+                message: 'Request key is required.',
             });
         }
 
-        if ((deliveryBoy.cashCollected || 0) + 0.01 < settlementAmount) {
+        const settlementAmount = Number(amount);
+        const handoverRemark = remark?.trim() || 'Cash deposit by cash';
+
+        const existingCollection = await CashCollection.findOne({
+            requestKey: normalizedRequestKey,
+        });
+
+        if (existingCollection?.settlementApplied) {
+            const deliveryBoy = await Delivery.findById(deliveryBoyId).select('cashCollected');
+            return res.status(200).json({
+                success: true,
+                message: 'Cash handover already recorded.',
+                data: {
+                    cashCollected: deliveryBoy?.cashCollected ?? 0,
+                    collectionId: existingCollection._id,
+                },
+            });
+        }
+
+        await CashCollection.findOneAndUpdate(
+            { requestKey: normalizedRequestKey },
+            {
+                $setOnInsert: {
+                    deliveryBoy: deliveryBoyId,
+                    amount: settlementAmount,
+                    remark: handoverRemark,
+                    paymentMethod: 'cash',
+                    collectedAt: new Date(),
+                    requestKey: normalizedRequestKey,
+                    settlementApplied: false,
+                },
+            },
+            {
+                upsert: true,
+                new: true,
+            }
+        );
+
+        const collection = await CashCollection.findOneAndUpdate(
+            {
+                requestKey: normalizedRequestKey,
+                settlementApplied: false,
+            },
+            {
+                $set: {
+                    settlementApplied: true,
+                },
+            },
+            {
+                new: true,
+            }
+        );
+
+        if (!collection) {
+            const duplicateCollection = await CashCollection.findOne({
+                requestKey: normalizedRequestKey,
+            });
+            const deliveryBoy = await Delivery.findById(deliveryBoyId).select('cashCollected');
+            return res.status(200).json({
+                success: true,
+                message: 'Cash handover already recorded.',
+                data: {
+                    cashCollected: deliveryBoy?.cashCollected ?? 0,
+                    collectionId: duplicateCollection?._id,
+                },
+            });
+        }
+
+        const deliveryBoy = await Delivery.findOneAndUpdate(
+            {
+                _id: deliveryBoyId,
+                cashCollected: { $gte: settlementAmount },
+            },
+            {
+                $inc: { cashCollected: -settlementAmount },
+            },
+            {
+                new: true,
+            }
+        );
+
+        if (!deliveryBoy) {
+            await CashCollection.findByIdAndUpdate(collection._id, {
+                $set: { settlementApplied: false },
+            });
             return res.status(400).json({
                 success: false,
                 message: 'Amount cannot exceed cash in hand.',
             });
         }
 
-        deliveryBoy.cashCollected = Math.max(
-            0,
-            (deliveryBoy.cashCollected || 0) - settlementAmount
-        );
-        await deliveryBoy.save();
-
-        const handoverRemark = remark?.trim() || 'Cash deposit by cash';
-
         const { logCashSettlement } = await import('../../../services/walletManagementService');
         await logCashSettlement(
             deliveryBoyId,
             settlementAmount,
-            `Cash handed over to admin. Remark: ${handoverRemark}`
+            `Cash handed over to admin. Remark: ${handoverRemark}`,
+            normalizedRequestKey
         );
-
-        const collection = await CashCollection.create({
-            deliveryBoy: deliveryBoyId,
-            amount: settlementAmount,
-            remark: handoverRemark,
-            paymentMethod: 'cash',
-            collectedAt: new Date(),
-        });
 
         return res.status(200).json({
             success: true,
@@ -303,6 +371,20 @@ export const settleCashByAdminHandover = async (req: Request, res: Response) => 
             },
         });
     } catch (error: any) {
+        if (error?.code === 11000 && error?.keyPattern?.requestKey) {
+            const existingCollection = await CashCollection.findOne({
+                requestKey: req.body?.requestKey,
+            });
+            const deliveryBoy = await Delivery.findById(req.user!.userId).select('cashCollected');
+            return res.status(200).json({
+                success: true,
+                message: 'Cash handover already recorded.',
+                data: {
+                    cashCollected: deliveryBoy?.cashCollected ?? 0,
+                    collectionId: existingCollection?._id,
+                },
+            });
+        }
         console.error('Error settling cash by admin handover:', error);
         return res.status(500).json({
             success: false,

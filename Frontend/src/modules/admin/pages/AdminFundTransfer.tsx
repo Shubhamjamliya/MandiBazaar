@@ -9,6 +9,7 @@ interface FundTransfer {
   type: 'Credit' | 'Debit';
   message: string;
   date: string;
+  reference?: string;
 }
 
 interface Seller {
@@ -39,6 +40,7 @@ export default function AdminFundTransfer() {
   const [transferAmount, setTransferAmount] = useState('');
   const [transferRemark, setTransferRemark] = useState('');
   const [transferSubmitting, setTransferSubmitting] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -49,11 +51,36 @@ export default function AdminFundTransfer() {
     }
   };
 
-  const filteredTransfers = fundTransfers.filter(transfer =>
-    transfer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    transfer.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    transfer.id.toString().includes(searchTerm)
-  );
+  const filteredTransfers = [...fundTransfers]
+    .filter((transfer) =>
+      transfer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transfer.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transfer.id.toString().includes(searchTerm) ||
+      (transfer.reference || "").toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (!sortColumn) {
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      }
+
+      const direction = sortDirection === 'asc' ? 1 : -1;
+      const valueA =
+        sortColumn === 'amount'
+          ? a.amount
+          : sortColumn === 'date'
+            ? new Date(a.date).getTime()
+            : String((a as any)[sortColumn] || '').toLowerCase();
+      const valueB =
+        sortColumn === 'amount'
+          ? b.amount
+          : sortColumn === 'date'
+            ? new Date(b.date).getTime()
+            : String((b as any)[sortColumn] || '').toLowerCase();
+
+      if (valueA < valueB) return -1 * direction;
+      if (valueA > valueB) return 1 * direction;
+      return 0;
+    });
 
   const totalPages = Math.ceil(filteredTransfers.length / entriesPerPage);
   const startIndex = (currentPage - 1) * entriesPerPage;
@@ -61,7 +88,34 @@ export default function AdminFundTransfer() {
   const displayedTransfers = filteredTransfers.slice(startIndex, endIndex);
 
   const handleExport = () => {
-    alert('Export functionality will be implemented here');
+    const headers = ["ID", "Delivery Boy", "Amount", "Type", "Reference", "Description", "Date"];
+    const csvContent = [
+      headers.join(","),
+      ...filteredTransfers.map((transfer) =>
+        [
+          transfer.id,
+          `"${transfer.name}"`,
+          transfer.amount.toFixed(2),
+          transfer.type,
+          `"${transfer.reference || ""}"`,
+          `"${transfer.message}"`,
+          `"${new Date(transfer.date).toLocaleString("en-IN")}"`,
+        ].join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `delivery_fund_transfers_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleClearDate = () => {
@@ -98,9 +152,13 @@ export default function AdminFundTransfer() {
 
         const params = {
           userType: 'DELIVERY_BOY',
+          userId: selectedDeliveryBoy === 'all' ? undefined : selectedDeliveryBoy,
           type: selectedMethod === 'all' ? undefined : selectedMethod,
+          dateFrom: fromDate || undefined,
+          dateTo: toDate || undefined,
+          adminTransfersOnly: true,
           page: 1,
-          limit: 200,
+          limit: 500,
         };
 
         const response = await getWalletTransactions(params);
@@ -108,8 +166,7 @@ export default function AdminFundTransfer() {
           const mapped = response.data
             .filter((item: any) => {
               if (!['Credit', 'Debit'].includes(item.type)) return false;
-              if (selectedDeliveryBoy === 'all') return true;
-              return item.userId === selectedDeliveryBoy;
+              return true;
             })
             .map((item: any) => {
               return {
@@ -118,7 +175,8 @@ export default function AdminFundTransfer() {
                 amount: item.amount,
                 type: item.type,
                 message: item.description || 'Admin fund transfer',
-                date: new Date(item.createdAt).toLocaleDateString('en-IN'),
+                date: item.createdAt,
+                reference: item.reference,
               };
             });
           setFundTransfers(mapped);
@@ -134,7 +192,7 @@ export default function AdminFundTransfer() {
     };
 
     fetchFundTransfers();
-  }, [selectedDeliveryBoy, selectedMethod, fromDate, toDate]);
+  }, [selectedDeliveryBoy, selectedMethod, fromDate, toDate, reloadKey]);
 
   const deliveryBoys = [
     'All Delivery Boy',
@@ -313,7 +371,9 @@ export default function AdminFundTransfer() {
               <div key={transfer.id} className="border border-neutral-200 rounded-lg p-3 bg-white shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="text-xs font-semibold text-neutral-900">#{transfer.id.slice(-6)}</div>
-                  <div className="text-xs text-neutral-500">{transfer.date}</div>
+                  <div className="text-xs text-neutral-500">
+                    {new Date(transfer.date).toLocaleString('en-IN')}
+                  </div>
                 </div>
                 <div className="mt-2 text-sm font-medium text-neutral-900">{transfer.name}</div>
                 <div className="mt-2 flex items-center justify-between">
@@ -426,7 +486,9 @@ export default function AdminFundTransfer() {
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">{transfer.message}</td>
-                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">{transfer.date}</td>
+                    <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
+                      {new Date(transfer.date).toLocaleString('en-IN')}
+                    </td>
                   </tr>
                 ))
               )}
@@ -564,6 +626,7 @@ export default function AdminFundTransfer() {
                         setTransferAmount('');
                         setTransferRemark('');
                         setCurrentPage(1);
+                        setReloadKey((prev) => prev + 1);
                       }
                     } finally {
                       setTransferSubmitting(false);

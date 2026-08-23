@@ -6,6 +6,8 @@ export interface ICashCollection extends Document {
     amount: number;
     remark?: string;
     paymentMethod: 'cash' | 'razorpay' | 'HDFC';
+    requestKey?: string;
+    settlementApplied?: boolean;
     collectedBy?: Types.ObjectId;
     collectedAt: Date;
     createdAt: Date;
@@ -37,6 +39,14 @@ const cashCollectionSchema = new Schema<ICashCollection>(
             enum: ['cash', 'razorpay', 'HDFC'],
             default: 'cash',
         },
+        requestKey: {
+            type: String,
+            trim: true,
+        },
+        settlementApplied: {
+            type: Boolean,
+            default: true,
+        },
         collectedBy: {
             type: Schema.Types.ObjectId,
             ref: "Admin",
@@ -55,6 +65,13 @@ const cashCollectionSchema = new Schema<ICashCollection>(
 cashCollectionSchema.index({ deliveryBoy: 1, collectedAt: -1 });
 cashCollectionSchema.index({ order: 1 });
 cashCollectionSchema.index({ collectedAt: -1 });
+cashCollectionSchema.index(
+    { requestKey: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { requestKey: { $exists: true, $type: "string" } },
+    }
+);
 
 const CashCollection = model<ICashCollection>(
     "CashCollection",

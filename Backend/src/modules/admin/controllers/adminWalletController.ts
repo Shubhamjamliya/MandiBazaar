@@ -153,11 +153,34 @@ export const getAdminEarnings = asyncHandler(async (req: Request, res: Response)
  * Get All Wallet Transactions (Sellers & Delivery Boys)
  */
 export const getWalletTransactions = asyncHandler(async (req: Request, res: Response) => {
-    const { page = 1, limit = 20, type, userType, search: _search } = req.query;
+    const {
+        page = 1,
+        limit = 20,
+        type,
+        userType,
+        userId,
+        search,
+        dateFrom,
+        dateTo,
+        adminTransfersOnly,
+    } = req.query;
 
     const query: any = {};
     if (type) query.type = type;
     if (userType) query.userType = userType;
+    if (userId && mongoose.Types.ObjectId.isValid(userId as string)) {
+        query.userId = new mongoose.Types.ObjectId(userId as string);
+    }
+    if (dateFrom || dateTo) {
+        query.createdAt = {};
+        if (dateFrom) query.createdAt.$gte = new Date(dateFrom as string);
+        if (dateTo) query.createdAt.$lte = new Date(dateTo as string);
+    }
+    if (adminTransfersOnly === 'true') {
+        query.description = { $regex: '^Admin fund transfer', $options: 'i' };
+    } else if (search) {
+        query.description = { $regex: search as string, $options: 'i' };
+    }
 
     // Search handling not fully implemented for cross-collection ref
 
@@ -319,7 +342,10 @@ export const createFundTransfer = asyncHandler(async (req: Request, res: Respons
         });
     }
 
-    const note = description || 'Admin fund transfer';
+    const trimmedDescription = typeof description === 'string' ? description.trim() : '';
+    const note = trimmedDescription
+        ? `Admin fund transfer - ${trimmedDescription}`
+        : 'Admin fund transfer';
     const result = type === 'Credit'
         ? await creditWallet(userId, userType, transferAmount, note)
         : await debitWallet(userId, userType, transferAmount, note);

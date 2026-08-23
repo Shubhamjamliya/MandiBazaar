@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 
 // import { products } from '../../data/products'; // Removed
 import { OrderAddress, Order } from '../../types/order';
+import type { Location as UserLocation } from '../../context/locationContext.types';
 import PartyPopper from './components/PartyPopper';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '../../components/ui/sheet';
 import WishlistButton from '../../components/WishlistButton';
@@ -34,7 +35,7 @@ import { createHdfcOrder } from '../../services/api/paymentService';
 export default function Checkout() {
   const { cart, updateQuantity, clearCart, addToCart, removeFromCart, refreshCart, loading: cartLoading } = useCart();
   const { addOrder } = useOrders();
-  const { location: userLocation, isLocationLoading } = useLocationContext();
+  const { location: userLocation, isLocationLoading, requestLocation, locationError } = useLocationContext();
   const { showToast: showGlobalToast } = useToast();
   const { user, updateUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -78,12 +79,39 @@ export default function Checkout() {
   const [mapLocation, setMapLocation] = useState<{ lat: number, lng: number, address?: any } | null>(null);
   const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
   const [isMapSelected, setIsMapSelected] = useState(false);
+  const [isUsingCurrentLocationForOrder, setIsUsingCurrentLocationForOrder] = useState(false);
 
   // HDFC Payment State
   const [showHdfcCheckout, setShowHdfcCheckout] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'online' | 'cod'>('online');
+
+  const buildOrderAddressFromLocation = (locationData: UserLocation): OrderAddress => ({
+    name: user?.name || 'Current Location',
+    phone: user?.phone || '',
+    flat: '',
+    street: locationData.address || 'Current Location',
+    city: locationData.city || '',
+    state: locationData.state || '',
+    pincode: locationData.pincode || '',
+    landmark: '',
+    latitude: locationData.latitude,
+    longitude: locationData.longitude,
+  });
+
+  const getLatestUserLocation = (): UserLocation | null => {
+    try {
+      const storedLocation = localStorage.getItem('userLocation');
+      if (storedLocation) {
+        return JSON.parse(storedLocation) as UserLocation;
+      }
+    } catch (error) {
+      console.warn('Failed to read stored user location:', error);
+    }
+
+    return userLocation;
+  };
 
 
   // Check if user has placeholder data (needs profile completion)
@@ -653,6 +681,43 @@ export default function Checkout() {
     }
   };
 
+  const handleUseCurrentLocationForOrder = async () => {
+    try {
+      setIsUsingCurrentLocationForOrder(true);
+      await requestLocation();
+
+      const latestLocation = getLatestUserLocation();
+      if (!latestLocation?.latitude || !latestLocation?.longitude) {
+        throw new Error('Current location not available');
+      }
+
+      const currentLocationAddress = buildOrderAddressFromLocation(latestLocation);
+      setSelectedAddress(currentLocationAddress);
+      setSavedAddress(null);
+      setMapLocation({
+        lat: latestLocation.latitude,
+        lng: latestLocation.longitude,
+        address: {
+          street: currentLocationAddress.street,
+          city: currentLocationAddress.city,
+          state: currentLocationAddress.state,
+          pincode: currentLocationAddress.pincode,
+          landmark: currentLocationAddress.landmark,
+        },
+      });
+      setIsMapSelected(false);
+      showGlobalToast('Current location selected for this order', 'success');
+    } catch (error: any) {
+      const message =
+        error?.message ||
+        locationError ||
+        'Unable to use current location. Please check location permission.';
+      showGlobalToast(message, 'error');
+    } finally {
+      setIsUsingCurrentLocationForOrder(false);
+    }
+  };
+
   // Handle profile completion submission
   const handleProfileSubmit = async () => {
     if (!profileFormData.name.trim()) {
@@ -993,6 +1058,43 @@ export default function Checkout() {
           </button>
         </div>
 
+        <button
+          onClick={handleUseCurrentLocationForOrder}
+          disabled={isUsingCurrentLocationForOrder}
+          className={`mb-3 w-full rounded-xl border px-3 py-2.5 text-left transition-colors ${
+            isUsingCurrentLocationForOrder
+              ? 'border-green-200 bg-green-50 text-green-700'
+              : 'border-neutral-200 bg-white text-neutral-700 hover:border-green-300 hover:bg-green-50/50'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center flex-shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2v4" />
+                  <path d="M12 18v4" />
+                  <path d="M4.93 4.93l2.83 2.83" />
+                  <path d="M16.24 16.24l2.83 2.83" />
+                  <path d="M2 12h4" />
+                  <path d="M18 12h4" />
+                  <path d="M4.93 19.07l2.83-2.83" />
+                  <path d="M16.24 7.76l2.83-2.83" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold">Use Current Location for This Order</p>
+                <p className="text-[11px] text-neutral-500 truncate">
+                  Get your live location from Google Maps and use it only for this checkout
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-green-700 flex-shrink-0">
+              {isUsingCurrentLocationForOrder ? 'Locating...' : 'Use Now'}
+            </span>
+          </div>
+        </button>
+
         {selectedAddress ? (
           <div
             className="relative overflow-hidden rounded-xl border-2 border-green-500 bg-green-50/30 p-4 shadow-sm"
@@ -1023,6 +1125,9 @@ export default function Checkout() {
                 <div className="flex items-center gap-1.5 mb-2">
                   {selectedAddress.id && (
                     <span className="text-[9px] bg-green-600 text-white px-1 py-0.5 rounded font-bold uppercase tracking-wider">Saved</span>
+                  )}
+                  {!selectedAddress.id && selectedAddress.latitude && selectedAddress.longitude && (
+                    <span className="text-[9px] bg-blue-600 text-white px-1 py-0.5 rounded font-bold uppercase tracking-wider">Current Location</span>
                   )}
                 </div>
                 <p className="text-[11px] text-neutral-600 mb-2 font-medium">

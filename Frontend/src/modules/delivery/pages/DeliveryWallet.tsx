@@ -40,7 +40,11 @@ export default function DeliveryWallet() {
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [settleAmount, setSettleAmount] = useState("");
   const [settleMode, setSettleMode] = useState<"online" | "cash">("online");
+  const [cashHandoverRequestKey, setCashHandoverRequestKey] = useState("");
   const [hdfcPaymentData, setHdfcPaymentData] = useState<any>(null);
+
+  const createRequestKey = () =>
+    `cash-handover-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
   useEffect(() => {
     fetchWalletData();
@@ -185,6 +189,8 @@ export default function DeliveryWallet() {
 
   const handleCashHandover = async () => {
     try {
+      if (isSubmitting) return;
+
       const amount = parseFloat(settleAmount);
       if (isNaN(amount) || amount <= 0) {
         showToast("Please enter a valid amount", "error");
@@ -200,12 +206,14 @@ export default function DeliveryWallet() {
       const response = await settleDeliveryCashByAdminHandover(
         amount,
         "Cash deposit by cash",
+        cashHandoverRequestKey || createRequestKey(),
       );
 
       if (response.success) {
         showToast("Cash handover recorded successfully", "success");
         setShowSettleModal(false);
         setSettleAmount("");
+        setCashHandoverRequestKey("");
         await fetchWalletData();
       }
     } catch (error: any) {
@@ -333,6 +341,7 @@ export default function DeliveryWallet() {
               onClick={() => {
                 setSettleMode("cash");
                 setSettleAmount(cashCollected.toFixed(2));
+                setCashHandoverRequestKey(createRequestKey());
                 setShowSettleModal(true);
               }}
               disabled={cashCollected <= 0}
@@ -635,6 +644,7 @@ export default function DeliveryWallet() {
                 onClick={() => {
                   setShowSettleModal(false);
                   setSettleAmount("");
+                  setCashHandoverRequestKey("");
                 }}
                 className="flex-1 border border-gray-300 rounded-lg py-2.5 font-semibold hover:bg-gray-50 transition"
                 disabled={isSubmitting}>

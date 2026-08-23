@@ -83,7 +83,18 @@ export const getAdminEarnings = async (
  * Get Wallet Transactions (Platform Level)
  */
 export const getWalletTransactions = async (
-  params?: { page?: number; limit?: number; type?: string; status?: string; userType?: string }
+  params?: {
+    page?: number;
+    limit?: number;
+    type?: string;
+    status?: string;
+    userType?: string;
+    userId?: string;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    adminTransfersOnly?: boolean;
+  }
 ): Promise<ApiResponse<WalletTransaction[]>> => {
   const response = await api.get<ApiResponse<WalletTransaction[]>>(
     "/admin/wallet/transactions",
