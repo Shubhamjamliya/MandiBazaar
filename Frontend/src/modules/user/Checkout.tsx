@@ -17,6 +17,7 @@ import WishlistButton from '../../components/WishlistButton';
 import { getCoupons, validateCoupon, Coupon as ApiCoupon } from '../../services/api/customerCouponService';
 import { appConfig } from '../../services/configService';
 import { getAddresses, updateAddress } from '../../services/api/customerAddressService';
+import { getCart } from '../../services/api/customerCartService';
 import GoogleMapsLocationPicker from '../../components/GoogleMapsLocationPicker';
 import { getProducts } from '../../services/api/customerProductService';
 import { addToWishlist } from '../../services/api/customerWishlistService';
@@ -30,6 +31,8 @@ import { createHdfcOrder } from '../../services/api/paymentService';
 // const STORAGE_KEY = 'saved_address'; // Removed
 
 // Similar products helper removed - using API
+
+const SERVICE_UNAVAILABLE_MESSAGE = "Currently, the service is only available in Udaipur. We're coming soon to your city.";
 
 
 export default function Checkout() {
@@ -80,6 +83,7 @@ export default function Checkout() {
   const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
   const [isMapSelected, setIsMapSelected] = useState(false);
   const [isUsingCurrentLocationForOrder, setIsUsingCurrentLocationForOrder] = useState(false);
+  const [serviceabilityError, setServiceabilityError] = useState<string | null>(null);
 
   // HDFC Payment State
   const [showHdfcCheckout, setShowHdfcCheckout] = useState(false);
@@ -113,9 +117,35 @@ export default function Checkout() {
     return userLocation;
   };
 
+  const verifyCartServiceability = async (latitude: number, longitude: number): Promise<boolean> => {
+    const currentCartItems = (cart.items || []).filter((item) => item?.product);
+
+    if (currentCartItems.length === 0) {
+      return false;
+    }
+
+    const response = await getCart({ latitude, longitude });
+    const serviceableItems = (response?.data?.items || []).filter((item) => item?.product);
+    const getItemKey = (item: any) => {
+      const productId = item.product?.id || item.product?._id || item.product;
+      const variantId = item.variant || item.variation || item.product?.variantId || item.product?.pack || '';
+      return `${productId}:${variantId}`;
+    };
+
+    const serviceableItemKeys = new Set(serviceableItems.map(getItemKey));
+
+    return currentCartItems.every((item) => serviceableItemKeys.has(getItemKey(item)));
+  };
+
 
   // Check if user has placeholder data (needs profile completion)
   const isPlaceholderUser = !user?.name || user?.name === 'User';
+
+  useEffect(() => {
+    if (selectedAddress) {
+      setServiceabilityError(null);
+    }
+  }, [selectedAddress]);
 
   // Redirect if empty - only if really empty and not loading and not just placed an order
   useEffect(() => {
@@ -502,6 +532,21 @@ export default function Checkout() {
       return;
     }
 
+    try {
+      setServiceabilityError(null);
+      const isServiceable = await verifyCartServiceability(finalLatitude, finalLongitude);
+
+      if (!isServiceable) {
+        setServiceabilityError(SERVICE_UNAVAILABLE_MESSAGE);
+        showGlobalToast(SERVICE_UNAVAILABLE_MESSAGE, 'error');
+        return;
+      }
+    } catch (serviceabilityCheckError) {
+      console.error('Failed to verify serviceability before placing order', serviceabilityCheckError);
+      showGlobalToast('Unable to verify delivery availability right now. Please try again.', 'error');
+      return;
+    }
+
     if (placingOrderRef.current) {
       return;
     }
@@ -684,11 +729,23 @@ export default function Checkout() {
   const handleUseCurrentLocationForOrder = async () => {
     try {
       setIsUsingCurrentLocationForOrder(true);
+      setServiceabilityError(null);
       await requestLocation();
 
       const latestLocation = getLatestUserLocation();
       if (!latestLocation?.latitude || !latestLocation?.longitude) {
         throw new Error('Current location not available');
+      }
+
+      const isServiceable = await verifyCartServiceability(
+        latestLocation.latitude,
+        latestLocation.longitude
+      );
+
+      if (!isServiceable) {
+        setServiceabilityError(SERVICE_UNAVAILABLE_MESSAGE);
+        showGlobalToast(SERVICE_UNAVAILABLE_MESSAGE, 'error');
+        return;
       }
 
       const currentLocationAddress = buildOrderAddressFromLocation(latestLocation);
@@ -706,6 +763,7 @@ export default function Checkout() {
         },
       });
       setIsMapSelected(false);
+      await refreshCart(latestLocation.latitude, latestLocation.longitude);
       showGlobalToast('Current location selected for this order', 'success');
     } catch (error: any) {
       const message =
@@ -1094,6 +1152,14 @@ export default function Checkout() {
             </span>
           </div>
         </button>
+
+        {serviceabilityError && (
+          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+            <p className="text-xs font-semibold text-amber-900">
+              {serviceabilityError}
+            </p>
+          </div>
+        )}
 
         {selectedAddress ? (
           <div
