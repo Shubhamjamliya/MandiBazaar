@@ -22,6 +22,7 @@ import { useCart } from "../../context/CartContext";
 import { calculateProductPrice } from "../../utils/priceUtils";
 import WishlistButton from "../../components/WishlistButton";
 import { motion, AnimatePresence } from "framer-motion";
+import OutOfLocation from "./components/OutOfLocation";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -466,7 +467,34 @@ export default function Home() {
     );
   }
 
-  // Out-of-location blocker intentionally disabled.
+  const checkIsOutOfLocation = () => {
+    if (loading) return false;
+    
+    // Only check products that are actually displayed on the home page
+    const displayedProducts = [
+      ...(allProducts || []),
+      ...(homeData.lowestPrices || [])
+    ].filter(Boolean);
+    
+    // If no categories and no displayed products, it's out of location
+    if ((!homeData.categories || homeData.categories.length === 0) && displayedProducts.length === 0) {
+      return true;
+    }
+    
+    if (displayedProducts.length > 0) {
+      // Return true only if EVERY displayed product is unavailable (Out of Range)
+      return displayedProducts.every(p => p.isAvailable === false);
+    }
+    
+    return false;
+  };
+
+  const isOutOfLocation = checkIsOutOfLocation();
+
+  // Bypassed OutOfLocation screen
+  // if (isOutOfLocation) {
+  //   return <OutOfLocation onChangeLocation={() => window.dispatchEvent(new Event('openLocationModal'))} />;
+  // }
 
   return (
     <div className="bg-white min-h-screen pb-20 md:pb-0" ref={contentRef}>

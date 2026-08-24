@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { motion, AnimatePresence } from 'framer-motion';
 import FloatingCartPill from './FloatingCartPill';
 import { useLocation as useLocationContext } from '../hooks/useLocation';
+import LocationPermissionRequest from './LocationPermissionRequest';
+import LocationBanner from './LocationBanner';
 import { useThemeContext } from '../context/ThemeContext';
 import HomsterHeader from '../modules/user/components/HomsterHeader';
 
@@ -18,7 +20,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [categoriesRotation, setCategoriesRotation] = useState(0);
   const [prevCategoriesActive, setPrevCategoriesActive] = useState(false);
-  const { location: userLocation } = useLocationContext();
+  const { isLocationEnabled, isLocationLoading, location: userLocation, locationPermissionStatus } = useLocationContext();
+  const [showLocationRequest, setShowLocationRequest] = useState(false);
+  const [showLocationChangeModal, setShowLocationChangeModal] = useState(false);
   const { currentTheme } = useThemeContext();
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -39,6 +43,47 @@ export default function AppLayout({ children }: AppLayoutProps) {
       window.scrollTo(0, 0);
     }
   }, [location.pathname]);
+
+  // Check if location is required for current route
+  const requiresLocation = () => {
+    const publicRoutes = ['/login', '/signup', '/seller/login', '/seller/signup', '/delivery/login', '/delivery/signup', '/admin/login'];
+    // Don't require location on login/signup pages
+    if (publicRoutes.includes(location.pathname)) {
+      return false;
+    }
+    // Require location for ALL routes (not just authenticated users)
+    // This ensures location is mandatory for everyone visiting the platform
+    return true;
+  };
+
+  // ALWAYS show location request modal on app load if location is not enabled
+  // This ensures modal appears on every app open, regardless of browser permission state
+  useEffect(() => {
+    // Wait for initial loading to complete
+    if (isLocationLoading) {
+      return;
+    }
+
+    // If location is enabled, hide modal
+    if (isLocationEnabled) {
+      setShowLocationRequest(false);
+      return;
+    }
+
+    // If user explicitly denied permission, don't show modal - just let app open normally
+    if (locationPermissionStatus === 'denied') {
+      setShowLocationRequest(false);
+      return;
+    }
+
+    // If location is NOT enabled, permission not denied, and route requires location, show modal
+    // This will trigger on every app open until user explicitly confirms location
+    if (!isLocationEnabled && requiresLocation()) {
+      setShowLocationRequest(true);
+    } else {
+      setShowLocationRequest(false);
+    }
+  }, [isLocationLoading, isLocationEnabled, locationPermissionStatus, location.pathname]);
 
   // Update search query when URL params change
   useEffect(() => {
@@ -170,6 +215,31 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const showSearchBar = isSearchPage && !isCheckoutPage && !isCartPage;
   const showFooter = !isCheckoutPage && !isProductDetailPage;
   const locationAreaText = userLocation?.city || userLocation?.address?.split(',')[0]?.trim() || '';
+
+  useEffect(() => {
+    const shouldLockScroll = showLocationRequest || showLocationChangeModal;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+
+    if (shouldLockScroll) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, [showLocationRequest, showLocationChangeModal]);
+
+  // Listen for custom event to open location modal
+  useEffect(() => {
+    const handleOpenLocationModal = () => {
+      setShowLocationChangeModal(true);
+    };
+    window.addEventListener('openLocationModal', handleOpenLocationModal);
+    return () => window.removeEventListener('openLocationModal', handleOpenLocationModal);
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen w-full overflow-x-hidden">
@@ -304,7 +374,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
               {/* Location line - only show if user has provided location */}
               {userLocation && (userLocation.address || userLocation.city) && (
                 <div
-                  className="px-4 md:px-6 lg:px-8 py-3 flex items-center justify-between text-sm"
+                  onClick={() => setShowLocationChangeModal(true)}
+                  className="px-4 md:px-6 lg:px-8 py-3 flex items-center justify-between text-sm cursor-pointer hover:bg-black/20 transition-colors"
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
                     <div className="p-1 bg-white/20 rounded-md">
@@ -316,6 +387,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
                       {locationAreaText || userLocation?.address || ''}
                     </span>
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowLocationChangeModal(true);
+                    }}
+                    className="bg-white/20 hover:bg-white/30 text-white text-xs font-black px-3 py-1.5 rounded-lg backdrop-blur-md transition-all border border-white/10 ml-2"
+                  >
+                    CHANGE
+                  </button>
                 </div>
               )}
 
@@ -409,9 +489,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
           {/* Common Homster Header for Home and Order Again */}
           {showHomsterHeader && (
             <HomsterHeader
+              onLocationClick={() => setShowLocationChangeModal(true)}
               showSearch={!isOrderAgainPage}
             />
           )}
+
+          {/* Location Banner - Optional suggestion when location is not enabled */}
+          <LocationBanner onClickBanner={() => setShowLocationChangeModal(true)} />
 
           {/* Scrollable Main Content */}
           <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide pb-24 md:pb-8">
@@ -451,6 +535,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
           {/* Floating Cart Pill */}
           <FloatingCartPill />
+
+          {/* Location Permission Request Modal - Mandatory for all users */}
+          {/* showLocationRequest && (
+            <LocationPermissionRequest
+              onLocationGranted={() => setShowLocationRequest(false)}
+              skipable={false}
+              title="Location Access Required"
+              description="We need your location to show you products available near you and enable delivery services. Location access is required to continue."
+            />
+          ) */}
+
+          {/* Location Change Modal */}
+          {/* showLocationChangeModal && (
+            <LocationPermissionRequest
+              onLocationGranted={() => setShowLocationChangeModal(false)}
+              skipable={true}
+              forceShow={true}
+              title="Change Location"
+              description="Update your location to see products available near you."
+            />
+          ) */}
 
           {/* Fixed Bottom Navigation - Mobile Only, Hidden on checkout pages */}
           {showFooter && (

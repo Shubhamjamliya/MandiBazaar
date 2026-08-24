@@ -158,8 +158,8 @@ function HomsterHeader({ onLocationClick, showSearch = true }: HomsterHeaderProp
         <div className="px-4 pb-0 flex items-center justify-between gap-1">
           <div className="flex-1 min-w-0 animate-fade-in-down" style={{ animationDelay: '0.1s' }}>
             <button
-              onClick={() => onLocationClick?.()}
-              className={`flex items-center gap-2 w-full transition-colors py-1.5 px-1 group overflow-hidden ${onLocationClick ? 'cursor-pointer' : 'cursor-default'}`}
+              onClick={() => onLocationClick ? onLocationClick() : navigate('/location')}
+              className="flex items-center gap-2 w-full transition-colors py-1.5 px-1 group overflow-hidden cursor-pointer"
             >
               <div className="flex-shrink-0 text-emerald-600 group-hover:scale-110 transition-transform">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
