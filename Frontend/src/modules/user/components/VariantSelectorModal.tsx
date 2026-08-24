@@ -122,12 +122,12 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 400 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-[400px] bg-white rounded-[32px] overflow-hidden shadow-2xl flex flex-col"
+            className="relative w-full max-w-[400px] bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col"
           >
             {/* Header */}
-            <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
-              <div className="flex items-center gap-4 text-left">
-                <div className="w-14 h-14 bg-neutral-50 rounded-2xl overflow-hidden flex-shrink-0 p-1.5 border border-neutral-100">
+            <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+              <div className="flex items-center gap-3 text-left">
+                <div className="w-12 h-12 bg-neutral-50 rounded-xl overflow-hidden flex-shrink-0 p-1.5 border border-neutral-100">
                   <img
                     src={product.imageUrl || product.mainImage}
                     alt={product.name}
@@ -161,8 +161,8 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
             </div>
 
             {/* Variants List */}
-            <div className="px-5 py-6 max-h-[50vh] overflow-y-auto scrollbar-hide space-y-3">
-              <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.1em] mb-4 text-left">
+            <div className="px-4 py-4 max-h-[50vh] overflow-y-auto scrollbar-hide space-y-2">
+              <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.1em] mb-2 text-left">
                 Choose Pack Size
               </p>
 
@@ -183,13 +183,13 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
                       e.stopPropagation();
                       setSelectedVariant(v);
                     }}
-                    className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 group ${isSelected
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 transition-all duration-200 group ${isSelected
                       ? 'border-green-600 bg-green-50/40 shadow-sm ring-1 ring-green-600/20'
                       : 'border-neutral-100 bg-white hover:border-neutral-200 hover:bg-neutral-50/50'
                       }`}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isSelected ? 'border-green-600 bg-green-600 shadow-md shadow-green-100' : 'border-neutral-200 bg-white group-hover:border-neutral-300'
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isSelected ? 'border-green-600 bg-green-600 shadow-sm shadow-green-100' : 'border-neutral-200 bg-white group-hover:border-neutral-300'
                         }`}>
                         <AnimatePresence>
                           {isSelected && (
@@ -226,13 +226,13 @@ const VariantSelectorModal: React.FC<VariantSelectorModalProps> = ({ isOpen, onC
             </div>
 
             {/* Footer Action */}
-            <div className="px-5 py-5 bg-white border-t border-neutral-50 sm:rounded-b-[28px]">
+            <div className="px-4 py-3 bg-white border-t border-neutral-50 sm:rounded-b-3xl">
               <motion.button
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={(e) => handleAddToCart(e)}
                 disabled={!selectedVariant || isAdding}
-                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-neutral-100 disabled:text-neutral-400 text-white h-[52px] rounded-2xl font-bold flex items-center justify-between px-6 shadow-xl shadow-green-200/50 transition-all disabled:shadow-none"
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-neutral-100 disabled:text-neutral-400 text-white h-[44px] rounded-xl font-bold flex items-center justify-between px-5 shadow-lg shadow-green-200/50 transition-all disabled:shadow-none"
               >
                 <span className="uppercase tracking-widest text-[11px]">
                   {isAdding ? 'Adding...' : 'Add to cart'}

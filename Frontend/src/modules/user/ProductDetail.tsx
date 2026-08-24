@@ -663,12 +663,12 @@ export default function ProductDetail() {
 
           {/* Weight Variant Picker — shown only for weight-mode products */}
           {isWeightMode && enabledWeightVariants.length > 0 && (
-            <div className="mb-4 bg-neutral-50 p-3 rounded-2xl border border-neutral-100">
-              <p className="text-[10px] font-black text-neutral-500 mb-2.5 uppercase tracking-widest flex items-center gap-1.5">
+            <div className="mb-3 bg-neutral-50 p-2.5 rounded-xl border border-neutral-100">
+              <p className="text-[10px] font-black text-neutral-500 mb-2 uppercase tracking-widest flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
                 Select Weight
               </p>
-              <div className="flex flex-wrap gap-2.5">
+              <div className="flex flex-wrap gap-2">
                 {enabledWeightVariants.map((wv: any, idx: number) => {
                   const outOfStock = wv.stock !== undefined && wv.stock !== null && wv.stock <= 0;
                   const isSelected = idx === selectedWeightIndex;
@@ -677,15 +677,15 @@ export default function ProductDetail() {
                       key={wv.label}
                       onClick={() => setSelectedWeightIndex(idx)}
                       disabled={outOfStock}
-                      className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border-2 flex items-center gap-2 ${isSelected
-                        ? "bg-green-600 text-white border-transparent shadow-md scale-[1.02]"
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border-2 flex items-center gap-1.5 ${isSelected
+                        ? "bg-green-600 text-white border-transparent shadow-sm scale-[1.02]"
                         : outOfStock
                           ? 'border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed'
                           : `border-transparent ${getVariantStyle(wv.label).bg} ${getVariantStyle(wv.label).text} hover:scale-[1.02] shadow-sm`
                         }`}
                     >
                       {wv.label}
-                      {outOfStock && <span className="text-[10px] opacity-70">(Sold Out)</span>}
+                      {outOfStock && <span className="text-[9px] opacity-70">(Sold Out)</span>}
                     </button>
                   );
                 })}
@@ -695,12 +695,12 @@ export default function ProductDetail() {
 
           {/* Standard Variant Selection — quantity mode only */}
           {!isWeightMode && product.variations && product.variations.length > 1 && (
-            <div className="mb-4 bg-neutral-50 p-3 rounded-2xl border border-neutral-100">
-              <p className="text-[10px] font-black text-neutral-500 mb-2.5 uppercase tracking-widest flex items-center gap-1.5">
+            <div className="mb-3 bg-neutral-50 p-2.5 rounded-xl border border-neutral-100">
+              <p className="text-[10px] font-black text-neutral-500 mb-2 uppercase tracking-widest flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
                 Choose {product.variationType || "Option"}
               </p>
-              <div className="flex flex-wrap gap-2.5">
+              <div className="flex flex-wrap gap-2">
                 {product.variations.map((variant: any, index: number) => {
                   const vTitle = variant.title || variant.value || `Variant ${index + 1}`;
                   const isOutOfStock = variant.status === "Sold out" || (variant.stock === 0 && variant.stock !== undefined && variant.stock !== null);
@@ -711,15 +711,15 @@ export default function ProductDetail() {
                       key={index}
                       onClick={() => setSelectedVariantIndex(index)}
                       disabled={isOutOfStock}
-                      className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border-2 flex items-center gap-2 ${isSelected
-                        ? "bg-green-600 text-white border-transparent shadow-md scale-[1.02]"
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border-2 flex items-center gap-1.5 ${isSelected
+                        ? "bg-green-600 text-white border-transparent shadow-sm scale-[1.02]"
                         : isOutOfStock
                           ? "border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed"
                           : `border-transparent ${getVariantStyle(vTitle).bg} ${getVariantStyle(vTitle).text} hover:scale-[1.02] shadow-sm`
                         }`}>
                       {vTitle}
                       {isOutOfStock && (
-                        <span className="text-[10px] opacity-70">(Sold Out)</span>
+                        <span className="text-[9px] opacity-70">(Sold Out)</span>
                       )}
                     </button>
                   );
