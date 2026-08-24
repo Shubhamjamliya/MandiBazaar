@@ -46,6 +46,17 @@ export default function LocationPermissionRequest({
     }
   }, [isLocationEnabled, onLocationGranted, forceShow]);
 
+  // Auto-request location when the modal appears (if not already enabled)
+  useEffect(() => {
+    if (!forceShow && !isLocationEnabled && locationPermissionStatus !== 'denied') {
+      console.log('[LocationPermissionRequest] Auto-requesting location on load...');
+      requestLocation().catch(err => {
+        console.warn('Auto-request location failed:', err);
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
+
   const handleAllowLocation = async () => {
     // Clear any previous errors before retrying
     setManualAddress('');

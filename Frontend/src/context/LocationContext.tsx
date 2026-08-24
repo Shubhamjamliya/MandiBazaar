@@ -58,18 +58,11 @@ const cleanAddress = (address: string): string => {
 
 export function LocationProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, user } = useAuth();
-  const [location, setLocation] = useState<Location | null>({
-    latitude: 24.5937,
-    longitude: 73.7431,
-    address: 'Badwai House, Udaipur Rd, Pacific University Rd, Near Pacific Hill, Vaishali Nagar, Pratap Nagar, Udaipur, Rajasthan 313001, India',
-    city: 'Udaipur',
-    state: 'Rajasthan',
-    pincode: '313001'
-  });
-  const [isLocationEnabled, setIsLocationEnabled] = useState(true);
-  const [isLocationLoading, setIsLocationLoading] = useState(false);
+  const [location, setLocation] = useState<Location | null>(null);
+  const [isLocationEnabled, setIsLocationEnabled] = useState(false);
+  const [isLocationLoading, setIsLocationLoading] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [locationPermissionStatus, setLocationPermissionStatus] = useState<'granted' | 'denied' | 'prompt' | 'session_granted'>('granted');
+  const [locationPermissionStatus, setLocationPermissionStatus] = useState<'granted' | 'denied' | 'prompt' | 'session_granted'>('prompt');
 
   // Constants for storage
   const SESSION_PERMISSION_KEY = 'location_permission_granted_session';
@@ -83,9 +76,6 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   // Initialize location state and check session permission
   useEffect(() => {
     const checkInitialPermission = async () => {
-      // Bypassed for development - always use default
-      return;
-      
       console.log('[LocationContext] Checking initial permission status...');
 
       try {
