@@ -518,39 +518,54 @@ export default function OrderDetail() {
     lastUpdate,
     error: trackingError,
     reconnectAttempts,
-    reconnect,
-  } = useDeliveryTracking(id);
-
   // Seller locations for the order
   const [sellerLocations, setSellerLocations] = useState<any[]>([]);
   const [loadingSellerLocations, setLoadingSellerLocations] = useState(false);
 
-  // Fetch order if not in context
+  // Fetch order
   useEffect(() => {
+    let isMounted = true;
+    
     const loadOrder = async () => {
       if (!id) return;
 
       const existingOrder = getOrderById(id);
-      // If this page is opened right after a successful payment redirect,
-      // force a refetch so UI reflects updated payment/order status.
-      if (existingOrder && !paymentSuccess) {
+      
+      // Show existing data immediately for fast UI
+      if (existingOrder) {
         setOrder(existingOrder);
         setOrderStatus(existingOrder.status);
-        setLoading(false);
-        return;
       }
 
-      setLoading(true);
-      const fetchedOrder = await fetchOrderById(id);
-      if (fetchedOrder) {
-        setOrder(fetchedOrder);
-        setOrderStatus(fetchedOrder.status);
+      // If we don't have it, or it's potentially a summary order, fetch full details
+      if (!existingOrder) {
+        setLoading(true);
       }
-      setLoading(false);
+
+      try {
+        const fetchedOrder = await fetchOrderById(id);
+        if (fetchedOrder && isMounted) {
+          setOrder(fetchedOrder);
+          setOrderStatus(fetchedOrder.status);
+        }
+      } catch (error) {
+        console.error("Failed to load order details:", error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     };
 
     loadOrder();
-  }, [id, getOrderById, fetchOrderById, paymentSuccess]);
+    
+    return () => {
+      isMounted = false;
+    };
+    // Exclude getOrderById and fetchOrderById to prevent infinite loops or overwrites 
+    // when context array updates (e.g. from fetchOrders summary list)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, paymentSuccess]);
 
   // Fetch seller locations when order is loaded
   useEffect(() => {
@@ -592,15 +607,23 @@ export default function OrderDetail() {
   useEffect(() => {
     if (!liveOrder) return;
 
-    setOrder((prev: any) => ({
-      ...prev,
-      ...liveOrder,
-    }));
+    setOrder((prev: any) => {
+      if (!prev) return liveOrder;
+      
+      // Prevent summary order from context overwriting full order details
+      return {
+        ...prev,
+        ...liveOrder,
+        deliveryPartner: liveOrder.deliveryPartner || prev.deliveryPartner,
+        deliveryOtp: liveOrder.deliveryOtp || prev.deliveryOtp,
+        // Only update items if liveOrder has fully populated items
+        items: liveOrder.items?.[0]?.product?.name ? liveOrder.items : prev.items,
+      };
+    });
     setOrderStatus(liveOrder.status);
   }, [liveOrder]);
 
   // Real-time order status updates from socket
-  useEffect(() => {
     if (socketOrderStatus && socketOrderStatus !== orderStatus) {
       console.log('🔄 Real-time status update:', socketOrderStatus);
       setOrderStatus(socketOrderStatus as OrderStatus);
