@@ -518,6 +518,7 @@ export default function OrderDetail() {
     lastUpdate,
     error: trackingError,
     reconnectAttempts,
+  } = useDeliveryTracking(id);
   // Seller locations for the order
   const [sellerLocations, setSellerLocations] = useState<any[]>([]);
   const [loadingSellerLocations, setLoadingSellerLocations] = useState(false);
@@ -624,6 +625,7 @@ export default function OrderDetail() {
   }, [liveOrder]);
 
   // Real-time order status updates from socket
+  useEffect(() => {
     if (socketOrderStatus && socketOrderStatus !== orderStatus) {
       console.log('🔄 Real-time status update:', socketOrderStatus);
       setOrderStatus(socketOrderStatus as OrderStatus);
