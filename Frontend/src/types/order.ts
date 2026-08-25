@@ -51,6 +51,8 @@ export interface Order {
   specialRequests?: string;
   couponCode?: string;
   giftPackaging?: boolean;
+  deliveryPartner?: any;
+  deliveryOtp?: string;
 }
 
 
