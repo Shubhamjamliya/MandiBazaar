@@ -15,7 +15,7 @@ export default defineConfig({
   assetsInclude: ['**/*.jpg', '**/*.jpeg', '**/*.png', '**/*.webp'],
   server: {
     fs: {
-      strict: false,
+      strict: true, // SECURITY FIX: Changed from false to true - restricts file access to project only
     },
     middlewareMode: false,
   },

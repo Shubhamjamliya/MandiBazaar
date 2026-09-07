@@ -41,6 +41,11 @@ dist-ssr
 # Temporary and check files
 CHECK_RESULTS_UTF8.md
 
+# Vite cache and timestamp files (IMPORTANT - Prevents push/pull conflicts)
+*.timestamp-*.mjs
+vite.config.*.mjs
+.vite/
+dist-ssr/
+
 # Large asset directories (if not needed in repo)
 # assets/Image-20251130T081301Z-1-001/Image/product.zip
-
