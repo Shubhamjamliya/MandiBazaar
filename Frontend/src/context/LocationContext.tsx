@@ -58,77 +58,56 @@ const cleanAddress = (address: string): string => {
 
 export function LocationProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, user } = useAuth();
-  const [location, setLocation] = useState<Location | null>(null);
-  const [isLocationEnabled, setIsLocationEnabled] = useState(false);
-  const [isLocationLoading, setIsLocationLoading] = useState(true);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [locationPermissionStatus, setLocationPermissionStatus] = useState<'granted' | 'denied' | 'prompt' | 'session_granted'>('prompt');
-
   // Constants for storage
   const SESSION_PERMISSION_KEY = 'location_permission_granted_session';
   const LOCATION_STORAGE_KEY = 'userLocation';
   const LOCATION_DENIED_KEY = 'location_permission_denied_session';
 
-  // Refs for request cancellation and preventing race conditions
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const isRequestingRef = useRef(false);
+  // Synchronously get initial state to prevent UI flashing
+  const getInitialState = () => {
+    let initialLocation = null;
+    let initialEnabled = false;
+    let initialStatus: 'granted' | 'denied' | 'prompt' | 'session_granted' = 'prompt';
 
-  // Initialize location state and check session permission
-  useEffect(() => {
-    const checkInitialPermission = async () => {
-      console.log('[LocationContext] Checking initial permission status...');
-
-      try {
-        // 1. Check if user explicitly denied permission in this session
-        const sessionDenied = sessionStorage.getItem(LOCATION_DENIED_KEY);
-        if (sessionDenied === 'true') {
-          console.log('[LocationContext] User denied location permission in this session.');
-          setLocation(null);
-          setIsLocationEnabled(false);
-          setLocationPermissionStatus('denied');
-          setIsLocationLoading(false);
-          return;
-        }
-
-        // 2. Check for cached location in localStorage first
+    try {
+      const sessionDenied = sessionStorage.getItem(LOCATION_DENIED_KEY);
+      if (sessionDenied === 'true') {
+        initialStatus = 'denied';
+      } else {
         const cachedLocation = localStorage.getItem(LOCATION_STORAGE_KEY);
         if (cachedLocation) {
           try {
-            const parsedLocation = JSON.parse(cachedLocation);
-            console.log('[LocationContext] Using cached location:', parsedLocation.address);
-            setLocation(parsedLocation);
-            setIsLocationEnabled(true);
-            setLocationPermissionStatus('session_granted');
-            setIsLocationLoading(false);
-            return;
+            initialLocation = JSON.parse(cachedLocation);
+            initialEnabled = true;
+            initialStatus = 'session_granted';
           } catch (e) {
-            console.error('[LocationContext] Failed to parse cached location:', e);
+            console.error('[LocationContext] Failed to parse cached location', e);
+          }
+        } else {
+          const sessionGranted = sessionStorage.getItem(SESSION_PERMISSION_KEY);
+          if (sessionGranted === 'true') {
+            initialStatus = 'session_granted';
           }
         }
-
-        // 3. Check sessionStorage for session-level permission
-        const sessionGranted = sessionStorage.getItem(SESSION_PERMISSION_KEY);
-
-        if (sessionGranted === 'true') {
-          console.log('[LocationContext] Permission already granted in this session, but no cached location found.');
-          setLocationPermissionStatus('session_granted');
-        } else {
-          console.log('[LocationContext] No session-level permission found. User will be prompted.');
-          setLocation(null);
-          setIsLocationEnabled(false);
-          setLocationPermissionStatus('prompt');
-        }
-      } catch (error) {
-        console.error('[LocationContext] Error checking session storage:', error);
-        // Fallback to prompt if storage is unavailable
-        setLocationPermissionStatus('prompt');
-      } finally {
-        setIsLocationLoading(false);
       }
-    };
+    } catch (e) {
+      console.warn('[LocationContext] Storage access failed', e);
+    }
+    
+    return { initialLocation, initialEnabled, initialStatus };
+  };
 
-    checkInitialPermission();
-  }, []);
+  const initialState = getInitialState();
+
+  const [location, setLocation] = useState<Location | null>(initialState.initialLocation);
+  const [isLocationEnabled, setIsLocationEnabled] = useState(initialState.initialEnabled);
+  const [isLocationLoading, setIsLocationLoading] = useState(false); // Already loaded synchronously
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationPermissionStatus, setLocationPermissionStatus] = useState<'granted' | 'denied' | 'prompt' | 'session_granted'>(initialState.initialStatus);
+
+  // Refs for request cancellation and preventing race conditions
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isRequestingRef = useRef(false);
 
   // Request user's current location - OPTIMIZED for speed and accuracy
   const requestLocation = useCallback(async (): Promise<void> => {

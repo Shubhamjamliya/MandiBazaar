@@ -48,6 +48,9 @@ export default function LocationPermissionRequest({
 
   // Auto-request location when the modal appears (if not already enabled)
   useEffect(() => {
+    // Wait until the initial location loading check from context is finished
+    if (isLocationLoading) return;
+
     if (!forceShow && !isLocationEnabled && locationPermissionStatus !== 'denied') {
       console.log('[LocationPermissionRequest] Auto-requesting location on load...');
       requestLocation().catch(err => {
@@ -55,7 +58,7 @@ export default function LocationPermissionRequest({
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, [isLocationLoading]); // Run when isLocationLoading becomes false
 
   const handleAllowLocation = async () => {
     // Clear any previous errors before retrying
