@@ -253,17 +253,17 @@ const ProductCard = memo(({
 
         {/* Product Details */}
         <div className="px-2.5 pt-1.5 pb-2.5 flex-1 flex flex-col bg-white min-h-0">
+          {/* Product Name */}
+          <h3 className="text-[13px] font-bold text-neutral-900 mb-1 line-clamp-2 leading-tight" title={productName}>
+            {displayName}
+          </h3>
+
           {/* Variant Tag */}
           <div className="flex items-center gap-1.5 mb-1.5">
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#e8f5ed] text-[#0f7a5c]">
               {variantLabel}
             </span>
           </div>
-
-          {/* Product Name */}
-          <h3 className="text-[13px] font-bold text-neutral-900 mb-1 line-clamp-2 leading-tight" title={productName}>
-            {displayName}
-          </h3>
 
           <div className="flex-1"></div>
 
