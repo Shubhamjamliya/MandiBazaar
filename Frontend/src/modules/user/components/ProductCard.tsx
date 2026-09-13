@@ -97,7 +97,7 @@ function ProductCard({
   badgeText,
   showPackBadge = false,
   showStockInfo = false,
-  showHeartIcon = true,
+  showHeartIcon = false,
   showVegetarianIcon = false,
   showOptionsText = false,
   optionsCount = 2,
@@ -422,17 +422,17 @@ function ProductCard({
 
         {/* Product Info */}
         <div className="px-2.5 pt-1.5 pb-2.5 flex-1 flex flex-col bg-white">
-          {/* 1. Weight/Pack */}
+          {/* 1. Name */}
+          <h3 className="text-[13px] font-bold text-neutral-900 mb-1 line-clamp-2 leading-tight">
+            {product.name || product.productName || ''}
+          </h3>
+
+          {/* 2. Weight/Pack */}
           <div className="flex items-center gap-1.5 mb-1.5">
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#e8f5ed] text-[#0f7a5c]">
               {weightPackLabel || (product.pack && product.pack !== "Standard" ? product.pack : (product.variations?.[0]?.value || product.variations?.[0]?.title)) || '1 piece'}
             </span>
           </div>
-
-          {/* 2. Name */}
-          <h3 className="text-[13px] font-bold text-neutral-900 mb-1 line-clamp-2 leading-tight">
-            {product.name || product.productName || ''}
-          </h3>
 
           <div className="flex-1"></div>
 

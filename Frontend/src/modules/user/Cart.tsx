@@ -149,48 +149,16 @@ export default function Cart() {
         })}
       </div>
 
-      {/* Order Summary */}
+      {/* Checkout Button */}
       <div className="px-4 md:px-6 lg:px-8 mb-24 md:mb-8">
-        <div className="bg-white rounded-xl border border-neutral-200 p-4 md:p-6 shadow-sm md:max-w-md md:ml-auto">
-          <h2 className="text-lg md:text-xl font-bold text-neutral-900 mb-4 md:mb-6">Order Summary</h2>
-          <div className="space-y-3 md:space-y-4 mb-4 md:mb-6">
-            <div className="flex justify-between text-neutral-700 md:text-base">
-              <span>Subtotal</span>
-              <span className="font-medium">₹{cart.total.toLocaleString('en-IN')}</span>
-            </div>
-            <div className="flex justify-between text-neutral-700 md:text-base">
-              <span>Platform Fee</span>
-              <span className="font-medium">₹{platformFee.toLocaleString('en-IN')}</span>
-            </div>
-            <div className="flex justify-between text-neutral-700 md:text-base">
-              <span>Delivery Charges</span>
-              <span className={`font-medium ${deliveryFee === 0 ? 'text-green-600' : ''}`}>
-                {deliveryFee === 0 ? 'Free' : `₹${deliveryFee.toLocaleString('en-IN')}`}
-              </span>
-            </div>
-            {cart.total < appConfig.freeDeliveryThreshold && (
-              <div className="text-xs md:text-sm text-green-600 bg-green-50 px-2 py-1 rounded">
-                Add ₹{(appConfig.freeDeliveryThreshold - cart.total).toLocaleString('en-IN')} more for free delivery
-              </div>
-            )}
-          </div>
-          <div className="border-t border-neutral-200 pt-4 md:pt-6">
-            <div className="flex justify-between items-center mb-4 md:mb-6">
-              <span className="text-lg md:text-xl font-bold text-neutral-900">Total</span>
-              <span className="text-xl md:text-2xl font-bold text-neutral-900">
-                ₹{totalAmount.toLocaleString('en-IN')}
-              </span>
-            </div>
-            <Button
-              variant="default"
-              size="lg"
-              onClick={handleCheckout}
-              className="w-full md:py-3 md:text-lg"
-            >
-              Proceed to Checkout
-            </Button>
-          </div>
-        </div>
+        <Button
+          variant="default"
+          size="lg"
+          onClick={handleCheckout}
+          className="w-full md:py-3 md:text-lg shadow-md"
+        >
+          Proceed to Checkout • ₹{totalAmount.toLocaleString('en-IN')}
+        </Button>
       </div>
     </div>
   );
