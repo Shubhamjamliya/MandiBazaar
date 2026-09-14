@@ -245,6 +245,8 @@ export const getOrderById = asyncHandler(
       items: formattedItems,
       subtotal: order.subtotal || 0,
       tax: order.tax || 0,
+      platformFee: order.platformFee || 0,
+      shipping: order.shipping || 0,
       grandTotal: order.total || 0,
       specialRequests: order.specialRequests || '',
       paymentMethod: order.paymentMethod || 'N/A',
