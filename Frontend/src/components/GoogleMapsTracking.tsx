@@ -530,6 +530,21 @@ export default function GoogleMapsTracking({
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M3 12h3m12 0h3M12 3v3m0 12v3" /></svg>
                 </button>
+                <button
+                    onClick={() => {
+                        const targetLoc = routeDestination || customerLocation;
+                        if (targetLoc && (targetLoc.lat !== 0 || targetLoc.lng !== 0)) {
+                            const originParam = deliveryLocation ? `&origin=${deliveryLocation.lat},${deliveryLocation.lng}` : '';
+                            window.open(`https://www.google.com/maps/dir/?api=1${originParam}&destination=${targetLoc.lat},${targetLoc.lng}`, '_blank', 'noopener,noreferrer');
+                        } else {
+                            alert("Destination location is not available");
+                        }
+                    }}
+                    className="p-2 bg-blue-600 text-white rounded-full shadow-md hover:bg-blue-700 transition-colors mt-2"
+                    title="Navigate in Google Maps"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>
+                </button>
             </div>
 
             {routeError && (
