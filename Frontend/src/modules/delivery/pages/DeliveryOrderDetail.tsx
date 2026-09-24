@@ -181,8 +181,8 @@ export default function DeliveryOrderDetail() {
             return;
         }
 
-        // If this is a COD order and no collection method provided, show the modal
-        if (order?.paymentMethod === 'COD' && !collectionMethod) {
+        // If this is a COD order and payment is not Paid, and no collection method provided, show the modal
+        if (order?.paymentMethod === 'COD' && order?.paymentStatus !== 'Paid' && !collectionMethod) {
             // First verify OTP silently, then show collection modal
             try {
                 setOtpVerifying(true);
@@ -613,11 +613,11 @@ export default function DeliveryOrderDetail() {
 
                 <div className="ml-auto flex items-center gap-2">
                     {order.paymentMethod && (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${order.paymentMethod === 'COD'
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${order.paymentMethod === 'COD' && order.paymentStatus !== 'Paid'
                             ? 'bg-amber-100 text-amber-700'
                             : 'bg-blue-100 text-blue-700'
                             }`}>
-                            {order.paymentMethod === 'COD' ? '💵 COD' : '💳 Online'}
+                            {order.paymentMethod === 'COD' && order.paymentStatus !== 'Paid' ? '💵 COD' : '💳 Paid'}
                         </span>
                     )}
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${order.status === 'Delivered' ? 'bg-green-100 text-green-700' :

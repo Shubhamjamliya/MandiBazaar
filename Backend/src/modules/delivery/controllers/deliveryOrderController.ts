@@ -229,6 +229,8 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
     // Status transition logic
     if (status) order.status = status;
 
+    const previousPaymentStatus = order.paymentStatus;
+
     if (status === 'Picked up' || status === 'Out for Delivery') {
         order.deliveryBoyStatus = 'Picked Up';
     } else if (status === 'Delivered') {
@@ -237,7 +239,7 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
         order.paymentStatus = 'Paid';
 
         // CASH COLLECTION LOGIC
-        if (order.paymentMethod === 'COD' && previousStatus !== 'Delivered') {
+        if (order.paymentMethod === 'COD' && previousPaymentStatus !== 'Paid' && previousStatus !== 'Delivered') {
             const { collectionMethod } = req.body;
 
             // Atomically mark order as collected to prevent race conditions
@@ -551,6 +553,7 @@ export const verifyDeliveryOtpController = asyncHandler(async (req: Request, res
 
     try {
         const previousStatus = order.status;
+        const previousPaymentStatus = order.paymentStatus;
         const result = await verifyDeliveryOtp(id, otp);
         // Note: verifyDeliveryOtp is from service, not this controller
 
@@ -569,7 +572,7 @@ export const verifyDeliveryOtpController = asyncHandler(async (req: Request, res
 
         // Update delivery boy balance and cash collected (if COD)
         if (updatedOrder && updatedOrder.status === 'Delivered') {
-            if (updatedOrder.paymentMethod === 'COD' && previousStatus !== 'Delivered') {
+            if (updatedOrder.paymentMethod === 'COD' && previousPaymentStatus !== 'Paid' && previousStatus !== 'Delivered') {
                 const { collectionMethod } = req.body;
 
                 // Atomically mark order as collected to prevent race conditions

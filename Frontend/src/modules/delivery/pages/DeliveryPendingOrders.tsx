@@ -121,11 +121,11 @@ export default function DeliveryPendingOrders() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     {order.paymentMethod && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${order.paymentMethod === 'COD'
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${order.paymentMethod === 'COD' && order.paymentStatus !== 'Paid'
                           ? 'bg-amber-100 text-amber-700'
                           : 'bg-blue-100 text-blue-700'
                         }`}>
-                        {order.paymentMethod === 'COD' ? '💵 COD' : '💳 Paid'}
+                        {order.paymentMethod === 'COD' && order.paymentStatus !== 'Paid' ? '💵 COD' : '💳 Paid'}
                       </span>
                     )}
                     <span
