@@ -11,6 +11,7 @@ import AppSettings from '../../../models/AppSettings';
 import CashCollection from '../../../models/CashCollection';
 import WithdrawRequest from '../../../models/WithdrawRequest';
 import mongoose from 'mongoose';
+import Seller from '../../../models/Seller';
 import { createHdfcOrder } from '../../../services/paymentService';
 import { decrypt } from '../../../utils/hdfcCrypto';
 import { fetchHdfcTransactionStatus } from '../../../services/hdfcStatusApi';
@@ -487,3 +488,109 @@ export const hdfcSettleCashCancel = async (_req: Request, res: Response) => {
     }
 };
 
+/**
+ * Handle handing over cash directly to a Seller
+ */
+export const settleCashToSeller = async (req: Request, res: Response) => {
+    try {
+        const deliveryBoyId = req.user!.userId;
+        const { sellerId, amount } = req.body;
+
+        if (!sellerId) {
+            return res.status(400).json({ success: false, message: 'Seller ID is required' });
+        }
+
+        if (!amount || Number(amount) <= 0) {
+            return res.status(400).json({ success: false, message: 'Invalid amount' });
+        }
+
+        const settlementAmount = Number(amount);
+
+        // Fetch delivery boy
+        const deliveryBoy = await Delivery.findById(deliveryBoyId);
+        if (!deliveryBoy) {
+            return res.status(404).json({ success: false, message: 'Delivery partner not found' });
+        }
+
+        if ((deliveryBoy.cashCollected || 0) < settlementAmount) {
+            return res.status(400).json({ success: false, message: 'Amount cannot exceed your current cash in hand' });
+        }
+
+        // Fetch seller
+        const seller = await Seller.findById(sellerId);
+        if (!seller) {
+            return res.status(404).json({ success: false, message: 'Seller not found' });
+        }
+
+        // Check if Seller has enough balance
+        if ((seller.balance || 0) < settlementAmount) {
+            return res.status(400).json({ success: false, message: "Seller's platform balance is less than the amount you are trying to give. They cannot accept this much cash." });
+        }
+
+        // 1. Decrement delivery boy's cash liability
+        const updatedDeliveryBoy = await Delivery.findByIdAndUpdate(
+            deliveryBoyId,
+            { $inc: { cashCollected: -settlementAmount } },
+            { new: true }
+        );
+
+        // 2. Decrement seller's platform balance (they received cash instead)
+        const updatedSeller = await Seller.findByIdAndUpdate(
+            sellerId,
+            { $inc: { balance: -settlementAmount } },
+            { new: true }
+        );
+
+        const { logCashSettlement, debitWallet } = await import('../../../services/walletManagementService');
+        
+        // 3. Log settlement for delivery boy
+        await logCashSettlement(
+            deliveryBoyId,
+            settlementAmount,
+            `Cash handed over to Seller: ${seller.sellerName} (${seller.storeName})`
+        );
+
+        // 4. Log debit for seller (cash received from delivery boy)
+        // Note: We bypass debitWallet's strict logic and do it directly since debitWallet might complain if done concurrently without session,
+        // but since we already updated Seller above, let's just create WalletTransaction manually to avoid double debit.
+
+        const WalletTransaction = (await import('../../../models/WalletTransaction')).default;
+        await WalletTransaction.create({
+            userId: sellerId,
+            userType: 'SELLER',
+            amount: settlementAmount,
+            type: 'Debit',
+            description: `Cash received from Delivery Partner (${deliveryBoy.name}). Deducted from balance.`,
+            status: 'Completed',
+            reference: `DR-CASH-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+        });
+
+        // Send Notification to Seller
+        const { sendSellerNotification } = await import('../../../services/notificationService');
+        try {
+            await sendSellerNotification(
+                sellerId,
+                'Cash Received',
+                `You have received ₹${settlementAmount} in cash from Delivery Partner ${deliveryBoy.name}. This amount has been deducted from your platform balance.`
+            );
+        } catch (error) {
+            console.error('Error sending cash notification to seller:', error);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Cash successfully handed over to seller.',
+            data: {
+                cashCollected: updatedDeliveryBoy?.cashCollected,
+                sellerBalance: updatedSeller?.balance
+            }
+        });
+
+    } catch (error: any) {
+        console.error('Error settling cash to seller:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to record cash handover to seller'
+        });
+    }
+};
