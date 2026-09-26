@@ -1099,59 +1099,51 @@ export default function Checkout() {
 
       {/* Delivery Address Section */}
       <div className="px-4 md:px-6 lg:px-8 py-4 border-b border-neutral-200 bg-white">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-sm font-bold text-neutral-900">Delivery Address</h3>
-            <p className="text-[11px] text-neutral-500">Your order will be delivered here</p>
-          </div>
-          <button
-            onClick={() => navigate('/checkout/address', {
-              state: {
-                editAddress: selectedAddress
-              }
-            })}
-            className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg border border-green-200 hover:bg-green-100 transition-colors"
-          >
-            {selectedAddress?.id ? 'Edit Address' : 'Complete Address'}
-          </button>
+        <div className="mb-4">
+          <h3 className="text-base font-bold text-neutral-900">Delivery Address</h3>
+          <p className="text-xs text-neutral-500 mt-0.5">Choose how you want to place your order</p>
         </div>
 
-        <button
-          onClick={handleUseCurrentLocationForOrder}
-          disabled={isUsingCurrentLocationForOrder}
-          className={`mb-3 w-full rounded-xl border px-3 py-2.5 text-left transition-colors ${
-            isUsingCurrentLocationForOrder
-              ? 'border-green-200 bg-green-50 text-green-700'
-              : 'border-neutral-200 bg-white text-neutral-700 hover:border-green-300 hover:bg-green-50/50'
-          }`}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center flex-shrink-0">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2v4" />
-                  <path d="M12 18v4" />
-                  <path d="M4.93 4.93l2.83 2.83" />
-                  <path d="M16.24 16.24l2.83 2.83" />
-                  <path d="M2 12h4" />
-                  <path d="M18 12h4" />
-                  <path d="M4.93 19.07l2.83-2.83" />
-                  <path d="M16.24 7.76l2.83-2.83" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold">Use Current Location for This Order</p>
-                <p className="text-[11px] text-neutral-500 truncate">
-                  Get your live location from Google Maps and use it only for this checkout
-                </p>
-              </div>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          {/* Current Location Button */}
+          <button
+            onClick={handleUseCurrentLocationForOrder}
+            disabled={isUsingCurrentLocationForOrder}
+            className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-colors ${
+              isUsingCurrentLocationForOrder
+                ? 'bg-green-700 border-green-700 opacity-90'
+                : 'bg-green-600 border-green-600 hover:bg-green-700'
+            }`}
+          >
+            <div className="w-8 h-8 flex items-center justify-center text-white flex-shrink-0">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="0">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+              </svg>
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wide text-green-700 flex-shrink-0">
-              {isUsingCurrentLocationForOrder ? 'Locating...' : 'Use Now'}
-            </span>
-          </div>
-        </button>
+            <div>
+              <p className="text-[13px] font-bold text-white mb-0.5 leading-tight">{isUsingCurrentLocationForOrder ? 'Locating...' : 'Use Current Location'}</p>
+              <p className="text-[10px] text-green-100 leading-tight">Tap to order from your current location</p>
+            </div>
+          </button>
+
+          {/* Other Locations Button */}
+          <button
+            onClick={() => navigate('/checkout/address')}
+            className="flex items-center gap-2 p-3 rounded-xl border-2 border-green-600 bg-white text-left hover:bg-green-50 transition-colors"
+          >
+            <div className="w-8 h-8 flex items-center justify-center text-green-600 flex-shrink-0">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.5 19.5v-15l-5 2.5-5-2.5-5 2.5v15l5-2.5 5 2.5 5-2.5z" fill="#4ade80" stroke="#16a34a"/>
+                <path d="M11 11c0 2.5-3.5 7-3.5 7s-3.5-4.5-3.5-7a3.5 3.5 0 0 1 7 0z" fill="#16a34a" stroke="white" strokeWidth="1"/>
+                <circle cx="7.5" cy="11" r="1.5" fill="white" stroke="none" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[13px] font-bold text-green-700 mb-0.5 leading-tight">Other Locations</p>
+              <p className="text-[10px] text-green-600/80 leading-tight">Tap to select from saved or new address</p>
+            </div>
+          </button>
+        </div>
 
         {serviceabilityError && (
           <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
