@@ -397,9 +397,6 @@ const isValidTimeValue = (value: string) => {
                             </div>
                             <motion.button
                                 whileHover={{ scale: 1.02 }}
-
-                            <motion.button
-                                whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                                 onClick={() => setIsEditing(!isEditing)}
                                 className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-200 flex items-center gap-2 ${isEditing

@@ -541,7 +541,7 @@ export const settleCashToSeller = async (req: Request, res: Response) => {
             { new: true }
         );
 
-        const { logCashSettlement, debitWallet } = await import('../../../services/walletManagementService');
+        const { logCashSettlement } = await import('../../../services/walletManagementService');
         
         // 3. Log settlement for delivery boy
         await logCashSettlement(
@@ -566,9 +566,9 @@ export const settleCashToSeller = async (req: Request, res: Response) => {
         });
 
         // Send Notification to Seller
-        const { sendSellerNotification } = await import('../../../services/notificationService');
+        const { sendNotification } = await import('../../../services/notificationService');
         try {
-            await sendSellerNotification(
+            await sendNotification('Seller',
                 sellerId,
                 'Cash Received',
                 `You have received ₹${settlementAmount} in cash from Delivery Partner ${deliveryBoy.name}. This amount has been deducted from your platform balance.`

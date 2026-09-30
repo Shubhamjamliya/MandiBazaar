@@ -98,7 +98,7 @@ app.use((req: Request, _res: Response, next) => {
 // API Routes
 import { firebaseInitializationError } from './services/firebaseAdmin';
 
-app.get('/api/v1/firebase-debug', (req: Request, res: Response) => {
+app.get('/api/v1/firebase-debug', (_req: Request, res: Response) => {
     res.json({
         firebaseInitializationError: firebaseInitializationError || "No error (Initialized successfully)",
         envVars: {

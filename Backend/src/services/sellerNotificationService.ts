@@ -73,7 +73,7 @@ export async function notifySellersOfOrderUpdate(
             // Send push notification
             if (type === 'NEW_ORDER') {
                 try {
-                    await sendSellerNewOrderNotification(sellerId, order._id.toString(), order.orderNumber, totalAmount);
+                    await sendSellerNewOrderNotification(sellerId as string, order._id.toString(), order.orderNumber, totalAmount);
                     console.log(`📤 Sent push notification to seller-${sellerId} for new order`);
                 } catch (pushErr) {
                     console.error(`❌ Push notification failed for seller-${sellerId}:`, pushErr);
