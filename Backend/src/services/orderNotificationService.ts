@@ -497,6 +497,27 @@ export async function handleOrderAcceptance(
 
         await order.save();
 
+        // Delete persistent notifications for all OTHER delivery boys
+        try {
+            const { default: Notification } = await import('../models/Notification');
+            await Notification.deleteMany({
+                recipientType: 'Delivery',
+                link: `/delivery/orders/${orderId}`,
+                recipientId: { $ne: new mongoose.Types.ObjectId(normalizedDeliveryBoyId) }
+            });
+            // Also mark the notification for the accepting delivery boy as read
+            await Notification.updateOne(
+                {
+                    recipientType: 'Delivery',
+                    link: `/delivery/orders/${orderId}`,
+                    recipientId: new mongoose.Types.ObjectId(normalizedDeliveryBoyId)
+                },
+                { $set: { isRead: true, readAt: new Date() } }
+            );
+        } catch (notifErr) {
+            console.error('Error cleaning up delivery notifications:', notifErr);
+        }
+
         // Emit order-accepted event to stop notifications for all delivery boys
         io.to('delivery-notifications').emit('order-accepted', {
             orderId,

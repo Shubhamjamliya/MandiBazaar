@@ -169,11 +169,17 @@ export const getPendingOrders = asyncHandler(async (req: Request, res: Response)
  */
 export const getOrderDetails = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
+    const deliveryId = req.user?.userId;
 
     const order = await Order.findById(id).populate("items");
 
     if (!order) {
         return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    // Security check: If order is assigned, it must be assigned to this delivery boy
+    if (order.deliveryBoy && order.deliveryBoy.toString() !== deliveryId) {
+        return res.status(403).json({ success: false, message: "This order is assigned to another delivery partner." });
     }
 
     // Fetch Delivery Earning for this order
