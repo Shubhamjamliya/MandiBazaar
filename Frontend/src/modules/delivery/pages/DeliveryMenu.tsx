@@ -14,7 +14,7 @@ export default function DeliveryMenu() {
     { id: "menu-3", title: "Settings", route: "/delivery/settings" },
     { id: "menu-4", title: "Help & Support", route: "/delivery/help" },
     { id: "menu-5", title: "About", route: "/delivery/about" },
-    { id: "menu-test-notif", title: "Test Firebase FCM All", route: "test-notif" },
+
     { id: "menu-reset-notif", title: "Reset Notifications", route: "reset-notif" },
     { id: "menu-delete", title: "Delete Account", route: "/delivery/delete-account" },
     { id: "menu-6", title: "Logout", route: "/delivery/login" },
