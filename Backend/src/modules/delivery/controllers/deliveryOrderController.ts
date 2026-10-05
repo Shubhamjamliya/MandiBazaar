@@ -276,6 +276,9 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
             }
         }
 
+        // Commission distribution reads the order from DB and requires status Delivered
+        await order.save();
+
         // Financial transactions and side-effects (commissions, inventory, etc.)
         try {
             await processOrderStatusTransition(id, 'Delivered', previousStatus);
@@ -566,16 +569,6 @@ export const verifyDeliveryOtpController = asyncHandler(async (req: Request, res
         // Reload order to get updated status
         const updatedOrder = await Order.findById(id);
 
-        // Process order status transition for financial transactions
-        if (updatedOrder && updatedOrder.status === 'Delivered' && previousStatus !== 'Delivered') {
-            try {
-                await processOrderStatusTransition(id, 'Delivered', previousStatus);
-            } catch (transitionError: any) {
-                console.error('Error processing order status transition:', transitionError);
-                // Continue even if transition fails - order is already marked as delivered
-            }
-        }
-
         // Update delivery boy balance and cash collected (if COD)
         if (updatedOrder && updatedOrder.status === 'Delivered') {
             if (updatedOrder.paymentMethod === 'COD' && previousPaymentStatus !== 'Paid' && previousStatus !== 'Delivered') {
@@ -609,7 +602,16 @@ export const verifyDeliveryOtpController = asyncHandler(async (req: Request, res
                 }
             }
 
-            // COMMISSION DISTRIBUTION - Handled inside processOrderStatusTransition
+        }
+
+        // Runs after cash collection is recorded so COD seller earnings are put on hold
+        if (updatedOrder && updatedOrder.status === 'Delivered' && previousStatus !== 'Delivered') {
+            try {
+                await processOrderStatusTransition(id, 'Delivered', previousStatus);
+            } catch (transitionError: any) {
+                console.error('Error processing order status transition:', transitionError);
+                // Continue even if transition fails - order is already marked as delivered
+            }
         }
 
         // Emit socket events for real-time status update

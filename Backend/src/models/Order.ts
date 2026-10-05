@@ -89,6 +89,10 @@ export interface IOrder extends Document {
   collectionMethod?: 'cash' | 'online_scanner';
   collectedBy?: mongoose.Types.ObjectId;
   collectedAt?: Date;
+  // How much of this order's collected COD cash has reached the platform (approved handovers)
+  codSettledAmount?: number;
+  codSettled?: boolean;
+  codSettledAt?: Date;
 
   // Notes
   adminNotes?: string;
@@ -335,6 +339,17 @@ const OrderSchema = new Schema<IOrder>(
       ref: "Delivery",
     },
     collectedAt: {
+      type: Date,
+    },
+    codSettledAmount: {
+      type: Number,
+      default: 0,
+    },
+    codSettled: {
+      type: Boolean,
+      default: false,
+    },
+    codSettledAt: {
       type: Date,
     },
 

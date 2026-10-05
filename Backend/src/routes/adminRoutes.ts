@@ -267,6 +267,14 @@ router.get(
   cashCollectionController.getCashCollectionById
 );
 router.post("/cash-collections", cashCollectionController.createCashCollection);
+router.patch(
+  "/cash-collections/:id/approve",
+  cashCollectionController.approveCashCollection
+);
+router.patch(
+  "/cash-collections/:id/reject",
+  cashCollectionController.rejectCashCollection
+);
 router.put(
   "/cash-collections/:id",
   cashCollectionController.updateCashCollection

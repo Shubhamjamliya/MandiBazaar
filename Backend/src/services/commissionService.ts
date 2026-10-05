@@ -5,6 +5,7 @@ import Seller from '../models/Seller';
 import Delivery from '../models/Delivery';
 import AppSettings from '../models/AppSettings';
 import { creditWallet } from './walletManagementService';
+import { round2, isCodCashWithDeliveryBoy, holdSellerEarning } from './codSettlementService';
 import mongoose from 'mongoose';
 import Category from '../models/Category';
 import SubCategory from '../models/SubCategory';
@@ -178,8 +179,55 @@ export const calculateOrderCommissions = async (orderId: string) => {
 };
 
 /**
- * Distribute commissions for an order
+ * Commission rate priority: SubSubCategory > SubCategory > Category > Seller > Global default
  */
+const resolveItemCommissionRate = async (item: any, seller: any) => {
+    let commissionRate = 0;
+    let rateSource = "Default";
+
+    const product = await Product.findById(item.product);
+
+    if (product) {
+        if (product.subSubCategory) {
+            const subSubCat = await Category.findById(product.subSubCategory);
+            if (subSubCat && subSubCat.commissionRate && subSubCat.commissionRate > 0) {
+                commissionRate = subSubCat.commissionRate;
+                rateSource = `SubSubCategory: ${subSubCat.name}`;
+            }
+        }
+
+        if (commissionRate === 0 && product.subcategory) {
+            const subCat = await SubCategory.findById(product.subcategory);
+            if (subCat && subCat.commissionRate && subCat.commissionRate > 0) {
+                commissionRate = subCat.commissionRate;
+                rateSource = `SubCategory: ${subCat.name}`;
+            }
+        }
+
+        if (commissionRate === 0 && product.category) {
+            const cat = await Category.findById(product.category);
+            if (cat && cat.commissionRate && cat.commissionRate > 0) {
+                commissionRate = cat.commissionRate;
+                rateSource = `Category: ${cat.name}`;
+            }
+        }
+    }
+
+    if (commissionRate === 0 && seller.commission !== undefined && seller.commission > 0) {
+        commissionRate = seller.commission;
+        rateSource = "Seller";
+    }
+
+    if (commissionRate === 0) {
+        const settings = await AppSettings.findOne();
+        // @ts-ignore
+        commissionRate = (settings && settings.globalCommissionRate !== undefined) ? settings.globalCommissionRate : 10;
+        rateSource = "Global Default (Settings)";
+    }
+
+    return { commissionRate, rateSource };
+};
+
 /**
  * Create Pending Commissions (called on Order Payment)
  */
@@ -206,66 +254,11 @@ export const createPendingCommissions = async (orderId: string) => {
             const seller = await Seller.findById(item.seller);
             if (!seller) continue;
 
-            // Determine Commission Rate Priority:
-            // 1. SubSubCategory (Category Model)
-            // 2. SubCategory (SubCategory Model)
-            // 3. Category (Category Model)
-            // 4. Seller specific rate
-            // 5. Global Default (10%)
+            const { commissionRate, rateSource } = await resolveItemCommissionRate(item, seller);
+            const commissionAmount = round2((item.total * commissionRate) / 100);
+            const netEarning = round2(item.total - commissionAmount);
 
-            let commissionRate = 0;
-            let rateSource = "Default";
-
-            const product = await Product.findById(item.product);
-
-            if (product) {
-                // 1. Check SubSubCategory
-                if (product.subSubCategory) {
-                    const subSubCat = await Category.findById(product.subSubCategory);
-                    if (subSubCat && subSubCat.commissionRate && subSubCat.commissionRate > 0) {
-                        commissionRate = subSubCat.commissionRate;
-                        rateSource = `SubSubCategory: ${subSubCat.name}`;
-                    }
-                }
-
-                // 2. Check SubCategory (only if not found yet)
-                if (commissionRate === 0 && product.subcategory) {
-                    const subCat = await SubCategory.findById(product.subcategory);
-                    if (subCat && subCat.commissionRate && subCat.commissionRate > 0) {
-                        commissionRate = subCat.commissionRate;
-                        rateSource = `SubCategory: ${subCat.name}`;
-                    }
-                }
-
-                // 3. Check Category (only if not found yet)
-                if (commissionRate === 0 && product.category) {
-                    const cat = await Category.findById(product.category);
-                    if (cat && cat.commissionRate && cat.commissionRate > 0) {
-                        commissionRate = cat.commissionRate;
-                        rateSource = `Category: ${cat.name}`;
-                    }
-                }
-            }
-
-            // 4. Check Seller specifc rate
-            if (commissionRate === 0 && seller.commission !== undefined && seller.commission > 0) {
-                commissionRate = seller.commission;
-                rateSource = "Seller";
-            }
-
-            // 5. Global Default (fallback if everything else is 0)
-            if (commissionRate === 0) {
-                // Fetch dynamic global rate from AppSettings
-                const settings = await AppSettings.findOne();
-                // @ts-ignore
-                commissionRate = (settings && settings.globalCommissionRate !== undefined) ? settings.globalCommissionRate : 10;
-                rateSource = "Global Default (Settings)";
-            }
-
-            const commissionAmount = (item.total * commissionRate) / 100;
-            const netEarning = item.total - commissionAmount;
-
-            console.log(`[Commission] Item: ${product?.productName}, Rate: ${commissionRate}% (${rateSource}), Amount: ${commissionAmount}, Net: ${netEarning}`);
+            console.log(`[Commission] Item: ${item.productName}, Rate: ${commissionRate}% (${rateSource}), Amount: ${commissionAmount}, Net: ${netEarning}`);
 
             // Create commission record as PAID immediately
             const commission = await Commission.create({
@@ -319,69 +312,58 @@ export const distributeCommissions = async (orderId: string) => {
             throw new Error('Commissions can only be distributed for delivered orders');
         }
 
-        // Find Pending commissions
-        const pendingCommissions = await Commission.find({ order: orderId, status: 'Pending' }).session(session);
-
-        // If no pending commissions, maybe we missed creating them (e.g. legacy/error), try to create them now?
-        // Or if they are already Paid?
-
-        // Do not block here. We will check specifically for each type later.
-
-        let commissionsToProcess = pendingCommissions;
-
-        if (pendingCommissions.length === 0) {
-            console.warn(`No pending commissions found for order ${orderId}, attempting to calculate now...`);
-            // Fallback: If for some reason they weren't created on payment, create them now directly as Paid?
-            // Or create as Pending and then Process.
-            // Since we are inside a transaction, calling the async createPendingCommissions (which doesn't take session) is risky.
-            // Better to fail or handle gracefully. For now, let's assume strict flow.
-            // Actually, let's allow "Lazy Creation" logic here if needed, but for now strict.
-            // Reverting to throw error might block delivery if data is missing.
-            // Let's implement inline calculation if missing (copy of logic) or just return if truly nothing to do.
-            console.log("Skipping commission distribution as no pending records found.");
-            // return { success: true, message: "No pending commissions to distribute" };
-            // Wait, if we return here, seller gets nothing. We SHOULD calculate if missing.
-            // But for this task, let's assume they will be created. 
-            // Ideally we should call `createPendingCommissions` here but pass the session.
-        }
-
         const processedCommissions: any[] = [];
 
-        // Group by Seller to credit wallet once per seller
-        const sellerEarnings = new Map<string, { netAmount: number, commissionIds: string[] }>();
+        // Seller earnings: online orders already got commissions at payment time.
+        // COD orders get them here; if the cash is still with the delivery boy the earning goes on hold.
+        const existingSellerCommissions = await Commission.countDocuments({ order: orderId, type: 'SELLER' }).session(session);
 
-        for (const comm of commissionsToProcess) {
-            // Update status to Paid
-            comm.status = 'Paid';
-            comm.paidAt = new Date();
-            await comm.save({ session });
-            processedCommissions.push(comm);
+        if (existingSellerCommissions === 0) {
+            const holdEarnings = isCodCashWithDeliveryBoy(order);
+            const items = await OrderItem.find({ _id: { $in: order.items } }).session(session);
 
-            // Group for wallet credit
-            if (comm.type === 'SELLER' && comm.seller) {
-                const sellerId = comm.seller.toString();
-                const netAmount = comm.orderAmount - comm.commissionAmount;
+            for (const item of items) {
+                const seller = await Seller.findById(item.seller).session(session);
+                if (!seller) continue;
 
-                if (!sellerEarnings.has(sellerId)) {
-                    sellerEarnings.set(sellerId, { netAmount: 0, commissionIds: [] });
+                const { commissionRate } = await resolveItemCommissionRate(item, seller);
+                const commissionAmount = round2((item.total * commissionRate) / 100);
+                const netEarning = round2(item.total - commissionAmount);
+
+                const [comm] = await Commission.create([{
+                    order: order._id,
+                    orderItem: item._id,
+                    seller: item.seller,
+                    type: 'SELLER',
+                    orderAmount: item.total,
+                    commissionRate,
+                    commissionAmount,
+                    status: holdEarnings ? 'Pending' : 'Paid',
+                    paidAt: holdEarnings ? undefined : new Date(),
+                }], { session });
+                processedCommissions.push(comm);
+
+                if (holdEarnings) {
+                    await holdSellerEarning(
+                        seller._id.toString(),
+                        netEarning,
+                        `COD sale proceeds for Order #${order.orderNumber} (on hold until delivery boy deposits cash)`,
+                        orderId,
+                        comm._id.toString(),
+                        session
+                    );
+                } else {
+                    await creditWallet(
+                        seller._id.toString(),
+                        'SELLER',
+                        netEarning,
+                        `Sale proceeds from Order #${order.orderNumber}`,
+                        orderId,
+                        comm._id.toString(),
+                        session
+                    );
                 }
-                const data = sellerEarnings.get(sellerId)!;
-                data.netAmount += netAmount;
-                data.commissionIds.push(comm._id.toString());
             }
-        }
-
-        // Credit Seller Wallets
-        for (const [sellerId, data] of sellerEarnings.entries()) {
-            await creditWallet(
-                sellerId,
-                'SELLER',
-                data.netAmount,
-                `Sale proceeds for order ${order.orderNumber}`,
-                orderId,
-                data.commissionIds[0], // Link to first commission for ref
-                session
-            );
         }
 
         // Handle Delivery Boy Commission
@@ -500,19 +482,23 @@ export const getCommissionSummary = async (
     try {
         const query = userType === 'SELLER' ? { seller: userId } : { deliveryBoy: userId };
 
-        const commissions = await Commission.find(query).sort({ createdAt: -1 });
+        const commissions = await Commission.find(query)
+            .sort({ createdAt: -1 })
+            .populate('order', 'orderNumber paymentMethod codSettled status createdAt');
 
-        const summary = {
+        const summary: any = {
             total: 0,
             paid: 0,
             pending: 0,
             count: commissions.length,
-            commissions: commissions.map((c) => ({
+            commissions: commissions.map((c: any) => ({
                 id: c._id,
-                orderId: c.order,
+                orderId: c.order?._id || c.order,
+                orderNumber: c.order?.orderNumber,
                 amount: c.commissionAmount,
                 rate: c.commissionRate,
                 orderAmount: c.orderAmount,
+                netEarning: round2(c.orderAmount - c.commissionAmount),
                 status: c.status,
                 paidAt: c.paidAt,
                 createdAt: c.createdAt,
@@ -533,6 +519,35 @@ export const getCommissionSummary = async (
                 summary.pending += earningAmount;
             }
         });
+        summary.total = round2(summary.total);
+        summary.paid = round2(summary.paid);
+        summary.pending = round2(summary.pending);
+
+        if (userType === 'SELLER') {
+            const byOrder = new Map<string, any>();
+            for (const c of commissions as any[]) {
+                if (c.status === 'Cancelled') continue;
+                const key = String(c.order?._id || c.order);
+                if (!byOrder.has(key)) {
+                    byOrder.set(key, {
+                        orderId: key,
+                        orderNumber: c.order?.orderNumber,
+                        paymentMethod: c.order?.paymentMethod,
+                        orderDate: c.order?.createdAt || c.createdAt,
+                        itemsAmount: 0,
+                        commissionAmount: 0,
+                        netEarning: 0,
+                        status: 'Available',
+                    });
+                }
+                const row = byOrder.get(key);
+                row.itemsAmount = round2(row.itemsAmount + c.orderAmount);
+                row.commissionAmount = round2(row.commissionAmount + c.commissionAmount);
+                row.netEarning = round2(row.netEarning + c.orderAmount - c.commissionAmount);
+                if (c.status === 'Pending') row.status = 'On Hold';
+            }
+            summary.orders = Array.from(byOrder.values());
+        }
 
         return {
             success: true,

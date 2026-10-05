@@ -21,6 +21,9 @@ export default function DeliveryWallet() {
   const [balance, setBalance] = useState(0);
   const [cashCollected, setCashCollected] = useState(0);
   const [cashLimit, setCashLimit] = useState(0);
+  const [pendingHandoverAmount, setPendingHandoverAmount] = useState(0);
+  const [recentHandovers, setRecentHandovers] = useState<any[]>([]);
+  const availableToSettle = Math.max(0, Math.round((cashCollected - pendingHandoverAmount) * 100) / 100);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any>({
@@ -101,6 +104,8 @@ export default function DeliveryWallet() {
         setBalance(balanceRes.data.balance);
         setCashCollected(balanceRes.data.cashCollected || 0);
         setCashLimit(balanceRes.data.cashLimit || 0);
+        setPendingHandoverAmount(balanceRes.data.pendingHandoverAmount || 0);
+        setRecentHandovers(balanceRes.data.recentHandovers || []);
         setProfile(balanceRes.data.profile);
       }
       if (transactionsRes.success) {
@@ -162,8 +167,8 @@ export default function DeliveryWallet() {
         return;
       }
 
-      if (amount > cashCollected + 0.01) {
-        showToast("Amount cannot exceed cash owed", "error");
+      if (amount > availableToSettle + 0.01) {
+        showToast(pendingHandoverAmount > 0 ? `Amount cannot exceed ₹${availableToSettle.toFixed(2)} (₹${pendingHandoverAmount.toFixed(2)} awaiting admin approval)` : "Amount cannot exceed cash owed", "error");
         return;
       }
 
@@ -197,8 +202,8 @@ export default function DeliveryWallet() {
         return;
       }
 
-      if (amount > cashCollected + 0.01) {
-        showToast("Amount cannot exceed cash owed", "error");
+      if (amount > availableToSettle + 0.01) {
+        showToast(pendingHandoverAmount > 0 ? `Amount cannot exceed ₹${availableToSettle.toFixed(2)} (₹${pendingHandoverAmount.toFixed(2)} awaiting admin approval)` : "Amount cannot exceed cash owed", "error");
         return;
       }
 
@@ -210,7 +215,7 @@ export default function DeliveryWallet() {
       );
 
       if (response.success) {
-        showToast("Cash handover recorded successfully", "success");
+        showToast("Request sent to admin. Cash in hand will reduce after admin approval.", "success");
         setShowSettleModal(false);
         setSettleAmount("");
         setCashHandoverRequestKey("");
@@ -314,6 +319,11 @@ export default function DeliveryWallet() {
               <p className="text-red-100 text-sm font-medium">Cash in Hand (Owed to Platform)</p>
             </div>
             <h2 className="text-3xl font-extrabold">₹{cashCollected.toFixed(2)}</h2>
+            {pendingHandoverAmount > 0 && (
+              <p className="text-xs font-semibold text-yellow-200 mt-1">
+                ₹{pendingHandoverAmount.toFixed(2)} waiting for admin approval
+              </p>
+            )}
             <p className="text-xs text-red-100 mt-1">Cash Limit: ₹{cashLimit.toFixed(2)}</p>
             {/* Limit Progress Bar */}
             <div className="w-full bg-red-900/50 rounded-full h-1.5 mt-3 mb-1">
@@ -330,21 +340,21 @@ export default function DeliveryWallet() {
             <button
               onClick={() => {
                 setSettleMode("online");
-                setSettleAmount(cashCollected.toFixed(2));
+                setSettleAmount(availableToSettle.toFixed(2));
                 setShowSettleModal(true);
               }}
-              disabled={cashCollected <= 0}
+              disabled={availableToSettle <= 0}
               className="w-full sm:w-auto bg-white text-red-700 px-6 py-3 rounded-xl font-bold hover:bg-red-50 transition-all shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
               Pay Online
             </button>
             <button
               onClick={() => {
                 setSettleMode("cash");
-                setSettleAmount(cashCollected.toFixed(2));
+                setSettleAmount(availableToSettle.toFixed(2));
                 setCashHandoverRequestKey(createRequestKey());
                 setShowSettleModal(true);
               }}
-              disabled={cashCollected <= 0}
+              disabled={availableToSettle <= 0}
               className="w-full sm:w-auto bg-red-900/30 border border-white/30 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-900/40 transition-all shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
               Given Cash to Admin
             </button>
@@ -352,6 +362,44 @@ export default function DeliveryWallet() {
         </div>
         <div className="absolute -right-10 -bottom-10 w-32 h-32 bg-red-400/20 rounded-full blur-2xl"></div>
       </motion.div>
+
+      {recentHandovers.length > 0 && (
+        <div className="mx-4 mb-4 bg-white rounded-xl shadow-sm p-4">
+          <p className="text-sm font-semibold text-gray-900 mb-3">Cash Handover Requests</p>
+          <div className="space-y-2">
+            {recentHandovers.map((handover: any) => {
+              const status = handover.status || "Approved";
+              return (
+                <div key={handover._id} className="flex justify-between items-start p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-bold text-gray-900">₹{handover.amount.toFixed(2)}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {new Date(handover.createdAt).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                    {status === "Rejected" && handover.rejectionReason && (
+                      <p className="text-xs text-red-600 mt-1">Reason: {handover.rejectionReason}</p>
+                    )}
+                  </div>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold ${status === "Approved"
+                      ? "bg-green-100 text-green-700"
+                      : status === "Rejected"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-yellow-100 text-yellow-700"
+                      }`}>
+                    {status === "Pending" ? "Waiting for Admin" : status}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Commission Summary */}
       <div className="mx-4 mb-4 grid grid-cols-3 gap-3">
@@ -612,7 +660,7 @@ export default function DeliveryWallet() {
             </h2>
             <p className="text-sm text-gray-600 mb-4">
               {settleMode === "cash"
-                ? "Use this only after you have already handed cash to the admin offline."
+                ? "Use this only after you have handed cash to the admin. Your cash in hand will reduce once the admin verifies and approves it."
                 : "Pay the collected COD cash to the platform to continue receiving orders."}
             </p>
             <div className="mb-6">
@@ -629,13 +677,14 @@ export default function DeliveryWallet() {
                   onChange={(e) => setSettleAmount(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg pl-8 pr-4 py-2.5 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   placeholder="Enter amount"
-                  max={cashCollected}
+                  max={availableToSettle}
                   min="0"
                   step="0.01"
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 Total owed: ₹{cashCollected.toFixed(2)}
+                {pendingHandoverAmount > 0 && ` (₹${pendingHandoverAmount.toFixed(2)} awaiting approval)`}
               </p>
             </div>
 
@@ -657,7 +706,7 @@ export default function DeliveryWallet() {
                 {isSubmitting ? (
                   <div className="w-5 h-5 border-2 border-white rounded-full border-t-transparent animate-spin"></div>
                 ) : (
-                  settleMode === "cash" ? "Confirm Handover" : "Proceed to Pay"
+                  settleMode === "cash" ? "Send for Approval" : "Proceed to Pay"
                 )}
               </button>
             </div>

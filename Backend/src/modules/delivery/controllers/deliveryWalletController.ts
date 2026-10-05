@@ -16,6 +16,13 @@ import { createHdfcOrder } from '../../../services/paymentService';
 import { decrypt } from '../../../utils/hdfcCrypto';
 import { fetchHdfcTransactionStatus } from '../../../services/hdfcStatusApi';
 import url from 'url';
+import {
+    round2,
+    runInTransaction,
+    settleDeliveryBoyCash,
+    applyCashSettlementToOrders,
+    getPendingHandoverAmount,
+} from '../../../services/codSettlementService';
 
 /**
  * Get delivery boy wallet balance
@@ -50,12 +57,21 @@ export const getBalance = async (req: Request, res: Response) => {
         const defaultCashLimit = settings?.defaultCashLimit ?? 2000;
         const cashLimit = deliveryBoy?.cashLimit ?? defaultCashLimit;
         const cashCollected = deliveryBoy?.cashCollected ?? 0;
+        const [pendingHandoverAmount, recentHandovers] = await Promise.all([
+            getPendingHandoverAmount(deliveryBoyId),
+            CashCollection.find({ deliveryBoy: deliveryBoyId, paymentMethod: 'cash' })
+                .sort({ createdAt: -1 })
+                .limit(10)
+                .select('amount status remark rejectionReason createdAt reviewedAt'),
+        ]);
 
         return res.status(200).json({
             success: true,
             data: {
                 balance: availableBalance,
                 cashCollected,
+                pendingHandoverAmount,
+                recentHandovers,
                 cashLimit,
                 profile: {
                     name: deliveryBoy?.name,
@@ -248,7 +264,8 @@ export const settleCashByAdminHandover = async (req: Request, res: Response) => 
         const deliveryBoyId = req.user!.userId;
         const { amount, remark, requestKey } = req.body;
 
-        if (!amount || Number(amount) <= 0) {
+        const settlementAmount = round2(Number(amount));
+        if (!settlementAmount || settlementAmount <= 0) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid amount.',
@@ -264,111 +281,62 @@ export const settleCashByAdminHandover = async (req: Request, res: Response) => 
             });
         }
 
-        const settlementAmount = Number(amount);
-        const handoverRemark = remark?.trim() || 'Cash deposit by cash';
-
-        const existingCollection = await CashCollection.findOne({
-            requestKey: normalizedRequestKey,
-        });
-
-        if (existingCollection?.settlementApplied) {
-            const deliveryBoy = await Delivery.findById(deliveryBoyId).select('cashCollected');
+        const existing = await CashCollection.findOne({ requestKey: normalizedRequestKey });
+        if (existing) {
             return res.status(200).json({
                 success: true,
-                message: 'Cash handover already recorded.',
-                data: {
-                    cashCollected: deliveryBoy?.cashCollected ?? 0,
-                    collectionId: existingCollection._id,
-                },
+                message: 'Cash handover request already submitted.',
+                data: { collectionId: existing._id, status: existing.status },
             });
         }
 
-        await CashCollection.findOneAndUpdate(
-            { requestKey: normalizedRequestKey },
-            {
-                $setOnInsert: {
-                    deliveryBoy: deliveryBoyId,
-                    amount: settlementAmount,
-                    remark: handoverRemark,
-                    paymentMethod: 'cash',
-                    collectedAt: new Date(),
-                    requestKey: normalizedRequestKey,
-                    settlementApplied: false,
-                },
-            },
-            {
-                upsert: true,
-                new: true,
-            }
-        );
-
-        const collection = await CashCollection.findOneAndUpdate(
-            {
-                requestKey: normalizedRequestKey,
-                settlementApplied: false,
-            },
-            {
-                $set: {
-                    settlementApplied: true,
-                },
-            },
-            {
-                new: true,
-            }
-        );
-
-        if (!collection) {
-            const duplicateCollection = await CashCollection.findOne({
-                requestKey: normalizedRequestKey,
-            });
-            const deliveryBoy = await Delivery.findById(deliveryBoyId).select('cashCollected');
-            return res.status(200).json({
-                success: true,
-                message: 'Cash handover already recorded.',
-                data: {
-                    cashCollected: deliveryBoy?.cashCollected ?? 0,
-                    collectionId: duplicateCollection?._id,
-                },
-            });
-        }
-
-        const deliveryBoy = await Delivery.findOneAndUpdate(
-            {
-                _id: deliveryBoyId,
-                cashCollected: { $gte: settlementAmount },
-            },
-            {
-                $inc: { cashCollected: -settlementAmount },
-            },
-            {
-                new: true,
-            }
-        );
-
+        const deliveryBoy = await Delivery.findById(deliveryBoyId).select('name cashCollected');
         if (!deliveryBoy) {
-            await CashCollection.findByIdAndUpdate(collection._id, {
-                $set: { settlementApplied: false },
-            });
+            return res.status(404).json({ success: false, message: 'Delivery partner not found.' });
+        }
+
+        const pendingAmount = await getPendingHandoverAmount(deliveryBoyId);
+        const availableToHandover = round2((deliveryBoy.cashCollected || 0) - pendingAmount);
+        if (settlementAmount > availableToHandover + 0.001) {
             return res.status(400).json({
                 success: false,
-                message: 'Amount cannot exceed cash in hand.',
+                message: pendingAmount > 0
+                    ? `Amount cannot exceed ₹${Math.max(0, availableToHandover).toFixed(2)}. ₹${pendingAmount.toFixed(2)} is already waiting for admin approval.`
+                    : 'Amount cannot exceed cash in hand.',
             });
         }
 
-        const { logCashSettlement } = await import('../../../services/walletManagementService');
-        await logCashSettlement(
-            deliveryBoyId,
-            settlementAmount,
-            `Cash handed over to admin. Remark: ${handoverRemark}`,
-            normalizedRequestKey
-        );
+        const collection = await CashCollection.create({
+            deliveryBoy: deliveryBoyId,
+            amount: settlementAmount,
+            remark: remark?.trim() || 'Cash deposit by cash',
+            paymentMethod: 'cash',
+            collectedAt: new Date(),
+            requestKey: normalizedRequestKey,
+            status: 'Pending',
+            settlementApplied: false,
+        });
 
-        return res.status(200).json({
+        try {
+            const { sendBroadcastNotification } = await import('../../../services/notificationService');
+            await sendBroadcastNotification(
+                'Admin',
+                'Cash Handover Approval',
+                `${deliveryBoy.name} says ₹${settlementAmount.toFixed(2)} cash was handed over. Please verify and approve.`,
+                { type: 'Payment', priority: 'High', link: '/admin/delivery-boy/cash-collection' }
+            );
+        } catch (notifyError) {
+            console.error('Error notifying admin of cash handover:', notifyError);
+        }
+
+        return res.status(201).json({
             success: true,
-            message: 'Cash handover recorded successfully.',
+            message: 'Cash handover request sent to admin for approval.',
             data: {
-                cashCollected: deliveryBoy.cashCollected,
                 collectionId: collection._id,
+                status: collection.status,
+                cashCollected: deliveryBoy.cashCollected,
+                pendingHandoverAmount: round2(pendingAmount + settlementAmount),
             },
         });
     } catch (error: any) {
@@ -376,17 +344,16 @@ export const settleCashByAdminHandover = async (req: Request, res: Response) => 
             const existingCollection = await CashCollection.findOne({
                 requestKey: req.body?.requestKey,
             });
-            const deliveryBoy = await Delivery.findById(req.user!.userId).select('cashCollected');
             return res.status(200).json({
                 success: true,
-                message: 'Cash handover already recorded.',
+                message: 'Cash handover request already submitted.',
                 data: {
-                    cashCollected: deliveryBoy?.cashCollected ?? 0,
                     collectionId: existingCollection?._id,
+                    status: existingCollection?.status,
                 },
             });
         }
-        console.error('Error settling cash by admin handover:', error);
+        console.error('Error recording cash handover request:', error);
         return res.status(500).json({
             success: false,
             message: error.message || 'Failed to record cash handover',
@@ -442,27 +409,39 @@ export const hdfcSettleCashReturn = async (req: Request, res: Response) => {
             return res.redirect(`${frontendUrl}/delivery/wallet?error=delivery_boy_not_found`);
         }
 
-        // Handle the settlement
-        // 1. Decrement cash liability
-        deliveryBoy.cashCollected = Math.max(0, (deliveryBoy.cashCollected || 0) - amount);
-        await deliveryBoy.save();
+        const requestKey = `HDFC-${trackingId}`;
+        if (await CashCollection.exists({ requestKey })) {
+            return res.redirect(`${frontendUrl}/delivery/wallet?payment=success&id=${settlementId}`);
+        }
 
-        // 2. Log in WalletTransaction
+        // Online payment is already verified by the gateway, so it settles without admin approval
+        const settleAmount = round2(Math.min(amount, deliveryBoy.cashCollected || 0));
         const { logCashSettlement } = await import('../../../services/walletManagementService');
-        await logCashSettlement(
-            deliveryBoyId,
-            amount,
-            `Settled via HDFC app payment (TrackingId: ${trackingId})`,
-            trackingId!
-        );
+        await runInTransaction(async (session) => {
+            const [collection] = await CashCollection.create([{
+                deliveryBoy: deliveryBoyId,
+                amount,
+                remark: `App Payment Settlement (HDFC Tracking: ${trackingId})`,
+                paymentMethod: 'HDFC',
+                collectedAt: new Date(),
+                requestKey,
+                status: 'Approved',
+                reviewedAt: new Date(),
+            }], { session });
 
-        // 3. Create CashCollection record for Admin Panel
-        await CashCollection.create({
-            deliveryBoy: deliveryBoyId,
-            amount,
-            remark: `App Payment Settlement (HDFC Tracking: ${trackingId})`,
-            paymentMethod: 'HDFC',
-            collectedAt: new Date(),
+            if (settleAmount > 0) {
+                const { settledOrders } = await settleDeliveryBoyCash(deliveryBoyId, settleAmount, session);
+                collection.settledOrders = settledOrders as any;
+                await collection.save({ session });
+            }
+
+            await logCashSettlement(
+                deliveryBoyId,
+                amount,
+                `Settled via HDFC app payment (TrackingId: ${trackingId})`,
+                trackingId!,
+                session
+            );
         });
 
         return res.redirect(`${frontendUrl}/delivery/wallet?payment=success&id=${settlementId}`);
@@ -512,8 +491,9 @@ export const settleCashToSeller = async (req: Request, res: Response) => {
             return res.status(404).json({ success: false, message: 'Delivery partner not found' });
         }
 
-        if ((deliveryBoy.cashCollected || 0) < settlementAmount) {
-            return res.status(400).json({ success: false, message: 'Amount cannot exceed your current cash in hand' });
+        const pendingHandoverAmount = await getPendingHandoverAmount(deliveryBoyId);
+        if ((deliveryBoy.cashCollected || 0) - pendingHandoverAmount < settlementAmount) {
+            return res.status(400).json({ success: false, message: 'Amount cannot exceed your current cash in hand (excluding cash awaiting admin approval)' });
         }
 
         // Fetch seller
@@ -533,6 +513,7 @@ export const settleCashToSeller = async (req: Request, res: Response) => {
             { $inc: { cashCollected: -settlementAmount } },
             { new: true }
         );
+        await applyCashSettlementToOrders(deliveryBoyId, settlementAmount);
 
         // 2. Decrement seller's platform balance (they received cash instead)
         const updatedSeller = await Seller.findByIdAndUpdate(

@@ -6,6 +6,7 @@ import {
     getWithdrawalRequests,
 } from '../../../services/walletManagementService';
 import WithdrawRequest from '../../../models/WithdrawRequest';
+import Seller from '../../../models/Seller';
 import mongoose from 'mongoose';
 import { getCommissionSummary } from '../../../services/commissionService';
 
@@ -34,10 +35,16 @@ export const getBalance = async (req: Request, res: Response) => {
 
         const pendingAmount = pendingWithdrawals[0]?.total || 0;
         const availableBalance = Math.max(0, balance - pendingAmount);
+        const seller = await Seller.findById(sellerId).select('holdBalance');
+        const holdBalance = Math.max(0, Math.round((seller?.holdBalance || 0) * 100) / 100);
 
         return res.status(200).json({
             success: true,
-            data: { balance: availableBalance },
+            data: {
+                balance: availableBalance,
+                holdBalance,
+                pendingWithdrawalAmount: pendingAmount,
+            },
         });
     } catch (error: any) {
         console.error('Error getting wallet balance:', error);

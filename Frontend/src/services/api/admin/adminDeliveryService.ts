@@ -95,6 +95,21 @@ export interface CashCollection {
   collectedAt: string;
   collectedBy: string;
   paymentMethod: string;
+  status: "Pending" | "Approved" | "Rejected";
+  rejectionReason?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  settledOrders?: {
+    orderId: string;
+    orderNumber?: string;
+    orderTotal?: number;
+    amount: number;
+  }[];
+}
+
+export interface CashCollectionSummary {
+  pendingCount: number;
+  pendingAmount: number;
 }
 
 export interface CreateCashCollectionData {
@@ -123,6 +138,7 @@ export interface GetCashCollectionParams {
   toDate?: string;
   search?: string;
   paymentMethod?: string;
+  status?: string;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
 }
@@ -221,6 +237,21 @@ export const createCashCollection = async (
     "/admin/cash-collections",
     data
   );
+  return response.data;
+};
+
+export const approveCashCollection = async (
+  id: string
+): Promise<ApiResponse<{ status: string; deliveryBoyCashCollected: number; settledOrdersCount: number }>> => {
+  const response = await api.patch(`/admin/cash-collections/${id}/approve`);
+  return response.data;
+};
+
+export const rejectCashCollection = async (
+  id: string,
+  reason?: string
+): Promise<ApiResponse<{ status: string }>> => {
+  const response = await api.patch(`/admin/cash-collections/${id}/reject`, { reason });
   return response.data;
 };
 

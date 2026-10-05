@@ -15,6 +15,7 @@ export default function SellerWallet() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('transactions');
   const [balance, setBalance] = useState(0);
+  const [holdBalance, setHoldBalance] = useState(0);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any>({ commissions: [], total: 0, paid: 0, pending: 0 });
@@ -38,7 +39,10 @@ export default function SellerWallet() {
         getSellerCommissions(),
       ]);
 
-      if (balanceRes.success) setBalance(balanceRes.data.balance);
+      if (balanceRes.success) {
+        setBalance(balanceRes.data.balance);
+        setHoldBalance(balanceRes.data.holdBalance || 0);
+      }
       if (transactionsRes.success) setTransactions(transactionsRes.data.transactions || []);
       if (withdrawalsRes.success) setWithdrawals(withdrawalsRes.data || []);
       if (commissionsRes.success) setCommissions(commissionsRes.data);
@@ -100,8 +104,16 @@ export default function SellerWallet() {
         animate={{ opacity: 1, y: 0 }}
         className="m-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg"
       >
-        <p className="text-sm opacity-90 mb-1">Wallet Balance</p>
-        <h1 className="text-4xl font-bold mb-4">₹{balance.toFixed(2)}</h1>
+        <p className="text-sm opacity-90 mb-1">Available to Withdraw</p>
+        <h1 className="text-4xl font-bold mb-3">₹{balance.toFixed(2)}</h1>
+        {holdBalance > 0 && (
+          <div className="bg-white/15 rounded-lg px-3 py-2 mb-4">
+            <p className="text-sm font-semibold">On Hold: ₹{holdBalance.toFixed(2)}</p>
+            <p className="text-xs opacity-90">
+              Earnings from COD orders. They become withdrawable after the delivery partner deposits the cash and admin approves it.
+            </p>
+          </div>
+        )}
         <button
           onClick={() => setShowWithdrawModal(true)}
           className="bg-white text-blue-600 px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-50 transition-all shadow-md"
@@ -139,7 +151,7 @@ export default function SellerWallet() {
               : 'text-gray-600'
               }`}
           >
-            Commissions
+            Order Earnings
           </button>
         </div>
 
@@ -148,21 +160,7 @@ export default function SellerWallet() {
           {activeTab === 'transactions' && (
             <div className="space-y-3">
               {(() => {
-                // Combine transactions and pending commissions
-                const allItems = [
-                  ...transactions.map((t: any) => ({ ...t, source: 'transaction' })),
-                  ...(commissions.commissions || [])
-                    .filter((c: any) => c.status === 'Pending')
-                    .map((c: any) => ({
-                      _id: c.id || c._id,
-                      description: `Order #${c.orderId?.substring(0, 8) || 'Unknown'} (Pending)`,
-                      amount: c.orderAmount - c.amount, // Calculate Net Earning: Order Amount - Commission Fee
-                      type: 'Credit',
-                      createdAt: c.createdAt,
-                      status: 'Pending',
-                      source: 'commission'
-                    }))
-                ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                const allItems = transactions;
 
                 if (allItems.length === 0) {
                   return <p className="text-center text-gray-500 py-8">No transactions yet</p>;
@@ -175,7 +173,7 @@ export default function SellerWallet() {
                         <p className="font-medium text-gray-900">{item.description}</p>
                         {item.status === 'Pending' && (
                           <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-medium">
-                            Pending
+                            On Hold
                           </span>
                         )}
                         {item.status === 'Completed' && (
@@ -248,22 +246,63 @@ export default function SellerWallet() {
           {/* Commissions Tab */}
           {activeTab === 'commissions' && (
             <div className="space-y-3">
-              {commissions.commissions?.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No commissions yet</p>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className="bg-gray-50 rounded-lg p-2">
+                  <p className="text-[11px] text-gray-500">Total Earned</p>
+                  <p className="text-sm font-bold text-gray-900">₹{(commissions.total || 0).toFixed(2)}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2">
+                  <p className="text-[11px] text-gray-500">Available</p>
+                  <p className="text-sm font-bold text-green-600">₹{(commissions.paid || 0).toFixed(2)}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2">
+                  <p className="text-[11px] text-gray-500">On Hold</p>
+                  <p className="text-sm font-bold text-orange-600">₹{(commissions.pending || 0).toFixed(2)}</p>
+                </div>
+              </div>
+              {!commissions.orders?.length ? (
+                <p className="text-center text-gray-500 py-8">No order earnings yet</p>
               ) : (
-                commissions.commissions?.map((comm: any) => (
-                  <div key={comm.id} className="p-3 bg-gray-50 rounded-lg">
+                commissions.orders.map((order: any) => (
+                  <div key={order.orderId} className="p-3 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="font-medium text-gray-900">Order Commission</p>
-                        <p className="text-xs text-gray-600">Rate: {comm.rate}%</p>
+                        <p className="font-medium text-gray-900">
+                          Order #{order.orderNumber || String(order.orderId).slice(-8)}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {order.paymentMethod === 'COD' ? 'Cash on Delivery' : order.paymentMethod || 'Online'} ·{' '}
+                          {new Date(order.orderDate).toLocaleDateString('en-IN')}
+                        </p>
                       </div>
-                      <p className="font-bold text-green-600">₹{comm.amount.toFixed(2)}</p>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${order.status === 'On Hold'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-green-100 text-green-700'
+                          }`}
+                      >
+                        {order.status === 'On Hold' ? 'On Hold' : 'Available'}
+                      </span>
                     </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Order Amount: ₹{comm.orderAmount.toFixed(2)}</span>
-                      <span>{new Date(comm.createdAt).toLocaleDateString('en-IN')}</span>
+                    <div className="space-y-1 text-xs text-gray-600">
+                      <div className="flex justify-between">
+                        <span>Items Amount</span>
+                        <span>₹{order.itemsAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Platform Commission</span>
+                        <span className="text-red-600">-₹{order.commissionAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold text-gray-900 border-t border-gray-200 pt-1">
+                        <span>Your Earning</span>
+                        <span className="text-green-700">₹{order.netEarning.toFixed(2)}</span>
+                      </div>
                     </div>
+                    {order.status === 'On Hold' && (
+                      <p className="text-[11px] text-orange-600 mt-2">
+                        Cash is with the delivery partner. Will be available after admin approves the deposit.
+                      </p>
+                    )}
                   </div>
                 ))
               )}

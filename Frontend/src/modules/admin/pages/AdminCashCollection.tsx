@@ -2,7 +2,10 @@ import { useState, useEffect } from "react";
 import {
   getCashCollections,
   createCashCollection,
+  approveCashCollection,
+  rejectCashCollection,
   type CashCollection,
+  type CashCollectionSummary,
   type CreateCashCollectionData,
 } from "../../../services/api/admin/adminDeliveryService";
 import { getDeliveryBoys } from "../../../services/api/admin/adminDeliveryService";
@@ -30,6 +33,12 @@ export default function AdminCashCollection() {
   const [formRemark, setFormRemark] = useState('');
   const [totalEntries, setTotalEntries] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [pendingSummary, setPendingSummary] = useState<CashCollectionSummary>({ pendingCount: 0, pendingAmount: 0 });
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<CashCollection | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Fetch delivery boys and cash collections on component mount
   useEffect(() => {
@@ -78,11 +87,18 @@ export default function AdminCashCollection() {
           params.paymentMethod = selectedMethod.toLowerCase();
         }
 
+        if (selectedStatus !== "all") {
+          params.status = selectedStatus;
+        }
+
         const cashResponse = await getCashCollections(params);
 
         if (cashResponse.success) {
           setCashCollections(cashResponse.data);
           setTotalEntries((cashResponse as any).pagination?.total || cashResponse.data.length);
+          if ((cashResponse as any).summary) {
+            setPendingSummary((cashResponse as any).summary);
+          }
         } else {
           setError("Failed to load cash collections");
         }
@@ -108,8 +124,120 @@ export default function AdminCashCollection() {
     toDate,
     searchTerm,
     selectedMethod,
+    selectedStatus,
     reloadKey,
   ]);
+
+  const handleApprove = async (collection: CashCollection) => {
+    if (processingId) return;
+    const confirmed = window.confirm(
+      `Approve ₹${collection.amount.toFixed(2)} cash handover from ${collection.deliveryBoyName}?\n\nConfirm only if you have actually received this cash.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setProcessingId(collection._id);
+      setError(null);
+      setSuccessMessage(null);
+      const response = await approveCashCollection(collection._id);
+      if (!response.success) {
+        setError(response.message || "Failed to approve cash handover");
+        return;
+      }
+      setSuccessMessage(
+        `Approved ₹${collection.amount.toFixed(2)} from ${collection.deliveryBoyName}. Remaining cash in hand: ₹${(response.data?.deliveryBoyCashCollected ?? 0).toFixed(2)}`
+      );
+      setReloadKey((prev) => prev + 1);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to approve cash handover");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectTarget || processingId) return;
+    try {
+      setProcessingId(rejectTarget._id);
+      setError(null);
+      setSuccessMessage(null);
+      const response = await rejectCashCollection(rejectTarget._id, rejectReason.trim() || undefined);
+      if (!response.success) {
+        setError(response.message || "Failed to reject cash handover");
+        return;
+      }
+      setSuccessMessage(`Rejected ₹${rejectTarget.amount.toFixed(2)} handover from ${rejectTarget.deliveryBoyName}.`);
+      setRejectTarget(null);
+      setRejectReason("");
+      setReloadKey((prev) => prev + 1);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to reject cash handover");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const getStatusBadge = (status: CashCollection["status"]) => {
+    const styles: Record<string, string> = {
+      Pending: "bg-yellow-100 text-yellow-800",
+      Approved: "bg-green-100 text-green-800",
+      Rejected: "bg-red-100 text-red-800",
+    };
+    const labels: Record<string, string> = {
+      Pending: "Pending Approval",
+      Approved: "Approved",
+      Rejected: "Rejected",
+    };
+    return (
+      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${styles[status] || styles.Approved}`}>
+        {labels[status] || status}
+      </span>
+    );
+  };
+
+  const renderActions = (collection: CashCollection) => {
+    if (collection.status !== "Pending") {
+      return (
+        <div className="text-xs text-neutral-500">
+          {collection.reviewedBy ? `by ${collection.reviewedBy}` : "-"}
+          {collection.status === "Rejected" && collection.rejectionReason && (
+            <div className="text-red-600 mt-0.5">Reason: {collection.rejectionReason}</div>
+          )}
+        </div>
+      );
+    }
+    const busy = processingId === collection._id;
+    return (
+      <div className="flex gap-2">
+        <button
+          onClick={() => handleApprove(collection)}
+          disabled={!!processingId}
+          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs font-semibold disabled:opacity-50">
+          {busy ? "..." : "Approve"}
+        </button>
+        <button
+          onClick={() => {
+            setRejectTarget(collection);
+            setRejectReason("");
+          }}
+          disabled={!!processingId}
+          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs font-semibold disabled:opacity-50">
+          Reject
+        </button>
+      </div>
+    );
+  };
+
+  const renderSettledOrders = (collection: CashCollection) => {
+    if (collection.status !== "Approved" || !collection.settledOrders?.length) return null;
+    return (
+      <div className="text-[11px] text-neutral-500 mt-1">
+        Settled: {collection.settledOrders
+          .map((s) => `#${s.orderNumber || s.orderId?.slice(-6)} (₹${s.amount.toFixed(2)})`)
+          .join(", ")}
+      </div>
+    );
+  };
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -176,6 +304,7 @@ export default function AdminCashCollection() {
       "Collected By",
       "Remark",
       "Date",
+      "Status",
     ];
     const csvContent = [
       headers.join(","),
@@ -188,6 +317,7 @@ export default function AdminCashCollection() {
           `"${collection.collectedBy || ""}"`,
           `"${collection.remark || ""}"`,
           new Date(collection.collectedAt).toLocaleDateString(),
+          collection.status,
         ].join(",")
       ),
     ].join("\n");
@@ -245,6 +375,76 @@ export default function AdminCashCollection() {
           Add Cash Collection
         </button>
       </div>
+
+      {pendingSummary.pendingCount > 0 && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-lg px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="text-sm text-yellow-900">
+            <span className="font-semibold">{pendingSummary.pendingCount}</span> cash handover
+            {pendingSummary.pendingCount > 1 ? " requests" : " request"} waiting for approval (₹
+            {pendingSummary.pendingAmount.toFixed(2)})
+          </div>
+          {selectedStatus !== "Pending" && (
+            <button
+              onClick={() => {
+                setSelectedStatus("Pending");
+                setCurrentPage(1);
+              }}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-xs font-semibold">
+              Show Pending
+            </button>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm flex justify-between gap-2">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="font-bold">×</button>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm flex justify-between gap-2">
+          <span>{successMessage}</span>
+          <button onClick={() => setSuccessMessage(null)} className="font-bold">×</button>
+        </div>
+      )}
+
+      {rejectTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-red-600 px-5 py-4">
+              <h2 className="text-white text-lg font-semibold">Reject Cash Handover</h2>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-sm text-neutral-700">
+                Reject ₹{rejectTarget.amount.toFixed(2)} from <span className="font-semibold">{rejectTarget.deliveryBoyName}</span>?
+                The amount will stay in the delivery boy's cash in hand.
+              </p>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm min-h-[80px]"
+                placeholder="Reason (e.g. Cash not received)"
+              />
+            </div>
+            <div className="px-5 pb-5 flex gap-3">
+              <button
+                onClick={() => setRejectTarget(null)}
+                className="flex-1 border border-neutral-300 rounded-lg py-2.5 text-sm font-semibold"
+                disabled={!!processingId}>
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmReject}
+                className="flex-1 bg-red-600 text-white rounded-lg py-2.5 text-sm font-semibold disabled:opacity-60"
+                disabled={!!processingId}>
+                {processingId ? "Rejecting..." : "Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -330,7 +530,7 @@ export default function AdminCashCollection() {
         <div className="p-3 sm:p-6 border-b border-neutral-200">
           <div className="flex flex-col gap-3">
             {/* Left Side Filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
               {/* From - To Date */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-neutral-700">
@@ -432,6 +632,22 @@ export default function AdminCashCollection() {
                   ))}
                 </select>
               </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-neutral-700">Status</label>
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => {
+                    setSelectedStatus(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-3 py-2 border border-neutral-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500">
+                  <option value="all">All</option>
+                  <option value="Pending">Pending Approval</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
@@ -512,10 +728,14 @@ export default function AdminCashCollection() {
                   <div className="text-xs font-semibold text-neutral-900">{getMethodLabel(collection.paymentMethod)}</div>
                   <div className="text-xs text-neutral-500">Collected By</div>
                   <div className="text-xs font-semibold text-neutral-900">{collection.collectedBy || "-"}</div>
+                  <div className="text-xs text-neutral-500">Status</div>
+                  <div>{getStatusBadge(collection.status)}</div>
                 </div>
                 {collection.remark && (
                   <div className="text-xs text-neutral-600 mt-2">Remark: {collection.remark}</div>
                 )}
+                {renderSettledOrders(collection)}
+                <div className="mt-3">{renderActions(collection)}</div>
               </div>
             ))
           )}
@@ -641,13 +861,19 @@ export default function AdminCashCollection() {
                     </svg>
                   </div>
                 </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-neutral-200">
               {displayedCollections.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     className="px-4 sm:px-6 py-8 text-center text-sm text-neutral-500">
                     No data available in table
                   </td>
@@ -666,6 +892,7 @@ export default function AdminCashCollection() {
                     </td>
                     <td className="px-4 sm:px-6 py-3 text-sm text-neutral-900 font-medium">
                       ₹{collection.amount.toFixed(2)}
+                      {renderSettledOrders(collection)}
                     </td>
                     <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
                       {getMethodLabel(collection.paymentMethod)}
@@ -675,6 +902,12 @@ export default function AdminCashCollection() {
                     </td>
                     <td className="px-4 sm:px-6 py-3 text-sm text-neutral-600">
                       {new Date(collection.collectedAt).toLocaleString()}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3 text-sm">
+                      {getStatusBadge(collection.status)}
+                    </td>
+                    <td className="px-4 sm:px-6 py-3 text-sm">
+                      {renderActions(collection)}
                     </td>
                   </tr>
                 ))
