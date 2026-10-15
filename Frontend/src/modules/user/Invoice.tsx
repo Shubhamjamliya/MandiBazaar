@@ -158,7 +158,7 @@ export default function Invoice() {
   const company = {
     name: "MANDI BAZAAR",
     registeredName: "MANDI BAZAAR",
-    gstin: "08DGVPP0057C1Z7",
+    san: "8006230011000639",
     fssai: "22225088001352",
     pan: "DGVPP0057C",
     address: "Krishna Vila, 75 D, E Block, Pratap Nagar, Udaipur, Rajasthan 313001",
@@ -293,8 +293,8 @@ export default function Invoice() {
               {company.address}
             </p>
             <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px] sm:text-[10px]">
-              <p className="font-bold text-gray-500">GSTIN</p>
-              <p className="font-bold">: {company.gstin}</p>
+              <p className="font-bold text-gray-500">SAN</p>
+              <p className="font-bold">: {company.san}</p>
               <p className="font-bold text-gray-500">FSSAI License Number</p>
               <p className="font-bold">: {company.fssai}</p>
               <p className="font-bold text-gray-500">PAN</p>
@@ -430,7 +430,7 @@ export default function Invoice() {
           <div className="p-3 border-b sm:border-b-0 sm:border-r border-gray-400">
             <p className="font-bold text-sm mb-2">{company.registeredName}</p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[8px] sm:text-[10px]">
-              <p><span className="font-bold text-gray-500 uppercase">GSTIN</span> : {company.gstin}</p>
+              <p><span className="font-bold text-gray-500 uppercase">SAN</span> : {company.san}</p>
               <p><span className="font-bold text-gray-500 uppercase">FSSAI License Number</span> : {company.fssai}</p>
               <p><span className="font-bold text-gray-500 uppercase">PAN</span> : {company.pan}</p>
             </div>

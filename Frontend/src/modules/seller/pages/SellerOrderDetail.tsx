@@ -31,7 +31,7 @@ const numberToWords = (n: number): string => {
 const COMPANY_DETAILS = {
   name: "MANDI BAZAAR",
   registeredName: "MANDI BAZAAR",
-  gstin: "08DGVPP0057C1Z7",
+  san: "8006230011000639",
   fssai: "10020064002537",
   pan: "DGVPP0057C",
   address: "Krishna Vila, 75 D, E Block, Pratap Nagar, Udaipur, Rajasthan 313001",
@@ -216,7 +216,7 @@ export default function SellerOrderDetail() {
     // Header
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text(`GSTIN : ${COMPANY_DETAILS.gstin}`, margin, yPos);
+    doc.text(`SAN : ${COMPANY_DETAILS.san}`, margin, yPos);
     doc.text('TAX INVOICE', pageWidth / 2, yPos, { align: 'center' });
     doc.setFontSize(14);
     doc.text('MANDI BAZAAR', pageWidth - margin, yPos, { align: 'right' });
@@ -558,8 +558,8 @@ export default function SellerOrderDetail() {
                 {COMPANY_DETAILS.address}
               </p>
               <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px] sm:text-[10px]">
-                <p className="font-bold text-gray-500">GSTIN</p>
-                <p className="font-bold">: {COMPANY_DETAILS.gstin}</p>
+                <p className="font-bold text-gray-500">SAN</p>
+                <p className="font-bold">: {COMPANY_DETAILS.san}</p>
                 <p className="font-bold text-gray-500">FSSAI License Number</p>
                 <p className="font-bold">: {COMPANY_DETAILS.fssai}</p>
                 <p className="font-bold text-gray-500">PAN</p>
@@ -679,7 +679,7 @@ export default function SellerOrderDetail() {
             <div className="p-3 border-b sm:border-b-0 sm:border-r border-gray-400">
               <p className="font-bold text-sm mb-2">{COMPANY_DETAILS.registeredName}</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[8px] sm:text-[10px]">
-                <p><span className="font-bold text-gray-500 uppercase">GSTIN</span> : {COMPANY_DETAILS.gstin}</p>
+                <p><span className="font-bold text-gray-500 uppercase">SAN</span> : {COMPANY_DETAILS.san}</p>
                 <p><span className="font-bold text-gray-500 uppercase">FSSAI License Number</span> : {COMPANY_DETAILS.fssai}</p>
                 <p><span className="font-bold text-gray-500 uppercase">PAN</span> : {COMPANY_DETAILS.pan}</p>
               </div>
