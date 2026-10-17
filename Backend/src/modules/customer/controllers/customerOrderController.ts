@@ -47,6 +47,18 @@ const normalizeAddress = (address: any) => {
 // Create a new order
 export const createOrder = async (req: Request, res: Response) => {
     let session: mongoose.ClientSession | null = null;
+    // Stock decrements made for this order, so they can be reverted when no transaction is available
+    const stockDecrements: { filter: any; inc: any }[] = [];
+    const revertStockDecrements = async () => {
+        if (session) return; // aborting the transaction already reverts stock
+        for (const { filter, inc } of stockDecrements.splice(0)) {
+            try {
+                await Product.updateOne(filter, { $inc: inc });
+            } catch (revertError) {
+                console.error("Error reverting stock decrement:", revertError);
+            }
+        }
+    };
     const userId = req.user!.userId;
     const rawClientOrderId = typeof req.body.clientOrderId === "string"
         ? req.body.clientOrderId.trim()
@@ -63,7 +75,7 @@ export const createOrder = async (req: Request, res: Response) => {
             session = null;
         }
 
-        const { items, address, paymentMethod, fees, specialRequests, couponCode, giftPackaging } = req.body;
+        const { items, address, paymentMethod, fees, specialRequests, sizePreference, couponCode, giftPackaging } = req.body;
 
         if (clientOrderId) {
             const existingOrder = await Order.findOne({ customer: userId, clientOrderId });
@@ -88,6 +100,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
         if (!items || items.length === 0) {
             if (session) await session.abortTransaction();
+            await revertStockDecrements();
             return res.status(400).json({
                 success: false,
                 message: "Order must have at least one item",
@@ -96,6 +109,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
         if (!address) {
             if (session) await session.abortTransaction();
+            await revertStockDecrements();
             return res.status(400).json({
                 success: false,
                 message: "Delivery address is required",
@@ -157,6 +171,7 @@ export const createOrder = async (req: Request, res: Response) => {
         // Validate required address fields
         if (!address.city || (typeof address.city === 'string' && address.city.trim() === '')) {
             if (session) await session.abortTransaction();
+            await revertStockDecrements();
             return res.status(400).json({
                 success: false,
                 message: "City is required in delivery address",
@@ -169,6 +184,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
         if (!address.pincode || (typeof address.pincode === 'string' && address.pincode.trim() === '')) {
             if (session) await session.abortTransaction();
+            await revertStockDecrements();
             return res.status(400).json({
                 success: false,
                 message: "Pincode is required in delivery address",
@@ -183,6 +199,7 @@ export const createOrder = async (req: Request, res: Response) => {
         const customer = await Customer.findById(userId);
         if (!customer) {
             if (session) await session.abortTransaction();
+            await revertStockDecrements();
             return res.status(404).json({
                 success: false,
                 message: "Customer not found",
@@ -200,6 +217,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
         if (deliveryLat == null || deliveryLng == null || isNaN(deliveryLat) || isNaN(deliveryLng)) {
             if (session) await session.abortTransaction();
+            await revertStockDecrements();
             return res.status(400).json({
                 success: false,
                 message: "Delivery address location (latitude/longitude) is required",
@@ -215,6 +233,7 @@ export const createOrder = async (req: Request, res: Response) => {
         // Validate coordinates
         if (deliveryLat < -90 || deliveryLat > 90 || deliveryLng < -180 || deliveryLng > 180) {
             if (session) await session.abortTransaction();
+            await revertStockDecrements();
             return res.status(400).json({
                 success: false,
                 message: "Invalid delivery address coordinates",
@@ -247,7 +266,8 @@ export const createOrder = async (req: Request, res: Response) => {
             discount: 0,
             total: 0,
             items: [],
-            specialRequests: specialRequests || ''
+            specialRequests: specialRequests || '',
+            sizePreference: ['Small', 'Medium', 'Big'].includes(sizePreference) ? sizePreference : 'Any'
         });
 
         let calculatedSubtotal = 0;
@@ -293,6 +313,12 @@ export const createOrder = async (req: Request, res: Response) => {
                             { $inc: { "weightVariants.$.stock": -qty, stock: -qty } },
                             { new: true }
                         );
+                    if (product) {
+                        stockDecrements.push({
+                            filter: { _id: product._id, "weightVariants.label": weightLabel },
+                            inc: { "weightVariants.$.stock": qty, stock: qty },
+                        });
+                    }
                 } else {
                     product = session
                         ? await Product.findOneAndUpdate(
@@ -323,6 +349,18 @@ export const createOrder = async (req: Request, res: Response) => {
                             { $inc: { "variations.$.stock": -qty, stock: -qty } },
                             { new: true }
                         );
+                    const decrementedVariation = product?.variations?.find((v: any) =>
+                        (v._id && v._id.toString() === variationValue) ||
+                        v.value === variationValue ||
+                        v.title === variationValue ||
+                        v.pack === variationValue
+                    );
+                    if (product && decrementedVariation) {
+                        stockDecrements.push({
+                            filter: { _id: product._id, "variations._id": decrementedVariation._id },
+                            inc: { "variations.$.stock": qty, stock: qty },
+                        });
+                    }
                 }
             }
 
@@ -354,6 +392,12 @@ export const createOrder = async (req: Request, res: Response) => {
                                 { $inc: { "weightVariants.$.stock": -qty, stock: -qty } },
                                 { new: true }
                             );
+                        if (product) {
+                            stockDecrements.push({
+                                filter: { _id: product._id, "weightVariants.label": targetVariant.label },
+                                inc: { "weightVariants.$.stock": qty, stock: qty },
+                            });
+                        }
                     }
                     // Then try quantity variations
                     else if (checkProduct.variations && checkProduct.variations.length > 0) {
@@ -372,6 +416,12 @@ export const createOrder = async (req: Request, res: Response) => {
                                 { $inc: { "variations.0.stock": -qty, stock: -qty } },
                                 { new: true }
                             );
+                        if (product) {
+                            stockDecrements.push({
+                                filter: { _id: product._id },
+                                inc: { "variations.0.stock": qty, stock: qty },
+                            });
+                        }
                     }
                     // Simple product
                     else {
@@ -386,6 +436,9 @@ export const createOrder = async (req: Request, res: Response) => {
                                 { $inc: { stock: -qty } },
                                 { new: true }
                             );
+                        if (product) {
+                            stockDecrements.push({ filter: { _id: product._id }, inc: { stock: qty } });
+                        }
                     }
                 }
 
@@ -487,6 +540,7 @@ export const createOrder = async (req: Request, res: Response) => {
             for (const seller of sellers) {
                 if (!seller.location || !seller.location.coordinates) {
                     if (session) await session.abortTransaction();
+                    await revertStockDecrements();
                     return res.status(403).json({
                         success: false,
                         message: `Seller ${seller.storeName} does not have a valid location. Order cannot be placed.`,
@@ -495,6 +549,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
                 if (seller.isShopOpen === false) {
                     if (session) await session.abortTransaction();
+                    await revertStockDecrements();
                     return res.status(400).json({
                         success: false,
                         message: `Seller ${seller.storeName} is currently offline. Order cannot be placed.`,
@@ -508,6 +563,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
                 if (distance > serviceRadius) {
                     if (session) await session.abortTransaction();
+                    await revertStockDecrements();
                     return res.status(403).json({
                         success: false,
                         message: `Your delivery address is ${distance.toFixed(2)} km away from ${seller.storeName}. They only deliver within ${serviceRadius} km. Please select products from sellers in your area.`,
@@ -585,6 +641,7 @@ export const createOrder = async (req: Request, res: Response) => {
         const minimumOrderValue = appSettings?.minimumOrderValue || 149;
         if (calculatedSubtotal < minimumOrderValue) {
             if (session) await session.abortTransaction();
+            await revertStockDecrements();
             return res.status(400).json({
                 success: false,
                 message: `Please fulfill the minimum order limit of ₹${minimumOrderValue}.`,
@@ -612,6 +669,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
             if (!coupon) {
                 if (session) await session.abortTransaction();
+                await revertStockDecrements();
                 return res.status(400).json({
                     success: false,
                     message: 'Invalid coupon code',
@@ -620,6 +678,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
             if (currentDate < coupon.startDate || currentDate > coupon.endDate) {
                 if (session) await session.abortTransaction();
+                await revertStockDecrements();
                 return res.status(400).json({
                     success: false,
                     message: 'Coupon has expired',
@@ -628,6 +687,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
             if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
                 if (session) await session.abortTransaction();
+                await revertStockDecrements();
                 return res.status(400).json({
                     success: false,
                     message: 'Coupon usage limit reached',
@@ -636,6 +696,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
             if (coupon.minimumPurchase && subtotalBeforeCoupon < coupon.minimumPurchase) {
                 if (session) await session.abortTransaction();
+                await revertStockDecrements();
                 return res.status(400).json({
                     success: false,
                     message: `Minimum order value of Rs.${coupon.minimumPurchase} required`,
@@ -656,6 +717,19 @@ export const createOrder = async (req: Request, res: Response) => {
         }
 
         const finalTotal = Math.max(0, subtotalBeforeCoupon + giftPackagingFee - couponDiscount);
+
+        // Cash on delivery is only allowed up to the admin-configured limit (0 disables the limit)
+        const maxCodOrderValue = appSettings?.maxCodOrderValue ?? 2000;
+        if ((paymentMethod || 'COD') === 'COD' && maxCodOrderValue > 0 && finalTotal > maxCodOrderValue) {
+            if (session) await session.abortTransaction();
+            await revertStockDecrements();
+            return res.status(400).json({
+                success: false,
+                message: `Cash on Delivery is available only for orders up to ₹${maxCodOrderValue}. Please pay online to place this order.`,
+                maxCodOrderValue,
+                orderTotal: Number(finalTotal.toFixed(2)),
+            });
+        }
 
         // Update Order with calculated values and items
         newOrder.subtotal = Number(calculatedSubtotal.toFixed(2));
@@ -745,6 +819,7 @@ export const createOrder = async (req: Request, res: Response) => {
                 console.error("Error aborting transaction:", abortError);
             }
         }
+        await revertStockDecrements();
 
         if (error?.code === 11000 && clientOrderId) {
             const existingOrder = await Order.findOne({ customer: userId, clientOrderId });

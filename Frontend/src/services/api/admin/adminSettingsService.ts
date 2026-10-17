@@ -89,6 +89,7 @@ export interface AppSettings {
   platformFee?: number;
   freeDeliveryThreshold?: number;
   minimumOrderValue?: number;
+  maxCodOrderValue?: number;
   defaultCashLimit?: number;
   deliveryConfig?: {
     isDistanceBased: boolean;

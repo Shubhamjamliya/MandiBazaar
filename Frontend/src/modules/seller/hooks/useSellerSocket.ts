@@ -10,6 +10,7 @@ export interface SellerNotification {
     status: string;
     paymentStatus: string;
     specialRequests?: string;
+    sizePreference?: string;
     customer: {
         name: string;
         email: string;

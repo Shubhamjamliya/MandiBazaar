@@ -8,6 +8,7 @@ import { notifyDeliveryBoysOfNewOrder } from "../../../services/orderNotificatio
 import { Server as SocketIOServer } from "socket.io";
 import { sendCustomerOrderNotification } from "../../../services/notificationService";
 import { emitCustomerOrderStatusUpdate } from "../../../socket/socketService";
+import { resolveOrderItemUnit } from "../../../utils/orderItemUnit";
 
 /**
  * Get seller's orders with filters, sorting, and pagination
@@ -167,53 +168,8 @@ export const getOrderById = asyncHandler(
     const orderItems = sellerItems;
 
     // Format order items for frontend
-    // Format order items for frontend
     const formattedItems = orderItems.map((item, index) => {
-      let unit = item.variation && (item.variation as string).startsWith('wv_') ? (item.variation as string).replace('wv_', '') : (item.variation || 'N/A');
-      let variationMatched = false;
-
-      // Try to resolve variation value from product if it exists
-      const product = item.product as any;
-      if (product) {
-        // First check weight variants if weight-based
-        if (product.sellingUnit === 'weight' && product.weightVariants && Array.isArray(product.weightVariants)) {
-          const match = product.weightVariants.find((v: any) => v.label === unit);
-          if (match) {
-            unit = match.label; // Already pretty, but ensures it's from DB
-            variationMatched = true;
-          }
-        }
-        
-        // Then try quantity variations if not matched yet
-        if (!variationMatched && product.variations && Array.isArray(product.variations)) {
-          // 1. Try to match by ID or Value if validation is present
-          if (item.variation) {
-            const variationById = product.variations.find((v: any) => v._id.toString() === item.variation);
-            if (variationById) {
-              unit = variationById.value;
-              variationMatched = true;
-            } else {
-              const variationByValue = product.variations.find((v: any) => v.value === item.variation);
-              if (variationByValue) {
-                unit = variationByValue.value;
-                variationMatched = true;
-              }
-            }
-          }
-
-          // 2. Fallback: If not matched yet (even if we have a value like '250'), try to recover
-          if (!variationMatched) {
-            const variationByPrice = product.variations.find((v: any) => v.price === item.unitPrice || v.discPrice === item.unitPrice);
-            if (variationByPrice) {
-              unit = variationByPrice.value;
-              variationMatched = true;
-            } else if (product.variations.length === 1) {
-              // 3. Last Resort: If there is only one variation, assume it's that one
-              unit = product.variations[0].value;
-            }
-          }
-        }
-      }
+      const unit = resolveOrderItemUnit(item, item.product);
 
       return {
         srNo: index + 1,
@@ -242,6 +198,7 @@ export const getOrderById = asyncHandler(
       customerPhone: (order.customer as any)?.phone || order.customerPhone || '',
       deliveryBoyName: (order.deliveryBoy as any)?.name || '',
       deliveryBoyPhone: (order.deliveryBoy as any)?.mobile || '',
+      deliveryBoyStatus: order.deliveryBoy ? (order.deliveryBoyStatus || 'Assigned') : '',
       items: formattedItems,
       subtotal: order.subtotal || 0,
       tax: order.tax || 0,
@@ -249,6 +206,7 @@ export const getOrderById = asyncHandler(
       shipping: order.shipping || 0,
       grandTotal: order.total || 0,
       specialRequests: order.specialRequests || '',
+      sizePreference: order.sizePreference || 'Any',
       paymentMethod: order.paymentMethod || 'N/A',
       paymentStatus: order.paymentStatus || 'Pending',
       deliveryAddress: order.deliveryAddress || {},

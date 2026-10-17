@@ -49,10 +49,11 @@ export interface Order {
   donationAmount?: number;
   gstin?: string;
   specialRequests?: string;
+  sizePreference?: VegetableSizePreference;
   couponCode?: string;
   giftPackaging?: boolean;
   deliveryPartner?: any;
   deliveryOtp?: string;
 }
 
-
+export type VegetableSizePreference = 'Any' | 'Small' | 'Medium' | 'Big';

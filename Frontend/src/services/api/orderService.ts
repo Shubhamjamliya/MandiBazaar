@@ -55,11 +55,13 @@ export interface OrderDetail {
   customerPhone: string;
   deliveryBoyName: string;
   deliveryBoyPhone: string;
+  deliveryBoyStatus?: string;
   items: OrderItem[];
   subtotal: number;
   tax: number;
   grandTotal: number;
   specialRequests?: string;
+  sizePreference?: 'Any' | 'Small' | 'Medium' | 'Big';
   paymentMethod: string;
   paymentStatus: string;
   deliveryAddress: DeliveryAddress;

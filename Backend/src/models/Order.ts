@@ -99,6 +99,7 @@ export interface IOrder extends Document {
   customerNotes?: string;
   deliveryInstructions?: string;
   specialRequests?: string;
+  sizePreference?: 'Any' | 'Small' | 'Medium' | 'Big';
 
   // Cancellation/Return
   cancellationReason?: string;
@@ -369,6 +370,11 @@ const OrderSchema = new Schema<IOrder>(
     specialRequests: {
       type: String,
       trim: true,
+    },
+    sizePreference: {
+      type: String,
+      enum: ['Any', 'Small', 'Medium', 'Big'],
+      default: 'Any',
     },
 
     // Cancellation/Return

@@ -47,6 +47,8 @@ export interface Order {
   paymentMethod: string;
   paymentStatus: "Pending" | "Paid" | "Failed" | "Refunded";
   paymentId?: string;
+  specialRequests?: string;
+  sizePreference?: 'Any' | 'Small' | 'Medium' | 'Big';
   status:
   | "Received"
   | "Pending"

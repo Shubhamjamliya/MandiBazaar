@@ -117,6 +117,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         },
         paymentMethod: order.paymentMethod || "COD",
         specialRequests: order.specialRequests || undefined,
+        sizePreference: order.sizePreference || undefined,
         couponCode: order.couponCode || undefined,
 
         items: order.items.map((item) => ({

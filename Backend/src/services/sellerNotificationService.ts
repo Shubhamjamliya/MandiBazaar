@@ -49,6 +49,7 @@ export async function notifySellersOfOrderUpdate(
                 status: order.status,
                 paymentStatus: order.paymentStatus,
                 specialRequests: order.specialRequests || '',
+                sizePreference: order.sizePreference || 'Any',
                 customer: {
                     name: order.customerName,
                     email: order.customerEmail,

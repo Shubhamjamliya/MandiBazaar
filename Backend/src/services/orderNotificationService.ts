@@ -370,25 +370,23 @@ export async function notifyDeliveryBoysOfNewOrder(
         }
 
         // Prepare order data for notification
+        // Broadcast only the delivery area; the customer's phone and street address are
+        // revealed (via the order details API) only to the partner who accepts the order.
         const orderData = {
             orderId: order._id.toString(),
             orderNumber: order.orderNumber,
             customerName: order.customerName,
-            customerPhone: order.customerPhone,
-            deliveryAddress: order.deliveryAddress ? {
-                address: order.deliveryAddress.address || 'N/A',
-                city: order.deliveryAddress.city || 'N/A',
-                state: order.deliveryAddress.state || '',
-                pincode: order.deliveryAddress.pincode || '000000',
-            } : {
-                address: 'N/A',
-                city: 'N/A',
-                state: '',
-                pincode: '000000',
+            deliveryAddress: {
+                city: order.deliveryAddress?.city || 'N/A',
+                state: order.deliveryAddress?.state || '',
+                pincode: order.deliveryAddress?.pincode || '000000',
+                landmark: order.deliveryAddress?.landmark || '',
             },
             total: order.total,
             subtotal: order.subtotal,
             shipping: order.shipping,
+            paymentMethod: order.paymentMethod || 'COD',
+            paymentStatus: order.paymentStatus || 'Pending',
             createdAt: order.createdAt,
         };
 
@@ -437,6 +435,49 @@ export async function notifyDeliveryBoysOfNewOrder(
 }
 
 /**
+ * Once an order is assigned, withdraw it from every other delivery partner:
+ * delete their stored notifications, dismiss the live alert, and drop the in-memory broadcast state.
+ */
+export async function revokeOrderNotificationsFromOthers(
+    io: SocketIOServer | undefined,
+    orderId: string,
+    assignedDeliveryBoyId: string,
+    state: OrderNotificationState | undefined = notificationStates.get(orderId)
+): Promise<void> {
+    const assignedId = String(assignedDeliveryBoyId).trim();
+
+    try {
+        const { default: Notification } = await import('../models/Notification');
+        await Notification.deleteMany({
+            recipientType: 'Delivery',
+            link: `/delivery/orders/${orderId}`,
+            recipientId: { $ne: new mongoose.Types.ObjectId(assignedId) }
+        });
+        await Notification.updateOne(
+            {
+                recipientType: 'Delivery',
+                link: `/delivery/orders/${orderId}`,
+                recipientId: new mongoose.Types.ObjectId(assignedId)
+            },
+            { $set: { isRead: true, readAt: new Date() } }
+        );
+    } catch (notifErr) {
+        console.error('Error cleaning up delivery notifications:', notifErr);
+    }
+
+    if (io) {
+        const payload = { orderId, acceptedBy: assignedId };
+        io.to('delivery-notifications').emit('order-accepted', payload);
+        for (const notifiedId of state?.notifiedDeliveryBoys || []) {
+            io.to(`delivery-${String(notifiedId).trim()}`).emit('order-accepted', payload);
+        }
+        io.to(`delivery-${assignedId}`).emit('order-accepted', payload);
+    }
+
+    notificationStates.delete(orderId);
+}
+
+/**
  * Handle order acceptance by a delivery boy
  */
 export async function handleOrderAcceptance(
@@ -478,72 +519,33 @@ export async function handleOrderAcceptance(
             // We assume if they have the ID, they were notified effectively.
         }
 
-        // Update order in database
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return { success: false, message: 'Order not found' };
-        }
+        // Assign atomically so two partners accepting at the same moment can't both win
+        const order = await Order.findOneAndUpdate(
+            { _id: orderId, deliveryBoy: null },
+            {
+                $set: {
+                    deliveryBoy: new mongoose.Types.ObjectId(normalizedDeliveryBoyId),
+                    deliveryBoyStatus: 'Assigned',
+                    assignedAt: new Date(),
+                    status: 'Processed', // Mark as processed when assigned
+                },
+            },
+            { new: true }
+        );
 
-        // Check if order already has a delivery boy assigned
-        if (order.deliveryBoy) {
+        if (!order) {
+            const existing = await Order.findById(orderId).select('deliveryBoy');
+            if (!existing) {
+                return { success: false, message: 'Order not found' };
+            }
+            // Someone else got it first: make sure this partner's alert is cleared too
+            if (existing.deliveryBoy) {
+                await revokeOrderNotificationsFromOthers(io, orderId, existing.deliveryBoy.toString());
+            }
             return { success: false, message: 'Order already assigned to another delivery boy' };
         }
 
-        // Assign order to delivery boy
-        order.deliveryBoy = new mongoose.Types.ObjectId(normalizedDeliveryBoyId);
-        order.deliveryBoyStatus = 'Assigned';
-        order.assignedAt = new Date();
-        order.status = 'Processed'; // Mark as processed when assigned
-
-        await order.save();
-
-        // Delete persistent notifications for all OTHER delivery boys
-        try {
-            const { default: Notification } = await import('../models/Notification');
-            await Notification.deleteMany({
-                recipientType: 'Delivery',
-                link: `/delivery/orders/${orderId}`,
-                recipientId: { $ne: new mongoose.Types.ObjectId(normalizedDeliveryBoyId) }
-            });
-            // Also mark the notification for the accepting delivery boy as read
-            await Notification.updateOne(
-                {
-                    recipientType: 'Delivery',
-                    link: `/delivery/orders/${orderId}`,
-                    recipientId: new mongoose.Types.ObjectId(normalizedDeliveryBoyId)
-                },
-                { $set: { isRead: true, readAt: new Date() } }
-            );
-        } catch (notifErr) {
-            console.error('Error cleaning up delivery notifications:', notifErr);
-        }
-
-        // Emit order-accepted event to stop notifications for all delivery boys
-        io.to('delivery-notifications').emit('order-accepted', {
-            orderId,
-            acceptedBy: normalizedDeliveryBoyId,
-        });
-
-        // Also emit to individual rooms (notifiedId is already a string from Set)
-        if (state) {
-            for (const notifiedId of state.notifiedDeliveryBoys) {
-                const notifiedIdString = String(notifiedId).trim();
-                io.to(`delivery-${notifiedIdString}`).emit('order-accepted', {
-                    orderId,
-                    acceptedBy: normalizedDeliveryBoyId,
-                });
-            }
-            // Clean up notification state
-            notificationStates.delete(orderId);
-        } else {
-            // If no state, we can't emit to specific originally notified list,
-            // but 'delivery-notifications' room covers the general case.
-            // We can also try to emit to the accepting delivery boy just in case
-            io.to(`delivery-${normalizedDeliveryBoyId}`).emit('order-accepted', {
-                orderId,
-                acceptedBy: normalizedDeliveryBoyId,
-            });
-        }
+        await revokeOrderNotificationsFromOthers(io, orderId, normalizedDeliveryBoyId, state);
 
         // Emit delivery-boy-accepted event to customer for tracking
         io.to(`order-${orderId}`).emit('delivery-boy-accepted', {

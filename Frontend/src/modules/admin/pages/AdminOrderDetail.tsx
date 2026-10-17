@@ -143,7 +143,7 @@ export default function AdminOrderDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 min-w-0">
           {/* Order Status */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">Order Status</h2>
@@ -218,6 +218,21 @@ export default function AdminOrderDetail() {
             </div>
           </div>
 
+          {/* Customer Preferences */}
+          {(order.specialRequests?.trim() || (order.sizePreference && order.sizePreference !== 'Any')) && (
+            <div className="bg-white rounded-lg shadow p-6 border border-orange-200">
+              <h2 className="text-lg font-semibold mb-2">Customer Special Request</h2>
+              {order.sizePreference && order.sizePreference !== 'Any' && (
+                <p className="text-sm text-neutral-900">
+                  Vegetable size: <span className="font-semibold">{order.sizePreference}</span>
+                </p>
+              )}
+              {order.specialRequests?.trim() && (
+                <p className="text-sm text-neutral-700 whitespace-pre-wrap mt-1">{order.specialRequests}</p>
+              )}
+            </div>
+          )}
+
           {/* Delivery Address */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">Delivery Address</h2>
@@ -236,7 +251,7 @@ export default function AdminOrderDetail() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           {/* Customer Info */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">Customer Information</h2>

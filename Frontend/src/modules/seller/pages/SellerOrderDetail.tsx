@@ -429,6 +429,10 @@ export default function SellerOrderDetail() {
   const orderIdDisplay = `UDP-${String(orderSequence).padStart(3, '0')}`;
   const invoiceNumberDisplay = `MB-${String(orderSequence).padStart(2, '0')}`;
 
+  const hasSizePreference = !!orderDetail.sizePreference && orderDetail.sizePreference !== 'Any';
+  const isCodOrder = (orderDetail.paymentMethod || '').toUpperCase() === 'COD';
+  const isPaid = orderDetail.paymentStatus === 'Paid';
+
   return (
     <div className="min-h-screen bg-neutral-50 pb-8">
       {/* Order Action Section */}
@@ -509,12 +513,59 @@ export default function SellerOrderDetail() {
             </button>
           </div>
 
-          {orderDetail.specialRequests?.trim() && (
+          {(orderDetail.specialRequests?.trim() || hasSizePreference) && (
             <div className="mt-4 bg-white border border-orange-200 rounded-lg p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 mb-1">Customer Special Request</p>
-              <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">{orderDetail.specialRequests}</p>
+              {hasSizePreference && (
+                <p className="text-sm text-neutral-900 mb-1">
+                  Vegetable size: <span className="font-semibold">{orderDetail.sizePreference}</span>
+                </p>
+              )}
+              {orderDetail.specialRequests?.trim() && (
+                <p className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">{orderDetail.specialRequests}</p>
+              )}
             </div>
           )}
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Delivery Information */}
+            <div className="bg-white border border-neutral-200 rounded-lg p-3 min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-2">Delivery Information</p>
+              {orderDetail.deliveryBoyName ? (
+                <div className="space-y-1 text-sm">
+                  <p><span className="text-neutral-500">Delivery Boy:</span> <span className="font-medium text-neutral-900">{orderDetail.deliveryBoyName}</span></p>
+                  {orderDetail.deliveryBoyPhone && (
+                    <p>
+                      <span className="text-neutral-500">Mobile:</span>{' '}
+                      <a href={`tel:${orderDetail.deliveryBoyPhone}`} className="font-medium text-teal-700 underline">{orderDetail.deliveryBoyPhone}</a>
+                    </p>
+                  )}
+                  {orderDetail.deliveryBoyStatus && (
+                    <p><span className="text-neutral-500">Status:</span> <span className="font-medium text-neutral-900">{orderDetail.deliveryBoyStatus}</span></p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-neutral-500">Delivery partner not assigned yet</p>
+              )}
+            </div>
+
+            {/* Payment Information */}
+            <div className="bg-white border border-neutral-200 rounded-lg p-3 min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-2">Payment Information</p>
+              <div className="space-y-1 text-sm">
+                <p>
+                  <span className="text-neutral-500">Method:</span>{' '}
+                  <span className="font-medium text-neutral-900">{isCodOrder ? 'Cash on Delivery (COD)' : 'Online'}</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="text-neutral-500">Status:</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isPaid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {orderDetail.paymentStatus || 'Pending'}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -735,14 +786,19 @@ export default function SellerOrderDetail() {
               <p className="text-sm text-neutral-700">
                 Are you sure you want to reject this order? This cannot be undone.
               </p>
-              {orderDetail.specialRequests?.trim() && (
+              {(orderDetail.specialRequests?.trim() || hasSizePreference) && (
                 <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 mb-1">
                     Customer Special Request
                   </p>
-                  <p className="text-sm text-orange-800 whitespace-pre-wrap">
-                    {orderDetail.specialRequests}
-                  </p>
+                  {hasSizePreference && (
+                    <p className="text-sm text-orange-900 font-medium">Vegetable size: {orderDetail.sizePreference}</p>
+                  )}
+                  {orderDetail.specialRequests?.trim() && (
+                    <p className="text-sm text-orange-800 whitespace-pre-wrap">
+                      {orderDetail.specialRequests}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

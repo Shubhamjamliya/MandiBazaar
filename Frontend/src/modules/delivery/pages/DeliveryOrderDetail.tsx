@@ -124,7 +124,7 @@ export default function DeliveryOrderDetail() {
             const data = await getOrderDetails(id);
             setOrder(data);
         } catch (err: any) {
-            setError(err.message || 'Failed to load order details');
+            setError(err.response?.data?.message || err.message || 'Failed to load order details');
         } finally {
             setLoading(false);
         }
@@ -808,6 +808,33 @@ export default function DeliveryOrderDetail() {
                 )}
 
 
+                {/* Payment Information */}
+                {order.paymentMethod && (() => {
+                    const isPaid = order.paymentStatus === 'Paid';
+                    const isCod = order.paymentMethod === 'COD';
+                    return (
+                        <div className={`rounded-2xl p-4 shadow-sm border ${isPaid ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'}`}>
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Payment</p>
+                                    <p className={`text-base font-bold ${isPaid ? 'text-blue-800' : 'text-amber-800'}`}>
+                                        {isPaid
+                                            ? (isCod ? 'Paid (COD collected)' : 'Paid Online')
+                                            : (isCod ? 'Cash on Delivery' : 'Online - payment pending')}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-neutral-500">{isPaid ? 'Amount' : 'Collect'}</p>
+                                    <p className="text-lg font-bold text-neutral-900">₹{Number(order.totalAmount || 0).toFixed(2)}</p>
+                                </div>
+                            </div>
+                            <p className={`mt-2 text-xs font-medium ${isPaid ? 'text-blue-700' : 'text-amber-700'}`}>
+                                {isPaid ? 'Do not collect any cash from the customer.' : 'Collect the full amount from the customer at delivery.'}
+                            </p>
+                        </div>
+                    );
+                })()}
+
                 {/* Customer Details */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-neutral-100">
                     <h3 className="font-semibold text-neutral-900 mb-4 flex items-center gap-2">
@@ -879,8 +906,15 @@ export default function DeliveryOrderDetail() {
                         {order.items?.map((item: any, idx: number) => (
                             <div key={idx} className="flex justify-between items-center py-2 border-b border-neutral-50 last:border-0">
                                 <div className="flex items-center gap-3">
-                                    <span className="w-6 h-6 rounded bg-neutral-100 flex items-center justify-center text-xs font-bold text-neutral-600">{item.quantity}x</span>
-                                    <span className="text-sm text-neutral-700 font-medium">{item.name}</span>
+                                    <span className="w-6 h-6 rounded bg-neutral-100 flex items-center justify-center text-xs font-bold text-neutral-600 flex-shrink-0">{item.quantity}x</span>
+                                    <div className="min-w-0">
+                                        <p className="text-sm text-neutral-700 font-medium">{item.name}</p>
+                                        {item.unit && (
+                                            <p className="text-xs text-neutral-500">
+                                                <span className="font-semibold text-neutral-800">{item.unit}</span> pack × {item.quantity}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                                 <span className="text-sm font-semibold text-neutral-900">₹{Number(item.price || 0).toFixed(2)}</span>
                             </div>

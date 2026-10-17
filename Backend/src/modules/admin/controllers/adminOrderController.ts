@@ -297,6 +297,14 @@ export const assignDeliveryBoy = asyncHandler(
     order.assignedAt = new Date();
     await order.save();
 
+    // Withdraw the order from any other delivery partners who were alerted about it
+    const { revokeOrderNotificationsFromOthers } = await import("../../../services/orderNotificationService");
+    await revokeOrderNotificationsFromOthers(
+      req.app.get("io") as SocketIOServer | undefined,
+      order._id.toString(),
+      String(deliveryBoyId)
+    );
+
     // Send push notification to delivery partner
     const { sendDeliveryTaskNotification } = await import("../../../services/notificationService");
     try {

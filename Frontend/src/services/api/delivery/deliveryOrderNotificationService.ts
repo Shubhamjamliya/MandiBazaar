@@ -4,9 +4,9 @@ export interface OrderNotificationData {
     orderId: string;
     orderNumber: string;
     customerName: string;
-    customerPhone: string;
+    customerPhone?: string; // only revealed after acceptance
     deliveryAddress: {
-        address: string;
+        address?: string; // only revealed after acceptance
         city: string;
         state?: string;
         pincode: string;
@@ -15,6 +15,8 @@ export interface OrderNotificationData {
     total: number;
     subtotal: number;
     shipping: number;
+    paymentMethod?: string;
+    paymentStatus?: string;
     createdAt: string;
 }
 

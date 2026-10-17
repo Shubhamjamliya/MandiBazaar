@@ -32,6 +32,7 @@ export interface CreateOrderData {
     };
     paymentMethod: string;
     specialRequests?: string;
+    sizePreference?: string;
     couponCode?: string;
 
     fees?: {

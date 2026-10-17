@@ -8,7 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 
 // import { products } from '../../data/products'; // Removed
-import { OrderAddress, Order } from '../../types/order';
+import { OrderAddress, Order, VegetableSizePreference } from '../../types/order';
 import type { Location as UserLocation } from '../../context/locationContext.types';
 import PartyPopper from './components/PartyPopper';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '../../components/ui/sheet';
@@ -16,6 +16,7 @@ import WishlistButton from '../../components/WishlistButton';
 
 import { getCoupons, validateCoupon, Coupon as ApiCoupon } from '../../services/api/customerCouponService';
 import { appConfig } from '../../services/configService';
+import { getPublicSettings } from '../../services/api/customerHomeService';
 import { getAddresses, updateAddress } from '../../services/api/customerAddressService';
 import { getCart } from '../../services/api/customerCartService';
 import GoogleMapsLocationPicker from '../../components/GoogleMapsLocationPicker';
@@ -68,6 +69,8 @@ export default function Checkout() {
   const [showGstinSheet, setShowGstinSheet] = useState(false);
   const [gstin, setGstin] = useState<string>('');
   const [specialRequest, setSpecialRequest] = useState<string>('');
+  const [sizePreference, setSizePreference] = useState<VegetableSizePreference>('Any');
+  const [maxCodOrderValue, setMaxCodOrderValue] = useState<number>(2000);
   const [showCancellationPolicy, setShowCancellationPolicy] = useState(false);
 
 
@@ -90,6 +93,16 @@ export default function Checkout() {
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'online' | 'cod'>('online');
+
+  // COD limit is configured by admin (0 = no limit)
+  useEffect(() => {
+    getPublicSettings()
+      .then((response) => {
+        const limit = response?.data?.maxCodOrderValue;
+        if (typeof limit === 'number') setMaxCodOrderValue(limit);
+      })
+      .catch((err) => console.error('Failed to load COD limit', err));
+  }, []);
 
   const buildOrderAddressFromLocation = (locationData: UserLocation): OrderAddress => ({
     name: user?.name || 'Current Location',
@@ -439,6 +452,13 @@ export default function Checkout() {
     : 0;
 
   const grandTotal = Math.max(0, discountedTotal + handlingCharge + deliveryCharge - currentCouponDiscount);
+  const isCodAllowed = maxCodOrderValue <= 0 || grandTotal <= maxCodOrderValue;
+
+  // Order grew past the COD limit: fall back to online payment (state update during render is
+  // intentional here; a useEffect can't be used because of the early return above)
+  if (!isCodAllowed && selectedPaymentMethod === 'cod') {
+    setSelectedPaymentMethod('online');
+  }
 
   const handleApplyCoupon = async (coupon: ApiCoupon) => {
     setIsValidatingCoupon(true);
@@ -499,6 +519,11 @@ export default function Checkout() {
     const bypassProfileCheck = arg === true;
 
     if (!selectedAddress || cart.items.length === 0) {
+      return;
+    }
+
+    if (selectedPaymentMethod === 'cod' && !isCodAllowed) {
+      alert(`Cash on Delivery is available only for orders up to ₹${maxCodOrderValue}. Please pay online to place this order.`);
       return;
     }
 
@@ -579,6 +604,7 @@ export default function Checkout() {
       createdAt: new Date().toISOString(),
       gstin: gstin || undefined,
       specialRequests: specialRequest.trim() || undefined,
+      sizePreference: sizePreference !== 'Any' ? sizePreference : undefined,
       couponCode: selectedCoupon?.code || undefined,
       paymentMethod: selectedPaymentMethod === 'cod' ? 'COD' : 'Online',
     };
@@ -1744,18 +1770,40 @@ export default function Checkout() {
         </button>
       </div>
 
-      {/* Add Special Request */}
+      {/* Vegetable Size Preference + Special Request (shown to the seller) */}
       <div className="px-4 py-2 border-b border-neutral-200">
         <div className="w-full bg-neutral-50 rounded-lg p-2">
+          <p className="text-xs font-semibold text-neutral-900">Vegetable Size Preference</p>
+          <p className="text-[10px] text-neutral-500 mb-1.5">The seller will pick vegetables accordingly</p>
+          <div className="flex gap-2 mb-3">
+            {([
+              { value: 'Any', label: 'Any size' },
+              { value: 'Small', label: 'Small' },
+              { value: 'Medium', label: 'Medium' },
+              { value: 'Big', label: 'Big' },
+            ] as { value: VegetableSizePreference; label: string }[]).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setSizePreference(option.value)}
+                className={`flex-1 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${sizePreference === option.value
+                  ? 'border-green-600 bg-green-50 text-green-700'
+                  : 'border-neutral-200 bg-white text-neutral-700'
+                  }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center justify-between mb-1.5">
-            <p className="text-xs font-semibold text-neutral-900">Add Special Request</p>
+            <p className="text-xs font-semibold text-neutral-900">Description for Seller</p>
             <span className="text-[10px] text-neutral-500">{specialRequest.length}/200</span>
           </div>
           <textarea
             value={specialRequest}
             onChange={(e) => setSpecialRequest(e.target.value.slice(0, 200))}
             rows={2}
-            placeholder="e.g. Please avoid plastic bags"
+            placeholder="e.g. Big tomatoes, small potatoes, fresh coriander, avoid plastic bags"
             className="w-full resize-none bg-white border border-neutral-200 rounded-lg p-2 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-green-500"
           />
         </div>
@@ -1765,10 +1813,13 @@ export default function Checkout() {
         <h3 className="text-sm font-bold text-neutral-900 mb-2">Payment Method</h3>
         <div className="flex gap-2 mb-3">
           <button
-            onClick={() => setSelectedPaymentMethod('cod')}
-            className={`flex-1 flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${selectedPaymentMethod === 'cod'
-              ? 'border-green-600 bg-green-50 shadow-sm'
-              : 'border-neutral-200 bg-white hover:border-neutral-300'
+            onClick={() => isCodAllowed && setSelectedPaymentMethod('cod')}
+            disabled={!isCodAllowed}
+            className={`flex-1 flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${!isCodAllowed
+              ? 'border-neutral-200 bg-neutral-100 opacity-60 cursor-not-allowed'
+              : selectedPaymentMethod === 'cod'
+                ? 'border-green-600 bg-green-50 shadow-sm'
+                : 'border-neutral-200 bg-white hover:border-neutral-300'
               }`}
           >
             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedPaymentMethod === 'cod'
@@ -1783,7 +1834,9 @@ export default function Checkout() {
               <p className={`text-xs font-semibold ${selectedPaymentMethod === 'cod' ? 'text-green-700' : 'text-neutral-900'}`}>
                 💵 Cash on Delivery
               </p>
-              <p className="text-[10px] text-neutral-500">Pay when delivered</p>
+              <p className="text-[10px] text-neutral-500">
+                {isCodAllowed ? 'Pay when delivered' : `Only for orders up to ₹${maxCodOrderValue}`}
+              </p>
             </div>
           </button>
           <button
@@ -1809,6 +1862,12 @@ export default function Checkout() {
             </div>
           </button>
         </div>
+
+        {!isCodAllowed && (
+          <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Cash on Delivery is available only for orders up to ₹{maxCodOrderValue}. Please pay online for this order.
+          </p>
+        )}
 
         {/* Sub-selection for Online Gateway removed - controlled by admin */}
       </div>

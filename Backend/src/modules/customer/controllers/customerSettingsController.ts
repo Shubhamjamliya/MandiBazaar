@@ -9,7 +9,7 @@ import AppSettings from "../../../models/AppSettings";
 export const getPublicSettings = asyncHandler(
   async (_req: Request, res: Response) => {
     const settings = await AppSettings.findOne().select(
-      "appName contactEmail contactPhone supportEmail supportPhone privacyPolicy termsOfService customerAppPolicy deliveryAppPolicy returnPolicy refundPolicy faq updatedAt"
+      "appName contactEmail contactPhone supportEmail supportPhone privacyPolicy termsOfService customerAppPolicy deliveryAppPolicy returnPolicy refundPolicy faq maxCodOrderValue updatedAt"
     );
 
     if (!settings) {

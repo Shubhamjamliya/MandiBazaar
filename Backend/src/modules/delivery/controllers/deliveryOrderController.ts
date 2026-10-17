@@ -9,18 +9,30 @@ import Customer from "../../../models/Customer";
 import { generateDeliveryOtp, verifyDeliveryOtp } from "../../../services/deliveryOtpService";
 import { processOrderStatusTransition } from "../../../services/orderService";
 import { emitCustomerOrderEvent, emitCustomerOrderStatusUpdate } from "../../../socket/socketService";
+import { resolveOrderItemUnit } from "../../../utils/orderItemUnit";
+
+// Populate order items with the product fields needed to resolve the pack/weight label
+const ITEMS_WITH_PRODUCT_UNIT = {
+    path: "items",
+    populate: { path: "product", select: "sellingUnit weightVariants variations pack" },
+};
 
 /**
  * Helper to map order items for response
  */
 const mapOrderItems = (items: any[]) => {
     if (!items || !Array.isArray(items)) return [];
-    return items.map((item: any) => ({
-        name: item.productName || "Unknown Item",
-        quantity: item.quantity || 0,
-        price: item.total || 0, // Using total price for the line item
-        image: item.productImage
-    }));
+    return items.map((item: any) => {
+        const unit = resolveOrderItemUnit(item, item.product);
+        return {
+            name: item.productName || "Unknown Item",
+            quantity: item.quantity || 0,
+            unit: unit === 'N/A' ? '' : unit,
+            unitPrice: item.unitPrice || 0,
+            price: item.total || 0, // Using total price for the line item
+            image: item.productImage
+        };
+    });
 };
 
 /**
@@ -34,7 +46,7 @@ export const getAllOrdersHistory = asyncHandler(async (req: Request, res: Respon
     const skip = (page - 1) * limit;
 
     const orders = await Order.find({ deliveryBoy: deliveryId })
-        .populate("items") // Populate OrderItems
+        .populate(ITEMS_WITH_PRODUCT_UNIT) // Populate OrderItems
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
@@ -102,7 +114,7 @@ export const getTodayOrders = asyncHandler(async (req: Request, res: Response) =
             { updatedAt: { $gte: todayStart, $lte: todayEnd } }  // OR Updated today
         ]
     })
-        .populate("items")
+        .populate(ITEMS_WITH_PRODUCT_UNIT)
         .sort({ updatedAt: -1 });
 
     const formattedOrders = orders.map(order => ({
@@ -139,7 +151,7 @@ export const getPendingOrders = asyncHandler(async (req: Request, res: Response)
         deliveryBoy: deliveryId,
         status: { $in: ["Ready for pickup", "Out for Delivery", "Picked Up", "Assigned", "In Transit"] }
     })
-        .populate("items")
+        .populate(ITEMS_WITH_PRODUCT_UNIT)
         .sort({ createdAt: -1 });
 
     const formattedOrders = orders.map(order => ({
@@ -171,14 +183,17 @@ export const getOrderDetails = asyncHandler(async (req: Request, res: Response) 
     const { id } = req.params;
     const deliveryId = req.user?.userId;
 
-    const order = await Order.findById(id).populate("items");
+    const order = await Order.findById(id).populate(ITEMS_WITH_PRODUCT_UNIT);
 
     if (!order) {
         return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // Security check: If order is assigned, it must be assigned to this delivery boy
-    if (order.deliveryBoy && order.deliveryBoy.toString() !== deliveryId) {
+    // Security check: customer details are only visible to the delivery partner the order is assigned to
+    if (!order.deliveryBoy) {
+        return res.status(403).json({ success: false, message: "Accept this order from the new order alert to view its details." });
+    }
+    if (order.deliveryBoy.toString() !== deliveryId) {
         return res.status(403).json({ success: false, message: "This order is assigned to another delivery partner." });
     }
 
@@ -399,7 +414,7 @@ export const getReturnOrders = asyncHandler(async (req: Request, res: Response) 
         deliveryBoy: deliveryId,
         status: { $in: ["Returned", "Cancelled", "Rejected"] }
     })
-        .populate("items")
+        .populate(ITEMS_WITH_PRODUCT_UNIT)
         .sort({ updatedAt: -1 });
 
     const formattedOrders = orders.map(order => ({

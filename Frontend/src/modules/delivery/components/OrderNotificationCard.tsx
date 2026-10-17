@@ -242,8 +242,10 @@ export default function OrderNotificationCard({
 
     const formatAddress = () => {
         const { address, city, state, pincode, landmark } = notification.deliveryAddress;
-        return `${address}${landmark ? `, Near ${landmark}` : ''}, ${city}${state ? `, ${state}` : ''} - ${pincode}`;
+        return `${address ? `${address}, ` : ''}${landmark ? `Near ${landmark}, ` : ''}${city}${state ? `, ${state}` : ''} - ${pincode}`;
     };
+
+    const isPaidOnline = notification.paymentStatus === 'Paid' || (notification.paymentMethod && notification.paymentMethod !== 'COD');
 
     return (
         <motion.div
@@ -287,17 +289,26 @@ export default function OrderNotificationCard({
                     <div>
                         <p className="text-xs sm:text-sm text-neutral-600">Customer</p>
                         <p className="text-sm sm:text-base font-medium text-neutral-900 break-words">{notification.customerName}</p>
-                        <p className="text-xs sm:text-sm text-neutral-500 break-all">{notification.customerPhone}</p>
+                        {notification.customerPhone && (
+                            <p className="text-xs sm:text-sm text-neutral-500 break-all">{notification.customerPhone}</p>
+                        )}
                     </div>
 
                     <div>
-                        <p className="text-xs sm:text-sm text-neutral-600">Delivery Address</p>
+                        <p className="text-xs sm:text-sm text-neutral-600">Delivery Area</p>
                         <p className="text-xs sm:text-sm text-neutral-900 break-words leading-relaxed">{formatAddress()}</p>
                     </div>
 
                     <div>
                         <p className="text-xs sm:text-sm text-neutral-600">Order Amount</p>
-                        <p className="text-lg sm:text-xl font-bold text-teal-600">₹{notification.total.toFixed(2)}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-lg sm:text-xl font-bold text-teal-600">₹{notification.total.toFixed(2)}</p>
+                            {notification.paymentMethod && (
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isPaidOnline ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {isPaidOnline ? 'Paid Online' : 'Collect Cash (COD)'}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
 
