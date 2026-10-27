@@ -201,7 +201,8 @@ export const getHomeContent = async (req: Request, res: Response) => {
           rating: product.rating || 0,
         };
       })
-      .filter(Boolean);
+      // Only show products the user can actually get delivered (same as bestsellers)
+      .filter((p: any) => p && p.isAvailable);
 
     // 3. Categories for Tiles
     const categories = await Category.find({
