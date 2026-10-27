@@ -570,8 +570,8 @@ export default function Home() {
         </>
       )}
 
-      {/* Lowest Prices Ever Section - Restored to show all low-price products as requested */}
-      {!activeInlineCategory && homeData.lowestPrices && (
+      {/* Lowest Prices Ever Section - hidden when no product is deliverable to the user's location */}
+      {!activeInlineCategory && homeData.lowestPrices && homeData.lowestPrices.length > 0 && (
         <LowestPricesEver
           activeTab={activeTab}
           products={homeData.lowestPrices}
