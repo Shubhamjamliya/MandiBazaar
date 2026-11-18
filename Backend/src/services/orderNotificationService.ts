@@ -450,13 +450,13 @@ export async function revokeOrderNotificationsFromOthers(
         const { default: Notification } = await import('../models/Notification');
         await Notification.deleteMany({
             recipientType: 'Delivery',
-            link: `/delivery/orders/${orderId}`,
+            link: `/delivery/orders/notification/${orderId}`,
             recipientId: { $ne: new mongoose.Types.ObjectId(assignedId) }
         });
         await Notification.updateOne(
             {
                 recipientType: 'Delivery',
-                link: `/delivery/orders/${orderId}`,
+                link: `/delivery/orders/notification/${orderId}`,
                 recipientId: new mongoose.Types.ObjectId(assignedId)
             },
             { $set: { isRead: true, readAt: new Date() } }

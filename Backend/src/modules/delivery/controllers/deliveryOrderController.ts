@@ -228,6 +228,86 @@ export const getOrderDetails = asyncHandler(async (req: Request, res: Response) 
 });
 
 /**
+ * Get a pending (not-yet-assigned) order notification by id.
+ * Used by the "New Order" accept/decline screen when opened from a push
+ * notification, where the in-app live socket alert is not available
+ * (app was backgrounded/closed when the notification arrived).
+ */
+export const getOrderNotification = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const deliveryId = String(req.user?.userId).trim();
+
+    const { getNotificationState } = await import("../../../services/orderNotificationService");
+    const state = getNotificationState(id);
+
+    if (!state) {
+        const order = await Order.findById(id).select("deliveryBoy");
+        if (order?.deliveryBoy) {
+            const alreadyMine = order.deliveryBoy.toString() === deliveryId;
+            return res.status(409).json({
+                success: false,
+                alreadyHandled: true,
+                message: alreadyMine
+                    ? "You already accepted this order."
+                    : "This order has already been accepted by another delivery partner.",
+            });
+        }
+        return res.status(404).json({
+            success: false,
+            message: "This order notification has expired or is no longer available.",
+        });
+    }
+
+    if (state.acceptedBy) {
+        return res.status(409).json({
+            success: false,
+            alreadyHandled: true,
+            message: state.acceptedBy === deliveryId
+                ? "You already accepted this order."
+                : "This order has already been accepted by another delivery partner.",
+        });
+    }
+
+    if (state.rejectedDeliveryBoys.has(deliveryId)) {
+        return res.status(409).json({
+            success: false,
+            alreadyHandled: true,
+            message: "You have already rejected this order.",
+        });
+    }
+
+    return res.status(200).json({ success: true, data: state.orderData });
+});
+
+/**
+ * Accept a pending order notification (REST fallback for the socket "accept-order" event).
+ */
+export const acceptOrderNotification = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const deliveryId = String(req.user?.userId).trim();
+    const io = req.app.get("io");
+
+    const { handleOrderAcceptance } = await import("../../../services/orderNotificationService");
+    const result = await handleOrderAcceptance(io, id, deliveryId);
+
+    return res.status(result.success ? 200 : 409).json(result);
+});
+
+/**
+ * Reject a pending order notification (REST fallback for the socket "reject-order" event).
+ */
+export const rejectOrderNotification = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const deliveryId = String(req.user?.userId).trim();
+    const io = req.app.get("io");
+
+    const { handleOrderRejection } = await import("../../../services/orderNotificationService");
+    const result = await handleOrderRejection(io, id, deliveryId);
+
+    return res.status(result.success ? 200 : 409).json(result);
+});
+
+/**
  * Update Order Status
  */
 export const updateOrderStatus = asyncHandler(async (req: Request, res: Response) => {

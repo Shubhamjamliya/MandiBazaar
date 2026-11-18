@@ -1,4 +1,5 @@
 import { Socket } from 'socket.io-client';
+import api from '../config';
 
 export interface OrderNotificationData {
     orderId: string;
@@ -80,5 +81,46 @@ export const rejectOrder = (
             resolve(response);
         });
     });
+};
+
+/**
+ * Fetch a pending (not-yet-assigned) order notification over REST.
+ * Used when the accept/decline screen is opened from a push notification tap
+ * (app was backgrounded/closed, so the live socket alert never fired).
+ */
+export const getOrderNotificationById = async (orderId: string): Promise<OrderNotificationData> => {
+    const response = await api.get(`/delivery/orders/notification/${orderId}`);
+    return response.data.data;
+};
+
+/**
+ * Accept an order via REST (fallback when no live socket connection is available).
+ */
+export const acceptOrderRest = async (orderId: string): Promise<AcceptOrderResponse> => {
+    try {
+        const response = await api.post(`/delivery/orders/notification/${orderId}/accept`);
+        return response.data;
+    } catch (error: any) {
+        return {
+            success: false,
+            message: error.response?.data?.message || error.message || 'Failed to accept order',
+        };
+    }
+};
+
+/**
+ * Reject an order via REST (fallback when no live socket connection is available).
+ */
+export const rejectOrderRest = async (orderId: string): Promise<RejectOrderResponse> => {
+    try {
+        const response = await api.post(`/delivery/orders/notification/${orderId}/reject`);
+        return response.data;
+    } catch (error: any) {
+        return {
+            success: false,
+            message: error.response?.data?.message || error.message || 'Failed to reject order',
+            allRejected: false,
+        };
+    }
 };
 

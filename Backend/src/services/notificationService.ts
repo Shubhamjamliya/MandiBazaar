@@ -343,7 +343,7 @@ export const sendDeliveryTaskNotification = async (
     {
       type: "Order",
       priority: "High",
-      link: `/delivery/orders/${orderId}`,
+      link: `/delivery/orders/notification/${orderId}`,
       actionLabel: "View Task",
       data: {
         eventType: "new-order",
