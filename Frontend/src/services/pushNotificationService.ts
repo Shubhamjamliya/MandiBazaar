@@ -128,7 +128,7 @@ async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null
 
     if ('serviceWorker' in navigator) {
         try {
-            const swVersion = 'v2';
+            const swVersion = 'v3';
             const swVersionKey = 'fcm_sw_version';
             const currentVersion = localStorage.getItem(swVersionKey);
 
@@ -140,6 +140,13 @@ async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null
                     console.log('Unregistered stale service worker:', reg.scope);
                 }
                 localStorage.setItem(swVersionKey, swVersion);
+
+                // Unregistering tears down the push subscription the FCM token was
+                // issued against, so the cached token is now dead. Drop it, otherwise
+                // registerFCMToken() keeps re-syncing a token that can never receive
+                // anything and the partner silently stops getting order alerts.
+                localStorage.removeItem(getTokenStorageKey());
+                getLegacyTokenKeys().forEach((key) => localStorage.removeItem(key));
             }
 
             const firebaseConfigStr = new URLSearchParams({
@@ -326,15 +333,20 @@ export function setupForegroundNotificationHandler(handler?: (payload: any) => v
         if ('Notification' in window && Notification.permission === 'granted') {
             const title = payload.notification?.title || payload.data?.title || 'New Notification';
             const body = payload.notification?.body || payload.data?.body || '';
+            // Unique tag per alert, otherwise a second order silently replaces the first.
+            const tag = payload.data?.orderId
+                || payload.data?.notificationId
+                || `${payload.data?.type || 'notification'}-${Date.now()}`;
             const options = {
                 body,
                 icon: payload.notification?.icon || payload.data?.icon || '/favicon.png',
                 badge: '/favicon.png',
-                tag: payload.data?.orderId || payload.data?.type || 'notification',
-                requireInteraction: true,
+                tag,
+                renotify: true,
+                requireInteraction: payload.data?.eventType === 'new-order',
                 silent: false,
                 data: payload.data,
-            };
+            } as NotificationOptions;
 
             if ('serviceWorker' in navigator && !isEmbeddedWebView()) {
                 navigator.serviceWorker.ready.then((registration) => {

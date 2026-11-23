@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DeliveryHeader from '../components/DeliveryHeader';
 import { getNotifications, markNotificationRead } from '../../../services/api/delivery/deliveryService';
 
 export default function DeliveryNotifications() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchNotifications();
@@ -28,6 +30,19 @@ export default function DeliveryNotifications() {
       setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
     } catch (error) {
       console.error("Failed to mark as read", error);
+    }
+  };
+
+  // Tapping a notification should open what it is about (e.g. the accept/decline
+  // screen for a new task), not just silently mark it read.
+  const handleNotificationClick = (notification: any) => {
+    if (!notification.isRead) {
+      handleMarkAsRead(notification._id);
+    }
+
+    const link: string | undefined = notification.link;
+    if (link && link.startsWith('/')) {
+      navigate(link);
     }
   };
 
@@ -87,8 +102,8 @@ export default function DeliveryNotifications() {
           <div className="space-y-3">
             {notifications.map((notification) => (
               <div key={notification._id}
-                onClick={() => !notification.isRead && handleMarkAsRead(notification._id)}
-                className={`bg-white rounded-xl p-4 shadow-sm border ${notification.isRead ? 'border-neutral-200' : 'border-orange-200 bg-orange-50'}`}>
+                onClick={() => handleNotificationClick(notification)}
+                className={`bg-white rounded-xl p-4 shadow-sm border cursor-pointer active:bg-neutral-50 ${notification.isRead ? 'border-neutral-200' : 'border-orange-200 bg-orange-50'}`}>
                 <div className="flex gap-3">
                   <div className="flex-shrink-0 mt-1">
                     {getNotificationIcon(notification.type)}

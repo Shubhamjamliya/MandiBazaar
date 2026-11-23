@@ -8,6 +8,31 @@ import Delivery from "../models/Delivery";
 const router = Router();
 
 /**
+ * A device token can only belong to one account at a time. If the same phone or
+ * browser was previously signed in as someone else, that account keeps receiving
+ * this device's alerts - and the current user may miss theirs. Detach it everywhere
+ * else before attaching it here.
+ */
+async function detachTokenFromOtherUsers(
+  token: string,
+  currentUserId: string,
+): Promise<void> {
+  const models = [Customer, Admin, Seller, Delivery];
+
+  await Promise.all(
+    models.map((model: any) =>
+      model.updateMany(
+        {
+          _id: { $ne: currentUserId },
+          $or: [{ fcmTokens: token }, { fcmTokenMobile: token }],
+        },
+        { $pull: { fcmTokens: token, fcmTokenMobile: token } },
+      ),
+    ),
+  );
+}
+
+/**
  * Save FCM token for authenticated user
  * POST /api/v1/fcm-tokens/save
  * Body: { token: string, platform: 'web' | 'mobile' }
@@ -67,6 +92,8 @@ router.post("/save", async (req: Request, res: Response): Promise<void> => {
       });
       return;
     }
+
+    await detachTokenFromOtherUsers(token, userId);
 
     // Add token to appropriate array based on platform
     // Support both "app" and "mobile" for fcmTokenMobile

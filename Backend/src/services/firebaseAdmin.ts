@@ -111,6 +111,20 @@ export async function sendPushNotification(
             };
         }
 
+        // Every alert must stand on its own in the tray: notifications that share a
+        // tag replace each other, so a partner would only ever see the latest one.
+        const notificationTag = payload.data?.orderId
+            || payload.data?.notificationId
+            || `${payload.data?.type || 'default'}-${Date.now()}`;
+
+        // fcm_options.link / click_action need absolute URLs, otherwise the click
+        // target is dropped and the notification just reopens the app at its home page.
+        const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+        const relativeLink = payload.data?.link || '/';
+        const absoluteLink = /^https?:\/\//i.test(relativeLink)
+            ? relativeLink
+            : `${frontendUrl}${relativeLink.startsWith('/') ? '' : '/'}${relativeLink}`;
+
         const message: any = {
             tokens: validTokens,
             notification: {
@@ -119,7 +133,10 @@ export async function sendPushNotification(
             },
             data: {
                 ...(payload.data || {}),
-                ...(payload.icon && { icon: payload.icon })
+                ...(payload.icon && { icon: payload.icon }),
+                link: relativeLink,
+                url: absoluteLink,
+                click_action: absoluteLink
             },
             webpush: {
                 notification: {
@@ -127,11 +144,12 @@ export async function sendPushNotification(
                     body: payload.body,
                     icon: payload.icon || '/favicon.png',
                     badge: '/favicon.png',
-                    tag: payload.data?.type || 'default',
-                    requireInteraction: false
+                    tag: notificationTag,
+                    renotify: true,
+                    requireInteraction: payload.data?.eventType === 'new-order'
                 },
                 fcm_options: {
-                    link: payload.data?.link || '/'
+                    link: absoluteLink
                 }
             },
             android: {
@@ -139,7 +157,8 @@ export async function sendPushNotification(
                 notification: {
                     channelId: 'new-orders',
                     sound: 'default',
-                    tag: payload.data?.orderId || payload.data?.type || 'default'
+                    tag: notificationTag,
+                    clickAction: 'FLUTTER_NOTIFICATION_CLICK'
                 }
             },
             apns: {

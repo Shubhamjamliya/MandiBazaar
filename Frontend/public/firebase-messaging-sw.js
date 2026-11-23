@@ -59,20 +59,35 @@ self.addEventListener('push', (event) => {
                 title = data.data.title || title;
                 body = data.data.body || body;
                 icon = data.data.icon || icon;
-                link = data.data.link || link;
+                link = data.data.link || data.data.click_action || link;
+            }
+
+            // FCM also carries the click target outside the data payload
+            if (link === '/' && data.fcmOptions && data.fcmOptions.link) {
+                link = data.fcmOptions.link;
             }
         }
     } catch (e) {
         console.warn('[firebase-messaging-sw.js] Could not parse push data:', e);
     }
 
+    // A new delivery task must stay in the tray until the partner acts on it,
+    // and must never replace an earlier task that is still waiting.
+    const payloadData = data.data || {};
+    const isNewOrder = payloadData.eventType === 'new-order';
+    const tag = payloadData.orderId
+        || payloadData.notificationId
+        || 'mandi-bazaar-' + Date.now();
+
     const notificationOptions = {
         body: body,
         icon: icon,
         badge: '/favicon.png',
-        data: { ...data, link: link },
-        tag: 'mandi-bazaar-' + Date.now(),
-        requireInteraction: false
+        data: { ...payloadData, link: link },
+        tag: tag,
+        renotify: true,
+        requireInteraction: isNewOrder,
+        vibrate: isNewOrder ? [200, 100, 200, 100, 200] : undefined
     };
 
     const promiseChain = self.registration.showNotification(title, notificationOptions);
@@ -85,20 +100,56 @@ self.addEventListener('notificationclick', (event) => {
 
     event.notification.close();
 
-    const data = event.notification.data;
-    const urlToOpen = data?.link || '/';
+    const data = event.notification.data || {};
+    const rawLink = data.link || data.click_action || '/';
+    // Always resolve against this origin: an already-open client is matched by URL,
+    // and openWindow/navigate need a full URL to land on the right screen.
+    const targetUrl = new URL(rawLink, self.location.origin).href;
+    const targetPath = new URL(targetUrl).pathname;
 
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            // Check if app is already open
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clientList) => {
             for (const client of clientList) {
-                if (client.url.includes(urlToOpen) && 'focus' in client) {
-                    return client.focus();
+                let clientPath = '';
+                try {
+                    clientPath = new URL(client.url).pathname;
+                } catch (e) {
+                    clientPath = client.url;
+                }
+
+                // Already on the right screen - just bring it to the front.
+                if (clientPath === targetPath) {
+                    return 'focus' in client ? client.focus() : undefined;
+                }
+
+                // App is open somewhere else: focus it and route it to the order.
+                if ('focus' in client) {
+                    const focused = await client.focus().catch(() => client);
+                    const target = focused || client;
+
+                    // navigate() only works on clients this worker controls; when it
+                    // is unavailable or rejected, ask the app to route itself instead.
+                    if ('navigate' in target) {
+                        try {
+                            await target.navigate(targetUrl);
+                            return;
+                        } catch (e) {
+                            console.warn('[firebase-messaging-sw.js] client.navigate failed:', e);
+                        }
+                    }
+
+                    try {
+                        target.postMessage({ type: 'NOTIFICATION_CLICK', url: targetUrl, path: targetPath, data: data });
+                    } catch (e) {
+                        console.warn('[firebase-messaging-sw.js] postMessage failed:', e);
+                    }
+                    return;
                 }
             }
-            // Open new window if app is not already open
+
+            // App is not open at all.
             if (clients.openWindow) {
-                return clients.openWindow(urlToOpen);
+                return clients.openWindow(targetUrl);
             }
         })
     );

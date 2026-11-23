@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { sendOTP, verifyOTP } from '../../../services/api/auth/deliveryAuthService';
 import OTPInput from '../../../components/OTPInput';
 import { useAuth } from '../../../context/AuthContext';
@@ -7,7 +7,18 @@ import { removeAuthToken } from '../../../services/api/config';
 
 export default function DeliveryLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+
+  // ProtectedRoute stores the screen the partner was sent here from. Tapping a
+  // new-order push while signed out must still land on that order's
+  // accept/decline screen, not the dashboard.
+  const redirectTo = (location.state as { from?: { pathname?: string } } | null)
+    ?.from?.pathname;
+  const postLoginPath =
+    redirectTo && redirectTo.startsWith('/delivery') && redirectTo !== '/delivery/login'
+      ? redirectTo
+      : '/delivery';
   const [mobileNumber, setMobileNumber] = useState('');
   const [sessionId, setSessionId] = useState('');
   const [showOTP, setShowOTP] = useState(false);
@@ -62,7 +73,7 @@ export default function DeliveryLogin() {
           ...response.data.user,
           userType: 'Delivery'
         });
-        navigate('/delivery');
+        navigate(postLoginPath, { replace: true });
       }
     } catch (err: any) {
       // Also handle 401 Unauthorized for verify step
