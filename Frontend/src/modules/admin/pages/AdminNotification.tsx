@@ -107,7 +107,26 @@ export default function AdminNotification() {
 
       if (response.success) {
         const recipientLabel = formData.recipientType === 'All' ? 'all users' : `${formData.recipientType.toLowerCase()} users`;
-        setSuccessMessage(`Notification sent successfully to ${recipientLabel}.`);
+        const push = response.push;
+
+        // Report what actually reached a device. Claiming success when zero
+        // devices were reachable is what made this page look broken.
+        if (push && push.successCount > 0) {
+          setSuccessMessage(
+            `Notification delivered to ${push.successCount} device(s) across ${recipientLabel}.`
+          );
+        } else if (push && push.tokensTargeted === 0) {
+          setSuccessMessage(
+            `Notification saved, but no ${recipientLabel} have push notifications enabled yet, so nothing was delivered.`
+          );
+        } else if (push) {
+          setError(
+            `Notification saved, but push delivery failed for all ${push.tokensTargeted} device(s).` +
+            (push.errors?.length ? ` Reason: ${push.errors.join('; ')}` : '')
+          );
+        } else {
+          setSuccessMessage(`Notification sent successfully to ${recipientLabel}.`);
+        }
         // Reset form
         setFormData({
           recipientType: 'All',

@@ -100,14 +100,19 @@ export async function sendPushNotification(
     }
 
     try {
-        const validTokens = tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0);
+        // De-duplicate here too: the same device can be registered under both the
+        // web and mobile token arrays, and FCM rejects a multicast that repeats a token.
+        const validTokens = [...new Set(
+            tokens.filter(t => t && typeof t === 'string' && t.trim().length > 0).map(t => t.trim())
+        )];
 
         if (validTokens.length === 0) {
             console.log('No valid tokens provided for notification');
             return {
                 successCount: 0,
                 failureCount: 0,
-                responses: []
+                responses: [],
+                tokens: []
             };
         }
 
@@ -125,8 +130,7 @@ export async function sendPushNotification(
             ? relativeLink
             : `${frontendUrl}${relativeLink.startsWith('/') ? '' : '/'}${relativeLink}`;
 
-        const message: any = {
-            tokens: validTokens,
+        const baseMessage: any = {
             notification: {
                 title: payload.title,
                 body: payload.body
@@ -171,17 +175,34 @@ export async function sendPushNotification(
             }
         };
 
-        // sendEachForMulticast expects tokens as a property of the message object
-        const response = await admin.messaging().sendEachForMulticast(message);
+        // FCM caps a multicast at 500 tokens and rejects the whole call past that,
+        // so an audience-wide broadcast has to go out in batches.
+        const BATCH_SIZE = 500;
+        let successCount = 0;
+        let failureCount = 0;
+        const responses: any[] = [];
 
-        console.log(`✅ Successfully sent: ${response.successCount} messages`);
-        if (response.failureCount > 0) {
-            console.log(`⚠️  Failed: ${response.failureCount} messages`);
+        for (let i = 0; i < validTokens.length; i += BATCH_SIZE) {
+            const batch = validTokens.slice(i, i + BATCH_SIZE);
+            const response = await admin.messaging().sendEachForMulticast({
+                ...baseMessage,
+                tokens: batch
+            });
+
+            successCount += response.successCount;
+            failureCount += response.failureCount;
+            // Kept in token order so callers can map a failure back to its token.
+            responses.push(...(response.responses || []));
+        }
+
+        console.log(`✅ Successfully sent: ${successCount} messages`);
+        if (failureCount > 0) {
+            console.log(`⚠️  Failed: ${failureCount} messages`);
         }
 
         // Log individual failures for debugging
-        if (response.failureCount > 0 && response.responses && response.responses.length > 0) {
-            response.responses.forEach((resp: any, idx: number) => {
+        if (failureCount > 0 && responses.length > 0) {
+            responses.forEach((resp: any, idx: number) => {
                 if (!resp.success && resp.error) {
                     const errorCode = (resp.error as any).code || 'UNKNOWN';
                     const errorMsg = (resp.error as any).message || 'Unknown error';
@@ -190,7 +211,9 @@ export async function sendPushNotification(
             });
         }
 
-        return response;
+        // `tokens` lets callers line responses up with the tokens actually used,
+        // which is not the array they passed in once blanks and duplicates are dropped.
+        return { successCount, failureCount, responses, tokens: validTokens };
     } catch (error: any) {
         console.error('❌ Error sending push notification:', error.message);
         throw error;
@@ -279,17 +302,21 @@ export async function sendNotificationToUser(
         // Clean up invalid tokens
         if (response.failureCount > 0 && response.responses && Array.isArray(response.responses)) {
             const invalidTokens: string[] = [];
+            // Responses line up with the tokens the sender actually used, which is a
+            // filtered copy of ours - indexing into uniqueTokens would blame the wrong device.
+            const sentTokens: string[] = response.tokens || uniqueTokens;
             response.responses.forEach((resp: any, idx: number) => {
-                if (!resp.success && uniqueTokens[idx]) {
+                if (!resp.success && sentTokens[idx]) {
                     // Check if error is due to invalid token
                     const errorCode = (resp.error as any)?.code;
                     const errorMsg = (resp.error as any)?.message;
                     if (errorCode === 'messaging/invalid-registration-token' ||
                         errorCode === 'messaging/registration-token-not-registered' ||
                         errorCode === 'messaging/mismatched-credential' ||
-                        errorMsg?.includes('SenderId mismatch')) {
-                        invalidTokens.push(uniqueTokens[idx]);
-                        console.warn(`🗑️  Invalid token removed: ${uniqueTokens[idx].substring(0, 20)}...`);
+                        errorMsg?.includes('SenderId mismatch') ||
+                        errorMsg?.includes('not a valid FCM registration token')) {
+                        invalidTokens.push(sentTokens[idx]);
+                        console.warn(`🗑️  Invalid token removed: ${sentTokens[idx].substring(0, 20)}...`);
                     }
                 }
             });

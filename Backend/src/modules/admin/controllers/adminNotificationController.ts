@@ -40,10 +40,76 @@ export const createNotification = asyncHandler(
       isRead: false,
     });
 
+    // Creating the row is only half the job - without this the notification sits
+    // in the database and no device ever hears about it.
+    let push: any = null;
+    try {
+      if (recipientId && recipientType !== "All") {
+        const { sendNotificationToUser } = await import(
+          "../../../services/firebaseAdmin"
+        );
+        const result = await sendNotificationToUser(recipientId, recipientType, {
+          title,
+          body: message,
+          data: {
+            type: type || "Info",
+            link: link || "",
+            notificationId: notification._id.toString(),
+          },
+        });
+        push = {
+          recipients: 1,
+          tokensTargeted: result?.tokens?.length || 0,
+          successCount: result?.successCount || 0,
+          failureCount: result?.failureCount || 0,
+          errors: result?.error ? [result.error] : [],
+        };
+      } else {
+        const { sendAudiencePushNotification } = await import(
+          "../../../services/notificationService"
+        );
+        push = await sendAudiencePushNotification(recipientType, title, message, {
+          type: type || "Info",
+          link,
+          notificationId: notification._id.toString(),
+        });
+      }
+
+      if (push && push.successCount > 0) {
+        notification.sentAt = new Date();
+        await notification.save();
+      }
+    } catch (error: any) {
+      // The announcement is already saved, so a push failure must not 500 the
+      // request - report it instead and let the admin retry.
+      console.error("Admin notification push failed:", error);
+      push = {
+        recipients: 0,
+        tokensTargeted: 0,
+        successCount: 0,
+        failureCount: 0,
+        errors: [error?.message || "Unknown push error"],
+      };
+    }
+
+    const delivered = push?.successCount || 0;
+    const targeted = push?.tokensTargeted || 0;
+
+    let resultMessage: string;
+    if (delivered > 0) {
+      resultMessage = `Notification sent to ${delivered} device(s)`;
+    } else if (targeted === 0) {
+      resultMessage =
+        "Notification saved, but no recipient has push notifications enabled yet";
+    } else {
+      resultMessage = `Notification saved, but push delivery failed for all ${targeted} device(s)`;
+    }
+
     return res.status(201).json({
       success: true,
-      message: "Notification created successfully",
+      message: resultMessage,
       data: notification,
+      push,
     });
   }
 );

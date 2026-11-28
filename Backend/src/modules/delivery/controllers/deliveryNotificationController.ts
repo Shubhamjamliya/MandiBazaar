@@ -11,7 +11,9 @@ export const getNotifications = asyncHandler(async (req: Request, res: Response)
     const deliveryId = req.user?.userId;
 
     const notifications = await Notification.find({
-        recipientType: "Delivery",
+        // "All" covers admin announcements aimed at every user type, which would
+        // otherwise be pushed to the device but missing from the in-app list.
+        recipientType: { $in: ["Delivery", "All"] },
         $or: [
             { recipientId: deliveryId },
             { recipientId: null } // Broadcasts to all delivery partners

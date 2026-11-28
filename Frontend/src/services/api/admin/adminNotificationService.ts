@@ -47,6 +47,18 @@ export interface CreateNotificationData {
   expiresAt?: string;
 }
 
+export interface PushDeliveryStats {
+  recipients: number;
+  tokensTargeted: number;
+  successCount: number;
+  failureCount: number;
+  perRole?: Record<
+    string,
+    { recipients: number; tokens: number; success: number; failed: number }
+  >;
+  errors?: string[];
+}
+
 export interface GetNotificationsParams {
   page?: number;
   limit?: number;
@@ -73,11 +85,10 @@ export interface MarkMultipleAsReadData {
  */
 export const createNotification = async (
   data: CreateNotificationData
-): Promise<ApiResponse<Notification>> => {
-  const response = await api.post<ApiResponse<Notification>>(
-    "/admin/notifications",
-    data
-  );
+): Promise<ApiResponse<Notification> & { push?: PushDeliveryStats }> => {
+  const response = await api.post<
+    ApiResponse<Notification> & { push?: PushDeliveryStats }
+  >("/admin/notifications", data);
   return response.data;
 };
 
