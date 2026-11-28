@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from '../hooks/useLocation';
 import GoogleMapsAutocomplete from './GoogleMapsAutocomplete';
 
@@ -17,7 +17,7 @@ export default function LocationPermissionRequest({
   description = 'We need your location to show you products available near you and enable delivery services.',
   forceShow = false,
 }: LocationPermissionRequestProps) {
-  const { requestLocation, updateLocation, isLocationEnabled, isLocationLoading, locationError, locationPermissionStatus, clearLocation, location } = useLocation();
+  const { requestLocation, ensureLocation, updateLocation, isLocationEnabled, isLocationLoading, locationError, locationPermissionStatus, clearLocation, location } = useLocation();
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualAddress, setManualAddress] = useState('');
   const [manualLat, setManualLat] = useState<number | null>(null);
@@ -46,19 +46,25 @@ export default function LocationPermissionRequest({
     }
   }, [isLocationEnabled, onLocationGranted, forceShow]);
 
-  // Auto-request location when the modal appears (if not already enabled)
+  // Auto-request location once when the modal appears (if not already enabled).
+  //
+  // This deliberately does NOT depend on isLocationLoading. It used to, and that
+  // created a loop: a failed fix flipped loading true -> false, which re-ran the
+  // effect, which asked for the location again, forever. A GPS timeout on mobile
+  // was enough to keep the device re-locating for as long as the app stayed open.
+  // The user can always retry explicitly via the "Allow" button.
+  const autoRequestedRef = useRef(false);
   useEffect(() => {
-    // Wait until the initial location loading check from context is finished
-    if (isLocationLoading) return;
+    if (autoRequestedRef.current) return;
+    if (forceShow || isLocationEnabled || locationPermissionStatus === 'denied') return;
 
-    if (!forceShow && !isLocationEnabled && locationPermissionStatus !== 'denied') {
-      console.log('[LocationPermissionRequest] Auto-requesting location on load...');
-      requestLocation().catch(err => {
-        console.warn('Auto-request location failed:', err);
-      });
-    }
+    autoRequestedRef.current = true;
+    console.log('[LocationPermissionRequest] Auto-requesting location on load...');
+    ensureLocation().catch(err => {
+      console.warn('Auto-request location failed:', err);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLocationLoading]); // Run when isLocationLoading becomes false
+  }, []);
 
   const handleAllowLocation = async () => {
     // Clear any previous errors before retrying

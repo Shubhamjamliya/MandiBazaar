@@ -20,7 +20,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [categoriesRotation, setCategoriesRotation] = useState(0);
   const [prevCategoriesActive, setPrevCategoriesActive] = useState(false);
-  const { isLocationEnabled, isLocationLoading, location: userLocation, locationPermissionStatus } = useLocationContext();
+  const { isLocationEnabled, isLocationLoading, location: userLocation, locationPermissionStatus, ensureLocation } = useLocationContext();
   const [showLocationRequest, setShowLocationRequest] = useState(false);
   const [showLocationChangeModal, setShowLocationChangeModal] = useState(false);
   const { currentTheme } = useThemeContext();
@@ -55,6 +55,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
     // This ensures location is mandatory for everyone visiting the platform
     return true;
   };
+
+  // On app open, let the context decide whether the stored fix is still good.
+  // Inside the 5 minute TTL this is a no-op; past it the refresh happens silently
+  // in the background while the cached location stays on screen.
+  useEffect(() => {
+    ensureLocation().catch(() => {
+      /* handled in context; cached location keeps the app usable */
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ALWAYS show location request modal on app load if location is not enabled
   // This ensures modal appears on every app open, regardless of browser permission state

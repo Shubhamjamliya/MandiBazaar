@@ -16,7 +16,9 @@ export interface LocationContextType {
   isLocationLoading: boolean;
   locationError: string | null;
   locationPermissionStatus: 'granted' | 'denied' | 'prompt' | 'session_granted';
-  requestLocation: () => Promise<void>;
+  requestLocation: (options?: { silent?: boolean }) => Promise<void>;
+  /** TTL-aware: uses the cached fix when fresh, refreshes in the background when stale. */
+  ensureLocation: () => Promise<void>;
   updateLocation: (location: Location) => Promise<void>;
   clearLocation: () => void;
 }

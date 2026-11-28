@@ -2,6 +2,13 @@ import { useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import api from '../services/api/config';
 import { LocationContext, Location } from './locationContext.types';
+import {
+  LOCATION_STORAGE_KEY,
+  LOCATION_TTL_MS,
+  readCachedLocation,
+  writeCachedLocation,
+  isLocationFresh,
+} from '../utils/locationCache';
 
 // Geocoding result interface
 interface GeocodeResult {
@@ -14,6 +21,10 @@ interface GeocodeResult {
 // Cache for geocoding results to avoid redundant API calls
 const geocodeCache = new Map<string, { data: GeocodeResult; timestamp: number }>();
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+// Storage keys (module scope so the helpers below can reach them)
+const SESSION_PERMISSION_KEY = 'location_permission_granted_session';
+const LOCATION_DENIED_KEY = 'location_permission_denied_session';
 
 // Generate cache key from coordinates
 const getCacheKey = (lat: number, lng: number, precision: number = 4): string => {
@@ -58,31 +69,27 @@ const cleanAddress = (address: string): string => {
 
 export function LocationProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, user } = useAuth();
-  // Constants for storage
-  const SESSION_PERMISSION_KEY = 'location_permission_granted_session';
-  const LOCATION_STORAGE_KEY = 'userLocation';
-  const LOCATION_DENIED_KEY = 'location_permission_denied_session';
 
   // Synchronously get initial state to prevent UI flashing
   const getInitialState = () => {
-    let initialLocation = null;
+    let initialLocation: Location | null = null;
     let initialEnabled = false;
     let initialStatus: 'granted' | 'denied' | 'prompt' | 'session_granted' = 'prompt';
+    let initialIsStale = true;
 
     try {
       const sessionDenied = sessionStorage.getItem(LOCATION_DENIED_KEY);
       if (sessionDenied === 'true') {
         initialStatus = 'denied';
       } else {
-        const cachedLocation = localStorage.getItem(LOCATION_STORAGE_KEY);
-        if (cachedLocation) {
-          try {
-            initialLocation = JSON.parse(cachedLocation);
-            initialEnabled = true;
-            initialStatus = 'session_granted';
-          } catch (e) {
-            console.error('[LocationContext] Failed to parse cached location', e);
-          }
+        const cached = readCachedLocation();
+        if (cached) {
+          // Show the stored fix immediately either way; freshness only decides
+          // whether a background refresh is needed, never whether the UI waits.
+          initialLocation = cached.location;
+          initialEnabled = true;
+          initialStatus = 'session_granted';
+          initialIsStale = !isLocationFresh(cached.cachedAt);
         } else {
           const sessionGranted = sessionStorage.getItem(SESSION_PERMISSION_KEY);
           if (sessionGranted === 'true') {
@@ -93,8 +100,8 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.warn('[LocationContext] Storage access failed', e);
     }
-    
-    return { initialLocation, initialEnabled, initialStatus };
+
+    return { initialLocation, initialEnabled, initialStatus, initialIsStale };
   };
 
   const initialState = getInitialState();
@@ -108,9 +115,13 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   // Refs for request cancellation and preventing race conditions
   const abortControllerRef = useRef<AbortController | null>(null);
   const isRequestingRef = useRef(false);
+  // Guards the background refresh so a stale cache triggers at most one GPS call per load.
+  const staleRefreshDoneRef = useRef(false);
 
   // Request user's current location - OPTIMIZED for speed and accuracy
-  const requestLocation = useCallback(async (): Promise<void> => {
+  const requestLocation = useCallback(async (options?: { silent?: boolean }): Promise<void> => {
+    const silent = options?.silent === true;
+
     if (!navigator.geolocation) {
       console.error('[LocationContext] Geolocation is not supported');
       setLocationError('Geolocation is not supported by your browser');
@@ -128,12 +139,13 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       abortControllerRef.current.abort();
     }
 
-    // Clear any cached geocode results to ensure fresh reverse geocoding
-    geocodeCache.clear();
-
     isRequestingRef.current = true;
-    setIsLocationLoading(true);
-    setLocationError(null);
+    // A background refresh must never flip the UI into a loading state - the
+    // already-cached location stays on screen until a newer one arrives.
+    if (!silent) {
+      setIsLocationLoading(true);
+      setLocationError(null);
+    }
     abortControllerRef.current = new AbortController();
 
     console.log('[LocationContext] Requesting geolocation from browser...');
@@ -143,7 +155,9 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       const geoOptions = {
         enableHighAccuracy: true,
         timeout: 30000,
-        maximumAge: 0,
+        // Let the browser hand back its own recent fix instead of waking the GPS
+        // every single time. Anything inside the TTL is good enough for us.
+        maximumAge: LOCATION_TTL_MS,
       };
 
       navigator.geolocation.getCurrentPosition(
@@ -193,15 +207,17 @@ export function LocationProvider({ children }: { children: ReactNode }) {
               state: undefined,
               pincode: undefined,
             };
-            setLocation(tempLocation);
-            setIsLocationEnabled(true);
-            setIsLocationLoading(false); // Set loading false early
-            setLocationError(null); // Clear any previous errors since location was successfully obtained
+            if (!silent) {
+              setLocation(tempLocation);
+              setIsLocationEnabled(true);
+              setIsLocationLoading(false); // Set loading false early
+              setLocationError(null); // Clear any previous errors since location was successfully obtained
+            }
 
-            // Reverse geocode in background (non-blocking)
-            // IMPORTANT: Use the exact coordinates received, skip cache to ensure fresh geocoding
+            // Reverse geocode in background (non-blocking). A user-initiated request
+            // forces a fresh lookup; a background refresh may reuse the geocode cache.
             try {
-              const address = await reverseGeocode(latitude, longitude, abortControllerRef.current?.signal, true); // skipCache = true
+              const address = await reverseGeocode(latitude, longitude, abortControllerRef.current?.signal, !silent);
 
 
               // Check if request was cancelled during geocoding
@@ -223,8 +239,9 @@ export function LocationProvider({ children }: { children: ReactNode }) {
               };
 
               setLocation(newLocation);
+              setIsLocationEnabled(true);
               setLocationError(null); // Clear error on successful geocoding
-              localStorage.setItem('userLocation', JSON.stringify(newLocation));
+              writeCachedLocation(newLocation);
 
               // Save to backend in background (non-blocking, don't wait - only for customers)
 
@@ -251,7 +268,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
                 };
                 setLocation(fallbackLocation);
                 setLocationError(null); // Clear error since we have valid coordinates
-                localStorage.setItem('userLocation', JSON.stringify(fallbackLocation));
+                writeCachedLocation(fallbackLocation);
 
                 // Try to save to backend anyway
                 if (isAuthenticated && user && user.userType === 'Customer') {
@@ -291,6 +308,14 @@ export function LocationProvider({ children }: { children: ReactNode }) {
           let errorMessage = 'Failed to get your location';
           console.error(`[LocationContext] Geolocation error (${error.code}): ${error.message}`);
 
+          // A background refresh that fails is a non-event: the cached fix is still
+          // valid enough to use, so surfacing an error would only confuse the user.
+          if (silent && error.code !== error.PERMISSION_DENIED) {
+            isRequestingRef.current = false;
+            reject(new Error(errorMessage));
+            return;
+          }
+
           switch (error.code) {
             case error.PERMISSION_DENIED:
               errorMessage = 'Location permission was denied.';
@@ -319,7 +344,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         geoOptions
       );
     });
-  }, [isAuthenticated, user, SESSION_PERMISSION_KEY, LOCATION_STORAGE_KEY]);
+  }, [isAuthenticated, user]);
 
   // Helper function to save location to backend (non-blocking)
   const saveLocationToBackend = async (locationData: Location): Promise<void> => {
@@ -613,7 +638,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     setLocation(newLocation);
     setIsLocationEnabled(true);
     setLocationError(null);
-    localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(newLocation));
+    writeCachedLocation(newLocation);
 
     // Cache geocoding result if we have full address
     if (newLocation.address && newLocation.latitude && newLocation.longitude) {
@@ -635,7 +660,35 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         console.error('[LocationContext] Background location save failed:', err);
       });
     }
-  }, [isAuthenticated, user, SESSION_PERMISSION_KEY, LOCATION_STORAGE_KEY]);
+  }, [isAuthenticated, user]);
+
+  // The single entry point for automatic location work. Everything that runs on
+  // app open goes through here so the TTL is honoured in exactly one place.
+  const ensureLocation = useCallback(async (): Promise<void> => {
+    if (locationPermissionStatus === 'denied') return;
+
+    const cached = readCachedLocation();
+
+    // Fresh enough - do not touch the GPS at all. This is what stops the
+    // location from being re-fetched on every single app open.
+    if (cached && isLocationFresh(cached.cachedAt)) {
+      return;
+    }
+
+    if (cached) {
+      // Stale but usable: keep it on screen and refresh behind the user's back,
+      // once per load so remounts cannot turn this into a stream of GPS calls.
+      if (staleRefreshDoneRef.current) return;
+      staleRefreshDoneRef.current = true;
+      requestLocation({ silent: true }).catch(() => {
+        /* cached location remains valid; nothing to show the user */
+      });
+      return;
+    }
+
+    // Nothing stored yet - this is the only case that may block the UI.
+    await requestLocation();
+  }, [locationPermissionStatus, requestLocation]);
 
   // Clear location
   const clearLocation = useCallback(() => {
@@ -646,13 +699,14 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     }
     isRequestingRef.current = false;
 
+    staleRefreshDoneRef.current = false;
     setLocation(null);
     setIsLocationEnabled(false);
     setLocationPermissionStatus('prompt');
     localStorage.removeItem(LOCATION_STORAGE_KEY);
     sessionStorage.removeItem(SESSION_PERMISSION_KEY);
     sessionStorage.removeItem(LOCATION_DENIED_KEY);
-  }, [SESSION_PERMISSION_KEY, LOCATION_STORAGE_KEY, LOCATION_DENIED_KEY]);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -673,6 +727,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         locationError,
         locationPermissionStatus,
         requestLocation,
+        ensureLocation,
         updateLocation,
         clearLocation,
       }}
